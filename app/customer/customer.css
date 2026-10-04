@@ -1,0 +1,28 @@
+/* Reuse the existing modal-table design. Only page layout and column roles differ. */
+.customer-shell .dashboard-option{text-decoration:none}
+.customer-page .customer-records{height:calc(100dvh - 210px);min-height:440px;max-height:850px;margin-top:24px}
+.customer-page .po-record-toolbar{padding:0 0 14px}
+.customer-page .po-record-tools{margin-left:auto}
+.customer-page .po-record-scroll{margin:0}
+.customer-page .po-record-foot{padding:15px 0}
+.customer-page .po-page-footer{padding-top:8px}
+.customer-usage-table>thead>tr>th:nth-child(2){width:36%}
+.customer-usage-table>tbody>tr>td:nth-child(2){max-width:360px;overflow:hidden;text-overflow:ellipsis}
+.customer-user-table th:not(:first-child),.customer-user-table td:not(:first-child){text-align:right!important}
+.customer-user-table th:first-child{width:36%!important}
+.customer-user-table td:first-child{color:#42546f}
+.customer-select-field .ui-select-host{width:100%}
+.customer-select-field .ui-select-trigger{font-size:11px}
+.customer-select-field .ui-select-trigger>.icon:last-child{margin-left:auto;width:13px;height:13px}
+.customer-shell .date-trigger>.chevron{display:inline-flex;margin-left:auto}
+.customer-shell .date-trigger>.chevron>.icon{width:13px;height:13px}
+.customer-shell .date-preset .preset-check{display:inline-flex}
+.customer-shell .date-preset .preset-check .icon{width:13px;height:13px}
+.customer-shell .po-filters .ui-select-menu{max-height:145px}
+@media(max-width:600px){
+  .customer-page .customer-records{margin-top:20px;min-height:410px;height:calc(100dvh - 250px)}
+  .customer-page .po-record-tools{width:100%;margin:0}
+  .customer-page .po-record-foot{padding:12px 0}
+  .customer-page .po-page-footer{flex-wrap:wrap}
+  .customer-shell .dashboard-menu{max-width:calc(100vw - 32px)}
+}
