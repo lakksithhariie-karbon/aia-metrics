@@ -5,9 +5,9 @@ export function withCustomerNavigation(markup: string): string {
   if (closing < 0) throw new Error("The existing dashboard menu could not be located.");
   const at = closing + "</button>".length;
   const item = `
-<a href="/customer" id="customer-menu-item" class="dashboard-option" style="text-decoration:none" role="menuitemradio" aria-checked="false">
+<a href="/customer" id="companies-menu-item" class="dashboard-option" style="text-decoration:none" role="menuitemradio" aria-checked="false">
 <span class="menu-option-icon"><svg class="icon" aria-hidden="true"><use href="#i-grid"></use></svg></span>
-<span class="menu-option-copy"><strong>Customer</strong><small>Module usage by customer and user</small></span>
+<span class="menu-option-copy"><strong>Companies</strong><small>Module usage by company and user</small></span>
 </a>`;
   return markup.slice(0, at) + item + markup.slice(at);
 }

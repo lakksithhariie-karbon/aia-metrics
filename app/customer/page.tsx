@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import CustomerDashboard from "../../components/customer/customer-dashboard";
+import CompaniesDashboard from "../../components/companies/companies-dashboard";
 import "./customer.css";
 
 export const metadata: Metadata = {
-  title: "AI Accountant | Customer",
-  description: "Customer-wise module usage with nested user contributions.",
+  title: "AI Accountant | Companies",
+  description: "Company and user module usage from the product event warehouse.",
 };
 
 export default function CustomerPage() {
-  return <CustomerDashboard />;
+  return <CompaniesDashboard />;
 }
