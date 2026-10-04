@@ -10,7 +10,8 @@ function allowedAction(value: unknown): value is "list" | "breakdown" {
 export async function POST(request: Request) {
   const oidc = process.env.VERCEL_OIDC_TOKEN;
   if (!oidc) {
-    return NextResponse.json({ error: "companies_data_unavailable" }, { status: 503 });
+    // Distinct code (not data status): the deployment exposes no OIDC token.
+    return NextResponse.json({ error: "oidc_unavailable" }, { status: 503 });
   }
 
   let body: Record<string, unknown>;
@@ -41,7 +42,9 @@ export async function POST(request: Request) {
     const payload = await response.json().catch(() => ({ error: "invalid_upstream_response" }));
     return NextResponse.json(payload, { status: response.status });
   } catch {
-    return NextResponse.json({ error: "companies_data_unavailable" }, { status: 503 });
+    // Distinct code: the bridge call itself failed (network/abort), as
+    // opposed to the bridge reporting a data problem.
+    return NextResponse.json({ error: "upstream_unreachable" }, { status: 503 });
   } finally {
     clearTimeout(timeout);
   }

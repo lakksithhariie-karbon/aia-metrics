@@ -256,7 +256,8 @@ test('11. module modal scoping at user level and unattributed sentinel', () => {
 test('15. failed backend request never falls back to fixtures', () => {
   const route = read('app/api/companies/route.ts');
   assert(!route.includes('fixture'), 'route has no fixture import or fallback');
-  assert(route.includes('companies_data_unavailable'), 'missing OIDC fails closed');
+  assert(route.includes('oidc_unavailable'), 'missing OIDC fails closed with its own code');
+  assert(route.includes('upstream_unreachable'), 'bridge call failure fails closed with its own code');
   assert(route.includes('status: 503'), 'backend failure is a 503, not zeros');
   const component = read('components/companies/companies-dashboard.tsx');
   assert(component.includes('No fixture values are shown'), ' UI states the honest error');
