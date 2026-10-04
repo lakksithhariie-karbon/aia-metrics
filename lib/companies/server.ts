@@ -57,7 +57,10 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
       ...(init?.headers ?? {}),
     },
   });
-  if (!response.ok) throw new Error(`supabase_${response.status}:${path.slice(0, 80)}`);
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`supabase_${response.status}:${path.slice(0, 60)}:${detail.slice(0, 120)}`);
+  }
   return (await response.json()) as T;
 }
 
