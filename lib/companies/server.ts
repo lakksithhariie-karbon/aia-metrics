@@ -42,6 +42,11 @@ function credentials(): { url: string; key: string } {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("supabase_unavailable");
+  try {
+    console.error("companies-api target", new URL(url).hostname, "keylen", key.length);
+  } catch {
+    console.error("companies-api bad-url");
+  }
   return { url, key };
 }
 
