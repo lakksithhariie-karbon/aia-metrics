@@ -70,6 +70,9 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
   const { url, key } = await credentials();
   const response = await fetch(`${url}/rest/v1${path}`, {
     ...init,
+    // Never serve Next's Data Cache here: a cached 404 from a transient
+    // (e.g. a PostgREST schema reload) would otherwise persist per URL.
+    cache: "no-store",
     signal,
     headers: {
       apikey: key,
