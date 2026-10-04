@@ -57,6 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json(payload);
   } catch (error) {
     const signal = error instanceof Error ? error.message : String(error);
+    console.error("companies-api", body.action, signal.slice(0, 200));
     if (signal === "supabase_unavailable") {
       return NextResponse.json({ error: "bridge_unavailable" }, { status: 503 });
     }
