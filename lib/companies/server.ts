@@ -124,29 +124,37 @@ export interface ListParams {
 export async function listCompanies(params: ListParams): Promise<CompanyUsageResponse> {
   const signal = params.signal;
   const search = params.query.trim().toLowerCase();
-  const [clientRows, directoryRows, usageRows, memberRows, nameRows, firstEvent, lastEvent, watermark] =
-    await Promise.all([
-      readAll<{ company_id: string }>("client_company", "company_id", "", 10_000, signal),
-      readAll<{ company_uuid: string; company_name: string; is_test: boolean }>(
-        "company_directory", "company_uuid,company_name,is_test", "", 10_000, signal,
-      ),
-      rpc<Array<{ company_id: string; user_key: string | null; module: string; events: number }>>(
-        "read_companies_usage", { p_from: params.from, p_to: params.to }, signal,
-      ),
-      rpc<Array<{ company_id: string; user_key: string; user_email: string | null }>>(
-        "read_company_users", {}, signal,
-      ),
-      rpc<Array<{ company_id: string; event_name: string }>>(
-        "read_company_names", { p_company_id: null }, signal,
-      ),
-      rest<Array<{ event_time: string }>>("events?select=event_time&order=event_time.asc&limit=1", undefined, signal),
-      rest<Array<{ event_time: string }>>("events?select=event_time&order=event_time.desc&limit=1", undefined, signal),
-      rest<Array<{ last_success_at: string }>>(
-        'export_watermarks?select=last_success_at&job_name=eq.incremental&status=eq.ok&limit=1',
-        undefined,
-        signal,
-      ),
-    ]);
+  // Reads run in small sequential waves (never more than four concurrent
+  // upstream calls): bursts of parallel warehouse reads from shared serverless
+  // egress were answered with empty Cloudflare 404s, while the same calls in
+  // smaller groups succeed. The two heavy aggregates run together first so
+  // their latency overlaps; everything else follows in cheap waves.
+  const [usageRows, memberRows] = await Promise.all([
+    rpc<Array<{ company_id: string; user_key: string | null; module: string; events: number }>>(
+      "read_companies_usage", { p_from: params.from, p_to: params.to }, signal,
+    ),
+    rpc<Array<{ company_id: string; user_key: string; user_email: string | null }>>(
+      "read_company_users", {}, signal,
+    ),
+  ]);
+  const [clientRows, directoryRows, nameRows, firstEvent] = await Promise.all([
+    readAll<{ company_id: string }>("client_company", "company_id", "", 10_000, signal),
+    readAll<{ company_uuid: string; company_name: string; is_test: boolean }>(
+      "company_directory", "company_uuid,company_name,is_test", "", 10_000, signal,
+    ),
+    rpc<Array<{ company_id: string; event_name: string }>>(
+      "read_company_names", { p_company_id: null }, signal,
+    ),
+    rest<Array<{ event_time: string }>>("events?select=event_time&order=event_time.asc&limit=1", undefined, signal),
+  ]);
+  const [lastEvent, watermark] = await Promise.all([
+    rest<Array<{ event_time: string }>>("events?select=event_time&order=event_time.desc&limit=1", undefined, signal),
+    rest<Array<{ last_success_at: string }>>(
+      'export_watermarks?select=last_success_at&job_name=eq.incremental&status=eq.ok&limit=1',
+      undefined,
+      signal,
+    ),
+  ]);
 
   const dataStart = firstEvent[0]?.event_time ? istDay(firstEvent[0].event_time) : null;
   const dataEnd = lastEvent[0]?.event_time ? istDay(lastEvent[0].event_time) : null;
