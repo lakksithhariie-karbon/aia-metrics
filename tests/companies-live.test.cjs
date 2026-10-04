@@ -112,6 +112,34 @@ test('14. transaction event count stays distinct from transactionCount', () => {
   assert.equal(modules.itemsFor('Transaction Ledger Updated', { status: 'Success' }), null);
 });
 
+test('observed users with only non-module events still appear with zero usage', () => {
+  const rows = modules.aggregateEvents([
+    ev('Login', {}, { company_id: 'c1', distinct_id: 'u1', email: 'login-only@example.com' }),
+    ev('Dashboard Viewed', {}, { company_id: 'c1', distinct_id: 'u1', email: 'login-only@example.com' }),
+    ev('Upload', { type: 'bill' }, { company_id: 'c1', distinct_id: 'u2', email: 'active@example.com' }),
+  ]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].users.length, 2, 'login-only user is a member, not just mapped users');
+  const idle = rows[0].users.find(user => user.id === 'u1');
+  assert(idle, 'idle user is nested beneath the company');
+  assert.deepEqual(idle.totals, { ap: 0, ar: 0, transactions: 0, gst: 0, sync: 0 });
+  assert.equal(idle.email, 'login-only@example.com');
+  assert.equal(rows[0].totals.ap, 1, 'company total still reconciles');
+});
+
+test('company name fallback prefers directory, then event name, then id', () => {
+  assert.equal(modules.resolveCompanyName('Acme Pvt Ltd', 'Older Name', 'id-1'), 'Acme Pvt Ltd');
+  assert.equal(modules.resolveCompanyName('', 'Raigad Carbides', 'id-2'), 'Raigad Carbides');
+  assert.equal(modules.resolveCompanyName(null, 'ABC', 'id-3'), 'id-3', 'placeholder event names are skipped');
+  assert.equal(modules.resolveCompanyName(null, null, 'id-4'), 'id-4', 'raw id is the last resort');
+  assert.equal(modules.usableCompanyName('  Laundry Labs  '), 'Laundry Labs');
+  assert.equal(modules.usableCompanyName('dummy'), null);
+  const sql = read('supabase/companies-live.sql');
+  assert(sql.includes('read_company_users'), 'membership RPC exists');
+  assert(sql.includes('read_company_names'), 'name-fallback RPC exists');
+  assert(sql.includes("'delete company'"), 'placeholder denylist is documented in SQL');
+});
+
 test('2. company totals reconcile to nested users plus unattributed activity', () => {
   const rows = modules.aggregateEvents([
     ev('Upload', { type: 'bill' }, { company_id: 'c1', distinct_id: 'u1', email: 'a@example.com' }),

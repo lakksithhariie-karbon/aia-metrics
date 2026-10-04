@@ -49,13 +49,25 @@ async function rpc(fn, params) {
       console.error(`MISMATCH ${vector.event_name} ${JSON.stringify(props)} :: ${problems.join('; ')}`);
     }
   }
+  // Usable-name fallback checks (SQL twin of usableCompanyName).
+  const names = [['ABC', null], ['dummy', null], ['  Laundry Labs  ', 'Laundry Labs'], ['', null]];
+  for (const [raw, expected] of names) {
+    const got = await rpc('company_usable_name', { p_raw: raw });
+    if (got !== expected) { failures += 1; console.error(`NAME MISMATCH ${JSON.stringify(raw)} sql=${got} expected=${expected}`); }
+  }
   // Anon must NOT be able to call the bridge (defense in depth).
-  const anonProbe = await fetch(`${BASE}/rest/v1/rpc/read_companies_usage`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ p_from: null, p_to: null }),
-  });
-  console.log(`anon read_companies_usage status: ${anonProbe.status} (want 401/403/404)`);
-  if (anonProbe.ok) { failures += 1; console.error('ANON CAN READ BRIDGE'); }
+  for (const [fn, params] of [
+    ['read_companies_usage', { p_from: null, p_to: null }],
+    ['read_company_users', {}],
+    ['read_company_names', { p_company_id: null }],
+  ]) {
+    const anonProbe = await fetch(`${BASE}/rest/v1/rpc/${fn}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params),
+    });
+    console.log(`anon ${fn} status: ${anonProbe.status} (want 401/403/404)`);
+    if (anonProbe.ok) { failures += 1; console.error(`ANON CAN READ ${fn}`); }
+  }
   console.log(failures === 0 ? `OK: ${vectors.length} vectors match SQL` : `${failures} FAILURES`);
   process.exit(failures === 0 ? 0 : 1);
 })().catch(error => { console.error(error); process.exit(1); });

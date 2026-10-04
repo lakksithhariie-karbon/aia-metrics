@@ -311,7 +311,7 @@ export default function CompaniesDashboard() {
                     <td title={`${company.name} · ${company.id}`}>{company.name}{company.is_test ? <span className="po-status neutral" style={{ marginLeft: 8 }}>Test</span> : null}<span className="integration-tag" style={{ marginLeft: 8 }}>{company.integration}</span></td>
                     {cells(company, null, company.totals)}
                   </tr>,
-                  open ? <tr key={`${company.id}-users`} className="po-company-detail"><td colSpan={7}><p className="po-company-caption">{number.format(company.users.length)} observed {company.users.length === 1 ? "user" : "users"} with module activity · {label}</p>
+                  open ? <tr key={`${company.id}-users`} className="po-company-detail"><td colSpan={7}><p className="po-company-caption">{number.format(company.users.length)} observed {company.users.length === 1 ? "user" : "users"} · {label}</p>
                     <table className="po-company-subtable companies-user-table" aria-label={`Users for ${company.name}`}><thead><tr><th scope="col">User</th>{MODULES.map(module => <th key={module.key} scope="col">{module.label}</th>)}</tr></thead>
                       <tbody>{company.users.length ? company.users.map(user => <tr key={user.id}><td>{user.email}</td>{cells(company, user, user.totals)}</tr>) : <tr><td colSpan={6}>No attributed module activity in this range.</td></tr>}</tbody></table></td></tr> : null,
                 ];

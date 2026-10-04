@@ -39,11 +39,15 @@ zero) when uninstrumented. `lib/companies/modules.ts` is the tested TypeScript
 twin; `testdata/companies-module-vectors.json` is replayed against both sides
 by `scripts/verify-companies-bridge.mjs`.
 
-Company identity is `company_id` (never the name). Display names come from
-`company_directory`, falling back to the raw ID — event data carries no usable
-names. Users are observed `(company_id, distinct_id)` pairs with the latest
-non-empty email; empty identities are preserved as Unattributed activity so
-company totals always equal attributed users plus unattributed activity.
+Company identity is `company_id` (never the name). Display priority:
+`company_directory.company_name` → latest usable event company name
+(`read_company_names`, placeholders denied) → raw ID — event data carries no
+other usable names, and equal names are never merged. Nested users are ALL
+observed `(company_id, distinct_id)` pairs (`read_company_users`), including
+users with zero mapped activity in the period (zero-filled); the latest
+non-empty non-internal email is shown. Empty identities with mapped activity
+are preserved as Unattributed activity so company totals always equal
+attributed users plus unattributed activity.
 Internal staff activity (`public.is_internal_email`, same predicate in the
 usage reader, the breakdown reader, email search, and user labels) is excluded
 consistently. Integration comes from the latest successful `Integration status`

@@ -153,9 +153,12 @@ export interface AggregatedCompany {
 }
 
 /**
- * In-memory mirror of `read_companies_usage` grouping: per-company totals are
- * the sum of attributed user totals plus unattributed activity from the SAME
- * classified events. Used by tests and the conformance script.
+ * In-memory mirror of the read_companies_usage + read_company_users merge:
+ * membership comes from ALL observed non-internal events (so users with zero
+ * mapped module activity still appear with zero totals), while counts come
+ * from the SAME classified mapped events only. Per-company totals therefore
+ * equal attributed user totals plus unattributed activity. Used by tests and
+ * the conformance script.
  */
 export function aggregateEvents(events: readonly RawEvent[]): AggregatedCompany[] {
   const companies = new Map<string, AggregatedCompany>();
@@ -167,29 +170,38 @@ export function aggregateEvents(events: readonly RawEvent[]): AggregatedCompany[
     }
     return company;
   };
+  const userFor = (company: AggregatedCompany, userId: string, email: string): AggregatedUser => {
+    let user = company.users.find(candidate => candidate.id === userId);
+    if (!user) {
+      user = {
+        id: userId,
+        email: userId === UNATTRIBUTED_ID ? UNATTRIBUTED_LABEL : email || userId,
+        totals: emptyTotals(),
+      };
+      company.users.push(user);
+    } else if (email) {
+      // Latest non-empty email wins (callers pass events in time order).
+      user.email = email;
+    }
+    return user;
+  };
   for (const event of events) {
     const companyId = text(event.company_id);
     if (!companyId) continue;
     // Staff activity is excluded consistently with the SQL readers.
     if (isInternalEmail(event.email)) continue;
-    const module = moduleFor(text(event.event_name), event.properties ?? {});
-    if (!module) continue;
-    const company = companyFor(companyId);
-    company.totals[module] += 1;
     const userId = text(event.distinct_id) || UNATTRIBUTED_ID;
-    let user = company.users.find(candidate => candidate.id === userId);
-    if (!user) {
-      user = {
-        id: userId,
-        email:
-          userId === UNATTRIBUTED_ID ? UNATTRIBUTED_LABEL : text(event.email) || userId,
-        totals: emptyTotals(),
-      };
-      company.users.push(user);
-    } else if (text(event.email)) {
-      // Latest non-empty email wins (callers pass events in time order).
-      user.email = text(event.email);
-    }
+    const module = moduleFor(text(event.event_name), event.properties ?? {});
+    // The unattributed bucket exists only to preserve mapped activity that
+    // has no usable identity; without mapped activity there is nothing to
+    // preserve, while identified users always establish membership.
+    if (!module && userId === UNATTRIBUTED_ID) continue;
+    // Membership: every observed non-internal identity appears, even with no
+    // mapped module activity in the period.
+    const company = companyFor(companyId);
+    const user = userFor(company, userId, text(event.email));
+    if (!module) continue;
+    company.totals[module] += 1;
     user.totals[module] += 1;
   }
   return [...companies.values()];
@@ -197,6 +209,32 @@ export function aggregateEvents(events: readonly RawEvent[]): AggregatedCompany[
 
 export function companyTotal(totals: Totals): number {
   return totals.ap + totals.ar + totals.transactions + totals.gst + totals.sync;
+}
+
+/**
+ * TypeScript twin of public.company_usable_name: free-text event company
+ * names mix real names with placeholders; only non-denied values are usable.
+ * Keep the denied list identical to supabase/companies-live.sql.
+ */
+const DENIED_NAMES = new Set(
+  ["abc", "dummy", "na", "n/a", "test", "testing", "demo", "xyz", "delete company"],
+);
+export function usableCompanyName(raw: string | null | undefined): string | null {
+  const value = text(raw);
+  if (!value || DENIED_NAMES.has(value.toLowerCase())) return null;
+  return value;
+}
+
+/**
+ * Display-name priority: directory name → latest usable event company name →
+ * raw company id. Never merges companies sharing a display name.
+ */
+export function resolveCompanyName(
+  directoryName: string | null | undefined,
+  latestEventName: string | null | undefined,
+  companyId: string,
+): string {
+  return text(directoryName) || usableCompanyName(latestEventName) || companyId;
 }
 
 /** Asia/Kolkata calendar-day window check for an ISO date range. */

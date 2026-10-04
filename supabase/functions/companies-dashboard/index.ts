@@ -92,10 +92,12 @@ Deno.serve(async (request) => {
       const from = text(body.from) || null;
       const to = text(body.to) || null;
 
-      const [clientRows, directoryRows, usageRows, boundsRows, watermark] = await Promise.all([
+      const [clientRows, directoryRows, usageRows, memberRows, nameRows, boundsRows, watermark] = await Promise.all([
         readAll((a, b) => supabase.from("client_company").select("company_id").range(a, b), 10_000),
         readAll((a, b) => supabase.from("company_directory").select("company_uuid,company_name,is_test").range(a, b), 10_000),
         supabase.rpc("read_companies_usage", { p_from: from, p_to: to }),
+        supabase.rpc("read_company_users"),
+        supabase.rpc("read_company_names", { p_company_id: null }),
         Promise.all([
           supabase.from("events").select("event_time").order("event_time", { ascending: true }).limit(1).maybeSingle(),
           supabase.from("events").select("event_time").order("event_time", { ascending: false }).limit(1).maybeSingle(),
@@ -104,6 +106,8 @@ Deno.serve(async (request) => {
           .eq("job_name", "incremental").eq("status", "ok").maybeSingle(),
       ]);
       if (usageRows.error) throw usageRows.error;
+      if (memberRows.error) throw memberRows.error;
+      if (nameRows.error) throw nameRows.error;
       const dataStart = boundsRows[0].data?.event_time ? istDay(boundsRows[0].data.event_time) : null;
       const dataEnd = boundsRows[1].data?.event_time ? istDay(boundsRows[1].data.event_time) : null;
       const available = !from && !to
@@ -134,10 +138,25 @@ Deno.serve(async (request) => {
       // surface through search.
 
       // Company totals come from the SAME classified aggregate as user totals.
-      // The aggregate already excludes internal staff activity, so email
-      // matching below uses this filtered population (never raw events).
+      // Membership comes from read_company_users (ALL observed non-internal
+      // users, not just mapped ones), so zero-activity users still appear.
+      // Display names: directory → latest usable event name → raw company id.
+      const eventNames = new Map<string, string>();
+      for (const row of nameRows.data ?? []) {
+        if (text(row.company_id) && text(row.event_name)) eventNames.set(text(row.company_id), text(row.event_name));
+      }
+      const displayName = (id: string) =>
+        text(directory.get(id)?.company_name) || eventNames.get(id) || id;
       const usageByCompany = new Map<string, { totals: Totals; users: Map<string, { id: string; email: string; totals: Totals }> }>();
       for (const id of clientIds) usageByCompany.set(id, { totals: totals(), users: new Map() });
+      for (const row of memberRows.data ?? []) {
+        const company = usageByCompany.get(text(row.company_id));
+        const key = text(row.user_key);
+        if (!company || !key) continue;
+        if (!company.users.has(key)) {
+          company.users.set(key, { id: key, email: text(row.user_email) || key, totals: totals() });
+        }
+      }
       for (const row of usageRows.data ?? []) {
         const company = usageByCompany.get(text(row.company_id));
         if (!company || typeof row.events !== "number") continue;
@@ -147,13 +166,15 @@ Deno.serve(async (request) => {
         const key = row.user_key == null ? UNATTRIBUTED_ID : text(row.user_key) || UNATTRIBUTED_ID;
         let user = company.users.get(key);
         if (!user) {
+          // The unattributed bucket exists only to preserve mapped activity
+          // with no usable identity; membership already came from above.
           user = {
             id: key,
             email: key === UNATTRIBUTED_ID ? UNATTRIBUTED_LABEL : text(row.user_email) || key,
             totals: totals(),
           };
           company.users.set(key, user);
-        } else if (text(row.user_email)) {
+        } else if (user.email === user.id && text(row.user_email)) {
           user.email = text(row.user_email);
         }
         user.totals[module] += row.events;
@@ -162,7 +183,7 @@ Deno.serve(async (request) => {
       const sign = direction === "asc" ? 1 : -1;
       const companies = [...clientIds].map(id => ({
         id,
-        name: text(directory.get(id)?.company_name) || id,
+        name: displayName(id),
         is_test: directory.get(id)?.is_test === true,
         integration: integrations.get(id) || "Unknown",
         totals: usageByCompany.get(id)!.totals,
@@ -223,7 +244,7 @@ Deno.serve(async (request) => {
         latest_at: row.latest_at ?? null,
       })).sort((a: any, b: any) => b.count - a.count || a.event.localeCompare(b.event));
 
-      const [{ data: directory }, userEmails] = await Promise.all([
+      const [{ data: directory }, userEmails, fallbackName] = await Promise.all([
         supabase.from("company_directory").select("company_name")
           .eq("company_uuid", companyId).maybeSingle(),
         rawUser == null || rawUser === UNATTRIBUTED_ID ? Promise.resolve({ data: null }) :
@@ -231,14 +252,19 @@ Deno.serve(async (request) => {
             .eq("company_id", companyId).eq("distinct_id", rawUser)
             .not("email", "is", null).neq("email", "")
             .order("event_time", { ascending: false }).limit(5),
+        supabase.rpc("read_company_names", { p_company_id: companyId }),
       ]);
+      const directoryName = text((directory as any)?.company_name);
+      const eventName = Array.isArray((fallbackName as any)?.data)
+        ? text((fallbackName as any).data[0]?.event_name)
+        : "";
       const userEmailRows = Array.isArray((userEmails as any)?.data) ? (userEmails as any).data : [];
       const userEmail = text(userEmailRows.map((row: any) => row.email).find((email: unknown) => !isInternalEmail(text(email))));
       const total = grouped.reduce((sum: number, row: any) => sum + row.count, 0);
       const instrumented = grouped.filter((row: any) => row.items != null);
       return json({
         company_id: companyId,
-        company_name: text((directory as any)?.company_name) || companyId,
+        company_name: directoryName || eventName || companyId,
         user_id: rawUser,
         user_label: rawUser == null ? null : rawUser === UNATTRIBUTED_ID ? UNATTRIBUTED_LABEL :
           userEmail || rawUser,
