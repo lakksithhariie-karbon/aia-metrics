@@ -75,6 +75,10 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
       apikey: key,
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
+      // Live dashboard reads must never serve a cached error: a 404 cached
+      // during a PostgREST schema reload would otherwise persist per URL.
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
       ...(init?.headers ?? {}),
     },
   });
