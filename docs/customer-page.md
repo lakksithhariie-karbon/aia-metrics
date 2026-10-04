@@ -44,7 +44,10 @@ Company identity is `company_id` (never the name). Display names come from
 names. Users are observed `(company_id, distinct_id)` pairs with the latest
 non-empty email; empty identities are preserved as Unattributed activity so
 company totals always equal attributed users plus unattributed activity.
-Integration comes from the latest successful `Integration status` event.
+Internal staff activity (`public.is_internal_email`, same predicate in the
+usage reader, the breakdown reader, email search, and user labels) is excluded
+consistently. Integration comes from the latest successful `Integration status`
+event.
 Warehouse history starts March 2026 (Asia/Kolkata); earlier months render as
 unavailable, not zero. Source freshness comes from `export_watermarks`.
 

@@ -16,6 +16,13 @@ type SortKey = "name" | ModuleKey;
 
 const UNATTRIBUTED_ID = "__unattributed__";
 const UNATTRIBUTED_LABEL = "Unattributed activity";
+// Staff domains mirror public.is_internal_email so internal addresses never
+// surface in labels either.
+const INTERNAL_DOMAINS = ["karboncard.com", "korefi.ai", "aiaccountant.com", "korefi.com"];
+const isInternalEmail = (email: string) => {
+  const domain = email.toLowerCase().split("@").pop() ?? "";
+  return INTERNAL_DOMAINS.some(internal => domain === internal || domain.endsWith(`.${internal}`));
+};
 
 const totals = (): Totals => ({ ap: 0, ar: 0, transactions: 0, gst: 0, sync: 0 });
 const text = (value: unknown) => typeof value === "string" ? value.trim() : "";
@@ -79,7 +86,7 @@ Deno.serve(async (request) => {
       const page = Math.max(1, Number(body.page) || 1);
       const search = text(body.query).toLowerCase();
       const integrationFilter = text(body.integration) || "all";
-      const usage = text(body.usage) || "all";
+      const usageFilter = text(body.usage) || "all";
       const sort = validSort(body.sort);
       const direction = text(body.direction) === "desc" ? "desc" : "asc";
       const from = text(body.from) || null;
@@ -122,19 +129,17 @@ Deno.serve(async (request) => {
         integrations.set(id, type === "tally" ? "Tally" : type === "zoho" || type === "zoho books" ? "Zoho Books" : "Unknown");
       }
 
-      let emailMatches = new Set<string>();
-      if (search) {
-        const safe = search.replace(/[%_]/g, "\\$&");
-        const matches = await readAll((a, b) => supabase.from("events").select("company_id")
-          .ilike("email", `%${safe}%`).not("company_id", "is", null).range(a, b), 20_000);
-        emailMatches = new Set(matches.map(row => text(row.company_id)).filter(Boolean));
-      }
+      // Email search is derived from the filtered aggregate population above,
+      // so internal staff activity excluded by read_companies_usage can never
+      // surface through search.
 
       // Company totals come from the SAME classified aggregate as user totals.
-      const usage = new Map<string, { totals: Totals; users: Map<string, { id: string; email: string; totals: Totals }> }>();
-      for (const id of clientIds) usage.set(id, { totals: totals(), users: new Map() });
+      // The aggregate already excludes internal staff activity, so email
+      // matching below uses this filtered population (never raw events).
+      const usageByCompany = new Map<string, { totals: Totals; users: Map<string, { id: string; email: string; totals: Totals }> }>();
+      for (const id of clientIds) usageByCompany.set(id, { totals: totals(), users: new Map() });
       for (const row of usageRows.data ?? []) {
-        const company = usage.get(text(row.company_id));
+        const company = usageByCompany.get(text(row.company_id));
         if (!company || typeof row.events !== "number") continue;
         const module = text(row.module) as ModuleKey;
         if (!(MODULES as readonly string[]).includes(module)) continue;
@@ -160,16 +165,20 @@ Deno.serve(async (request) => {
         name: text(directory.get(id)?.company_name) || id,
         is_test: directory.get(id)?.is_test === true,
         integration: integrations.get(id) || "Unknown",
-        totals: usage.get(id)!.totals,
+        totals: usageByCompany.get(id)!.totals,
       })).filter(company => {
-        if (search && !(company.name.toLowerCase().includes(search) || emailMatches.has(company.id))) return false;
+        if (search) {
+          const users = usageByCompany.get(company.id)?.users.values() ?? [];
+          const emailHit = [...users].some(user => user.email.toLowerCase().includes(search));
+          if (!company.name.toLowerCase().includes(search) && !emailHit) return false;
+        }
         if (integrationFilter !== "all" && company.integration !== integrationFilter) return false;
         const total = companyTotal(company.totals);
-        if (usage === "active" && total === 0) return false;
-        if (usage === "inactive" && total > 0) return false;
+        if (usageFilter === "active" && total === 0) return false;
+        if (usageFilter === "inactive" && total > 0) return false;
         return true;
       }).sort((a, b) => {
-        if (sort === "name") return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
+        if (sort === "name") return (a.name.localeCompare(b.name) || a.id.localeCompare(b.id)) * sign;
         const diff = a.totals[sort] - b.totals[sort];
         // Stable tie-break by company ID, never by display name.
         return (diff === 0 ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : diff) * sign;
@@ -179,7 +188,7 @@ Deno.serve(async (request) => {
       const visible = companies.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
       const rows = visible.map(company => ({
         ...company,
-        users: [...usage.get(company.id)!.users.values()]
+        users: [...usageByCompany.get(company.id)!.users.values()]
           .sort((a, b) => a.email.localeCompare(b.email) || a.id.localeCompare(b.id)),
       }));
       return json({
@@ -214,15 +223,17 @@ Deno.serve(async (request) => {
         latest_at: row.latest_at ?? null,
       })).sort((a: any, b: any) => b.count - a.count || a.event.localeCompare(b.event));
 
-      const [{ data: directory }, userEmail] = await Promise.all([
+      const [{ data: directory }, userEmails] = await Promise.all([
         supabase.from("company_directory").select("company_name")
           .eq("company_uuid", companyId).maybeSingle(),
         rawUser == null || rawUser === UNATTRIBUTED_ID ? Promise.resolve({ data: null }) :
           supabase.from("events").select("email")
             .eq("company_id", companyId).eq("distinct_id", rawUser)
             .not("email", "is", null).neq("email", "")
-            .order("event_time", { ascending: false }).limit(1).maybeSingle(),
+            .order("event_time", { ascending: false }).limit(5),
       ]);
+      const userEmailRows = Array.isArray((userEmails as any)?.data) ? (userEmails as any).data : [];
+      const userEmail = text(userEmailRows.map((row: any) => row.email).find((email: unknown) => !isInternalEmail(text(email))));
       const total = grouped.reduce((sum: number, row: any) => sum + row.count, 0);
       const instrumented = grouped.filter((row: any) => row.items != null);
       return json({
@@ -230,7 +241,7 @@ Deno.serve(async (request) => {
         company_name: text((directory as any)?.company_name) || companyId,
         user_id: rawUser,
         user_label: rawUser == null ? null : rawUser === UNATTRIBUTED_ID ? UNATTRIBUTED_LABEL :
-          text((userEmail as any)?.data?.email) || rawUser,
+          userEmail || rawUser,
         module,
         total,
         item_total: instrumented.length ? instrumented.reduce((sum: number, row: any) => sum + row.items, 0) : null,

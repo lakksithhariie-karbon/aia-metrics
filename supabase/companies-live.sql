@@ -122,8 +122,11 @@ $$;
 -- 5) Population aggregate: one row per (company, user, module) with event and
 --    item totals. user_key is NULL for unattributed activity (no usable
 --    distinct_id). user_email is the latest non-empty email observed for that
---    company + user. Companies with no qualifying events in range return no
---    rows; the Edge Function zero-fills them from client_company.
+--    company + user. Internal staff activity (public.is_internal_email) is
+--    excluded consistently here, in the breakdown reader, and in email search
+--    (which derives from this filtered population). Companies with no
+--    qualifying events in range return no rows; the Edge Function zero-fills
+--    them from client_company.
 CREATE OR REPLACE FUNCTION public.read_companies_usage(
   p_from date DEFAULT NULL,
   p_to date DEFAULT NULL
@@ -159,6 +162,7 @@ AS $$
     CROSS JOIN bounds
     WHERE (p_from IS NULL OR e.event_time >= bounds.start_at)
       AND (p_to IS NULL OR e.event_time < bounds.end_at)
+      AND NOT public.is_internal_email(e.email)
   )
   SELECT classified.company_id,
          classified.user_key,
@@ -214,6 +218,7 @@ AS $$
     FROM public.events e
     CROSS JOIN bounds
     WHERE e.company_id = p_company_id
+      AND NOT public.is_internal_email(e.email)
       AND (p_user_key IS NULL
            OR NULLIF(btrim(e.distinct_id), '') IS NOT DISTINCT FROM
               NULLIF(btrim(p_user_key), ''))

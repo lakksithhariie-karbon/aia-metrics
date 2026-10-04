@@ -28,6 +28,25 @@ export interface RawEvent {
 const text = (value: unknown): string =>
   typeof value === "string" ? value.trim() : "";
 
+/**
+ * TypeScript twin of public.is_internal_email: staff domains are never
+ * attributed to companies. Keep the domain list identical to the SQL.
+ */
+const INTERNAL_DOMAINS = ["karboncard.com", "korefi.ai", "aiaccountant.com", "korefi.com"];
+export function isInternalEmail(email: string | null | undefined): boolean {
+  let raw = text(email).toLowerCase();
+  if (!raw) return false;
+  const open = raw.lastIndexOf("<");
+  const close = raw.lastIndexOf(">");
+  if (open >= 0 && close > open) raw = raw.slice(open + 1, close).trim();
+  const at = raw.lastIndexOf("@");
+  if (at < 0) return false;
+  const domain = raw.slice(at + 1);
+  return INTERNAL_DOMAINS.some(
+    internal => domain === internal || domain.endsWith(`.${internal}`),
+  );
+}
+
 export function moduleFor(
   eventName: string,
   properties: Record<string, unknown> | null | undefined,
@@ -151,6 +170,8 @@ export function aggregateEvents(events: readonly RawEvent[]): AggregatedCompany[
   for (const event of events) {
     const companyId = text(event.company_id);
     if (!companyId) continue;
+    // Staff activity is excluded consistently with the SQL readers.
+    if (isInternalEmail(event.email)) continue;
     const module = moduleFor(text(event.event_name), event.properties ?? {});
     if (!module) continue;
     const company = companyFor(companyId);

@@ -43,6 +43,44 @@ test('1. module classification matches the shared vectors', () => {
   }
 });
 
+test('staff activity is excluded from company attribution', () => {
+  assert(modules.isInternalEmail('analyst@karboncard.com'));
+  assert(modules.isInternalEmail('Ops <ANALYST@Korefi.AI>'));
+  assert(modules.isInternalEmail('someone@sub.aiaccountant.com'));
+  assert(!modules.isInternalEmail('client@example.com'));
+  assert(!modules.isInternalEmail(''));
+  assert(!modules.isInternalEmail(null));
+  const rows = modules.aggregateEvents([
+    ev('Upload', { type: 'bill' }, { company_id: 'c1', distinct_id: 'u1', email: 'staff@karboncard.com' }),
+    ev('Upload', { type: 'bill' }, { company_id: 'c1', distinct_id: 'u2', email: 'client@example.com' }),
+  ]);
+  assert.equal(rows[0].totals.ap, 1, 'internal event is not counted');
+  assert.equal(rows[0].users.length, 1, 'internal user is not attributed');
+  assert.equal(rows[0].users[0].email, 'client@example.com');
+});
+
+test('edge list honors direction for name sort with id tie-break', () => {
+  const edge = read('supabase/functions/companies-dashboard/index.ts');
+  assert(!/const usage =/.test(edge), 'no shadowed usage binding remains');
+  assert(edge.includes('usageFilter'), 'usage filter has its own binding');
+  assert(edge.includes('usageByCompany'), 'usage aggregate has its own binding');
+  assert(/if \(sort === "name"\) return [^;]*\* sign;/.test(edge), 'name sort applies direction');
+  assert(!edge.includes('.ilike("email"'), 'email search derives from the filtered aggregate, not raw events');
+  const rows = [
+    { id: 'b', name: 'B Co', users: [], totals: modules.emptyTotals() },
+    { id: 'a', name: 'A Co', users: [], totals: modules.emptyTotals() },
+  ];
+  assert.deepEqual(modules.sortRows(rows, 'name', 'desc').map(row => row.id), ['b', 'a']);
+});
+
+test('SQL readers exclude internal staff activity in both paths', () => {
+  const sql = read('supabase/companies-live.sql');
+  const usageBody = sql.slice(sql.indexOf('read_companies_usage'), sql.indexOf('read_companies_breakdown'));
+  const breakdownBody = sql.slice(sql.indexOf('read_companies_breakdown'));
+  assert(usageBody.includes('NOT public.is_internal_email(e.email)'), 'usage reader excludes staff');
+  assert(breakdownBody.includes('NOT public.is_internal_email(e.email)'), 'breakdown reader excludes staff');
+});
+
 test('12. GST event mapping covers all five first-pass branches', () => {
   const gst = vectors.filter(v => v.module === 'gst');
   assert(gst.some(v => v.event_name === 'Upload' && v.properties.type === 'gstr2b'));
