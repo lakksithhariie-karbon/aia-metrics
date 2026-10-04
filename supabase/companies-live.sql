@@ -437,6 +437,9 @@ LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = public
+-- Lifetime scans 445k warehouse events; the default statement timeout would
+-- cancel them. The Next.js route still bounds user-facing latency at 25s.
+SET statement_timeout = '20s'
 AS $$
   WITH bounds AS (
     SELECT (p_from::text || 'T00:00:00+05:30')::timestamptz AS start_at,
