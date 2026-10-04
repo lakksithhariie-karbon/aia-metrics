@@ -38,7 +38,7 @@ const isInternalEmail = (email: string): boolean => {
 const istDay = (value: string): string =>
   new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
-function credentials(): { url: string; key: string } {
+async function credentials(): Promise<{ url: string; key: string }> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("supabase_unavailable");
@@ -47,11 +47,27 @@ function credentials(): { url: string; key: string } {
   } catch {
     console.error("companies-api bad-url");
   }
+  try {
+    const dns = await import("node:dns/promises");
+    const addrs = await dns.lookup(new URL(url).hostname, { all: true }).catch(() => []);
+    const probe = await fetch(`${url}/rest/v1/`, {
+      headers: { apikey: key, Authorization: `Bearer ${key}` },
+    }).catch((error: unknown) => ({ ok: false, status: `fetch:${error instanceof Error ? error.message.slice(0, 60) : "?"}` }));
+    console.error(
+      "companies-api diag",
+      JSON.stringify(addrs.map(a => `${a.address}/${a.family}`)),
+      typeof probe === "object" && "ok" in probe && probe.ok === false && "status" in probe
+        ? `root=${probe.status}`
+        : `root=${probe.status}`,
+    );
+  } catch {
+    console.error("companies-api diag-failed");
+  }
   return { url, key };
 }
 
 async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): Promise<T> {
-  const { url, key } = credentials();
+  const { url, key } = await credentials();
   const response = await fetch(`${url}/rest/v1${path}`, {
     ...init,
     signal,
