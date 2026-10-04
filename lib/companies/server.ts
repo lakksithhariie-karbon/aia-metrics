@@ -92,8 +92,8 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
   return (await response.json()) as T;
 }
 
-async function rpc<T>(fn: string, params: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
-  return rest<T>(`/rpc/${fn}`, { method: "POST", body: JSON.stringify(params) }, signal);
+async function rpc<T>(fn: string, params: Record<string, unknown>, signal?: AbortSignal, limit = 1000): Promise<T> {
+  return rest<T>(`/rpc/${fn}?limit=${limit}`, { method: "POST", body: JSON.stringify(params) }, signal);
 }
 
 export interface ListParams {
@@ -117,15 +117,15 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
   // (latency overlaps), then the single-shot context plus name fallback.
   const [usageRows, memberRows] = await Promise.all([
     rpc<Array<{ company_id: string; user_key: string | null; module: string; events: number }>>(
-      "read_companies_usage", { p_from: params.from, p_to: params.to }, signal,
+      "read_companies_usage", { p_from: params.from, p_to: params.to }, signal, 20000,
     ),
     rpc<Array<{ company_id: string; user_key: string; user_email: string | null }>>(
-      "read_company_users", {}, signal,
+      "read_company_users", {}, signal, 20000,
     ),
   ]);
   const [nameRows, contextRows] = await Promise.all([
     rpc<Array<{ company_id: string; event_name: string }>>(
-      "read_company_names", { p_company_id: null }, signal,
+      "read_company_names", { p_company_id: null }, signal, 20000,
     ),
     rpc<
       Array<{
@@ -174,6 +174,11 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
 
   type Member = { id: string; email: string; totals: Totals };
   const usageByCompany = new Map<string, { totals: Totals; users: Map<string, Member> }>();
+  console.error(
+    "companies-api shapes",
+    `usage=${Array.isArray(usageRows) ? usageRows.length : typeof usageRows}`,
+    `members=${Array.isArray(memberRows) ? memberRows.length : typeof memberRows}`,
+  );
   for (const id of clientIds) usageByCompany.set(id, { totals: emptyTotals(), users: new Map() });
   for (const row of memberRows) {
     const company = usageByCompany.get(text(row.company_id));
