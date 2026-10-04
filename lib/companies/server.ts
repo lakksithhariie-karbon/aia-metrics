@@ -59,7 +59,9 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`supabase_${response.status}:${path.slice(0, 60)}:${detail.slice(0, 120)}`);
+    const server = response.headers.get("server") ?? "";
+    const ray = response.headers.get("cf-ray") ?? response.headers.get("x-vercel-id") ?? "";
+    throw new Error(`supabase_${response.status}:${path.slice(0, 60)}:srv=${server}:ray=${ray}:body=${detail.slice(0, 100)}`);
   }
   return (await response.json()) as T;
 }
