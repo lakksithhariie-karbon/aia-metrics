@@ -57,7 +57,7 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
       ...(init?.headers ?? {}),
     },
   });
-  if (!response.ok) throw new Error(`supabase_${response.status}`);
+  if (!response.ok) throw new Error(`supabase_${response.status}:${path.slice(0, 80)}`);
   return (await response.json()) as T;
 }
 
