@@ -93,7 +93,10 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
 }
 
 async function rpc<T>(fn: string, params: Record<string, unknown>, signal?: AbortSignal, limit = 1000): Promise<T> {
-  return rest<T>(`/rpc/${fn}?limit=${limit}`, { method: "POST", body: JSON.stringify(params) }, signal);
+  // Cache-busting timestamp: upstream caches keyed without regard for query
+  // params or Cache-Control have served stale truncated/error payloads.
+  const bust = Date.now().toString(36);
+  return rest<T>(`/rpc/${fn}?limit=${limit}&_=${bust}`, { method: "POST", body: JSON.stringify(params) }, signal);
 }
 
 export interface ListParams {
