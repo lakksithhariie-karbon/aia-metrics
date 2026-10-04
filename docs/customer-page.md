@@ -20,15 +20,24 @@ company name) opens the breakdown modal scoped to that company/user/module.
 
 ```
 React Companies page
-→ Next.js POST /api/companies (forwards Vercel OIDC, 10s timeout, fails closed)
-→ Supabase Edge Function `companies-dashboard` (verifies Vercel issuer,
-  audience and project id, then reads with its server-side service role)
-→ public.client_company + public.company_directory + public.events
+→ Next.js POST /api/companies (validates actions, 25s timeout, fails closed)
+→ lib/companies/server.ts (server-only: SUPABASE_SERVICE_ROLE_KEY from the
+  deployment environment, never the browser)
+→ service_role-only SQL readers over
+  public.client_company + public.company_directory + public.events
 ```
 
 The browser only receives the bounded page/modal JSON. No Supabase secret,
 service_role key, or raw-event access reaches the browser bundle. There is no
 fixture fallback: bridge failures render an honest error state.
+
+The audited OIDC Edge Function (`supabase/functions/companies-dashboard`,
+deployed with `verify_jwt=false` and in-function Vercel project validation)
+remains available as the standby bridge: the deployment does not currently
+expose `VERCEL_OIDC_TOKEN` to functions, so the route uses the equivalent
+service_role server-to-server mechanism instead. No anon/authenticated grant
+exists on any bridge function, and Vercel Authentication gates every
+deployment including the production domain.
 
 Module mapping is centralized in `supabase/companies-live.sql`
 (`company_module_for` / `company_subtype_for` / `company_items_for`, plus the

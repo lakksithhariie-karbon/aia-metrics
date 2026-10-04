@@ -255,10 +255,17 @@ test('11. module modal scoping at user level and unattributed sentinel', () => {
 
 test('15. failed backend request never falls back to fixtures', () => {
   const route = read('app/api/companies/route.ts');
-  assert(!route.includes('fixture'), 'route has no fixture import or fallback');
-  assert(route.includes('oidc_unavailable'), 'missing OIDC fails closed with its own code');
-  assert(route.includes('upstream_unreachable'), 'bridge call failure fails closed with its own code');
+  assert(!route.includes('customerFixtures') && !route.includes('lib/customer'), 'route has no demo-data wiring');
+  assert(!route.includes('VERCEL_OIDC_TOKEN'), 'route needs no OIDC token');
+  assert(route.includes('bridge_unavailable'), 'missing server credentials fail closed');
+  assert(route.includes('companies_data_unavailable'), 'bridge failure fails closed');
   assert(route.includes('status: 503'), 'backend failure is a 503, not zeros');
+  assert(route.includes('invalid_action'), 'only list/breakdown actions are accepted');
+  const server = read('lib/companies/server.ts');
+  assert(server.includes('SUPABASE_SERVICE_ROLE_KEY'), 'server reads the service key server-side');
+  assert(server.includes('SUPABASE_URL'), 'server reads the Supabase URL server-side');
+  assert(!server.includes('NEXT_PUBLIC'), 'server leaks no public env');
+  assert(!server.includes('localStorage') && !server.includes('window.'), 'server has no browser globals');
   const component = read('components/companies/companies-dashboard.tsx');
   assert(component.includes('No fixture values are shown'), ' UI states the honest error');
   assert(!component.includes('customerFixtures') && !component.includes('lib/customer'), 'component has no fixture wiring');
