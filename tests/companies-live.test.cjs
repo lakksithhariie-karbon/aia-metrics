@@ -266,6 +266,7 @@ test('15. failed backend request never falls back to fixtures', () => {
   assert(server.includes('SUPABASE_URL'), 'server reads the Supabase URL server-side');
   assert(!server.includes('NEXT_PUBLIC'), 'server leaks no public env');
   assert(!server.includes('localStorage') && !server.includes('window.'), 'server has no browser globals');
+  assert(server.includes('read_companies_context'), 'list path is POST-only via the context aggregate');
   const component = read('components/companies/companies-dashboard.tsx');
   assert(component.includes('No fixture values are shown'), ' UI states the honest error');
   assert(!component.includes('customerFixtures') && !component.includes('lib/customer'), 'component has no fixture wiring');

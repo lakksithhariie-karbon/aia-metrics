@@ -35,8 +35,6 @@ const isInternalEmail = (email: string): boolean => {
     internal => domain === internal || domain.endsWith(`.${internal}`),
   );
 };
-const istDay = (value: string): string =>
-  new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
 
 async function credentials(): Promise<{ url: string; key: string }> {
   const url = process.env.SUPABASE_URL;
@@ -94,20 +92,6 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
   return (await response.json()) as T;
 }
 
-async function readAll<T>(collection: string, select: string, extra = "", cap = 50_000, signal?: AbortSignal): Promise<T[]> {
-  const output: T[] = [];
-  for (let start = 0; start < cap; start += 1000) {
-    const rows = await rest<T[]>(
-      `/${collection}?select=${select}${extra}&offset=${start}&limit=1000`,
-      undefined,
-      signal,
-    );
-    output.push(...rows);
-    if (rows.length < 1000) break;
-  }
-  return output;
-}
-
 async function rpc<T>(fn: string, params: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   return rest<T>(`/rpc/${fn}`, { method: "POST", body: JSON.stringify(params) }, signal);
 }
@@ -127,11 +111,10 @@ export interface ListParams {
 export async function listCompanies(params: ListParams): Promise<CompanyUsageResponse> {
   const signal = params.signal;
   const search = params.query.trim().toLowerCase();
-  // Reads run in small sequential waves (never more than four concurrent
-  // upstream calls): bursts of parallel warehouse reads from shared serverless
-  // egress were answered with empty Cloudflare 404s, while the same calls in
-  // smaller groups succeed. The two heavy aggregates run together first so
-  // their latency overlaps; everything else follows in cheap waves.
+  // Reads run in small sequential waves. Table GETs from shared serverless
+  // egress intermittently answer empty Cloudflare 404s while POST RPCs
+  // succeed, so the hot list path is POST-only: two heavy aggregates first
+  // (latency overlaps), then the single-shot context plus name fallback.
   const [usageRows, memberRows] = await Promise.all([
     rpc<Array<{ company_id: string; user_key: string | null; module: string; events: number }>>(
       "read_companies_usage", { p_from: params.from, p_to: params.to }, signal,
@@ -140,27 +123,28 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
       "read_company_users", {}, signal,
     ),
   ]);
-  const [clientRows, directoryRows, nameRows, firstEvent] = await Promise.all([
-    readAll<{ company_id: string }>("client_company", "company_id", "", 10_000, signal),
-    readAll<{ company_uuid: string; company_name: string; is_test: boolean }>(
-      "company_directory", "company_uuid,company_name,is_test", "", 10_000, signal,
-    ),
+  const [nameRows, contextRows] = await Promise.all([
     rpc<Array<{ company_id: string; event_name: string }>>(
       "read_company_names", { p_company_id: null }, signal,
     ),
-    rest<Array<{ event_time: string }>>("events?select=event_time&order=event_time.asc&limit=1", undefined, signal),
+    rpc<
+      Array<{
+        clients: string[];
+        directory: Array<{ company_uuid: string; company_name: string; is_test: boolean }>;
+        data_start: string | null;
+        data_end: string | null;
+        watermark: string | null;
+        integrations: Array<{ company_id: string; integration: string }> | null;
+      }>
+    >("read_companies_context", {}, signal),
   ]);
-  const [lastEvent, watermark] = await Promise.all([
-    rest<Array<{ event_time: string }>>("events?select=event_time&order=event_time.desc&limit=1", undefined, signal),
-    rest<Array<{ last_success_at: string }>>(
-      'export_watermarks?select=last_success_at&job_name=eq.incremental&status=eq.ok&limit=1',
-      undefined,
-      signal,
-    ),
-  ]);
-
-  const dataStart = firstEvent[0]?.event_time ? istDay(firstEvent[0].event_time) : null;
-  const dataEnd = lastEvent[0]?.event_time ? istDay(lastEvent[0].event_time) : null;
+  const context = contextRows[0];
+  if (!context) throw new Error("supabase_empty_context");
+  const clientRows: Array<{ company_id: string }> = (context.clients ?? []).map(company_id => ({ company_id }));
+  const directoryRows = context.directory ?? [];
+  const dataStart = context.data_start;
+  const dataEnd = context.data_end;
+  const watermarkAt = context.watermark;
   const available =
     !params.from && !params.to
       ? true
@@ -182,29 +166,10 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
   const displayName = (id: string): string =>
     text(directory.get(id)?.company_name) || eventNames.get(id) || id;
 
-  const integrationRows = await readAll<{
-    company_id: string;
-    event_time: string;
-    insert_id: string;
-    properties: Record<string, unknown> | null;
-  }>(
-    "events",
-    "company_id,event_time,insert_id,properties",
-    "&event_name=eq.Integration%20status&company_id=not.is.null&order=event_time.desc",
-    10_000,
-    signal,
-  );
   const integrations = new Map<string, string>();
-  for (const row of integrationRows) {
+  for (const row of context.integrations ?? []) {
     const id = text(row.company_id);
-    if (!clientIds.has(id) || integrations.has(id)) continue;
-    const properties = row.properties ?? {};
-    if (!["success", "successful"].includes(text(properties.status).toLowerCase())) continue;
-    const type = text(properties.type).toLowerCase();
-    integrations.set(
-      id,
-      type === "tally" ? "Tally" : type === "zoho" || type === "zoho books" ? "Zoho Books" : "Unknown",
-    );
+    if (id && !integrations.has(id)) integrations.set(id, text(row.integration) || "Unknown");
   }
 
   type Member = { id: string; email: string; totals: Totals };
@@ -280,7 +245,7 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
     available,
     data_start: dataStart,
     data_end: dataEnd,
-    source_watermark_at: watermark[0]?.last_success_at ?? null,
+    source_watermark_at: watermarkAt ?? null,
   };
 }
 

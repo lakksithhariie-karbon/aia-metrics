@@ -375,7 +375,57 @@ AS $$
   ORDER BY p.company_id, p.event_time DESC
 $$;
 
--- 10) Lock down execution: server roles only. Anon/authenticated get nothing,
+-- 10) Single-shot list context: the small static reads (population,
+--    directory, IST data bounds, watermark, per-company integration) in one
+--    POST so hot paths never issue table GETs. All inputs are already
+--    service_role-readable; this only reshapes them.
+CREATE OR REPLACE FUNCTION public.read_companies_context()
+RETURNS TABLE (
+  clients jsonb,
+  directory jsonb,
+  data_start date,
+  data_end date,
+  watermark timestamptz,
+  integrations jsonb
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    (SELECT jsonb_agg(c.company_id ORDER BY c.company_id)
+     FROM public.client_company c),
+    (SELECT jsonb_agg(jsonb_build_object(
+              'company_uuid', d.company_uuid::text,
+              'company_name', d.company_name,
+              'is_test', d.is_test))
+     FROM public.company_directory d),
+    (SELECT min(e.event_time AT TIME ZONE 'Asia/Kolkata')::date
+     FROM public.events e),
+    (SELECT max(e.event_time AT TIME ZONE 'Asia/Kolkata')::date
+     FROM public.events e),
+    (SELECT w.last_success_at
+     FROM public.export_watermarks w
+     WHERE w.job_name = 'incremental' AND w.status = 'ok'
+     ORDER BY w.last_success_at DESC LIMIT 1),
+    (SELECT jsonb_agg(jsonb_build_object(
+              'company_id', t.company_id, 'integration', t.integration))
+     FROM (
+       SELECT DISTINCT ON (e.company_id) e.company_id,
+              CASE lower(e.properties ->> 'type')
+                WHEN 'tally' THEN 'Tally'
+                WHEN 'zoho' THEN 'Zoho Books'
+                WHEN 'zoho books' THEN 'Zoho Books'
+                ELSE 'Unknown' END AS integration
+       FROM public.events e
+       WHERE e.event_name = 'Integration status'
+         AND lower(e.properties ->> 'status') IN ('success', 'successful')
+         AND e.company_id IS NOT NULL AND e.company_id <> ''
+       ORDER BY e.company_id, e.event_time DESC) t)
+$$;
+
+-- 11) Lock down execution: server roles only. Anon/authenticated get nothing,
 --    so these functions are unreachable from any browser client.
 REVOKE ALL ON FUNCTION public.company_module_for(text, jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.company_subtype_for(text, jsonb) FROM PUBLIC;
@@ -385,6 +435,7 @@ REVOKE ALL ON FUNCTION public.read_companies_breakdown(text, text, text, date, d
 REVOKE ALL ON FUNCTION public.read_company_users() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.company_usable_name(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.read_company_names(text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.read_companies_context() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.company_module_for(text, jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.company_subtype_for(text, jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.company_items_for(text, jsonb) TO service_role;
@@ -393,7 +444,9 @@ GRANT EXECUTE ON FUNCTION public.read_companies_breakdown(text, text, text, date
 GRANT EXECUTE ON FUNCTION public.read_company_users() TO service_role;
 GRANT EXECUTE ON FUNCTION public.company_usable_name(text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.read_company_names(text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.read_companies_context() TO service_role;
 GRANT EXECUTE ON FUNCTION public.read_companies_usage(date, date) TO product_metrics_fetcher;
 GRANT EXECUTE ON FUNCTION public.read_companies_breakdown(text, text, text, date, date) TO product_metrics_fetcher;
 GRANT EXECUTE ON FUNCTION public.read_company_users() TO product_metrics_fetcher;
 GRANT EXECUTE ON FUNCTION public.read_company_names(text) TO product_metrics_fetcher;
+GRANT EXECUTE ON FUNCTION public.read_companies_context() TO product_metrics_fetcher;

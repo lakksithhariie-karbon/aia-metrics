@@ -55,11 +55,21 @@ async function rpc(fn, params) {
     const got = await rpc('company_usable_name', { p_raw: raw });
     if (got !== expected) { failures += 1; console.error(`NAME MISMATCH ${JSON.stringify(raw)} sql=${got} expected=${expected}`); }
   }
+  // Context RPC: population, bounds, watermark, integrations in one POST.
+  const context = await rpc('read_companies_context', {});
+  const ctx = Array.isArray(context) ? context[0] : null;
+  if (!ctx || !Array.isArray(ctx.clients) || ctx.clients.length < 2700) {
+    failures += 1;
+    console.error(`CONTEXT clients=${ctx && ctx.clients && ctx.clients.length}`);
+  } else {
+    console.log(`context: clients=${ctx.clients.length} data=${ctx.data_start}..${ctx.data_end} watermark=${ctx.watermark}`);
+  }
   // Anon must NOT be able to call the bridge (defense in depth).
   for (const [fn, params] of [
     ['read_companies_usage', { p_from: null, p_to: null }],
     ['read_company_users', {}],
     ['read_company_names', { p_company_id: null }],
+    ['read_companies_context', {}],
   ]) {
     const anonProbe = await fetch(`${BASE}/rest/v1/rpc/${fn}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
