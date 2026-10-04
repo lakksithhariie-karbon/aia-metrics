@@ -37,7 +37,7 @@ event occurrences; item volume (`items_count`, `itemsCount`,
 `transactionCount`) is summed separately and rendered as unavailable (never
 zero) when uninstrumented. `lib/companies/modules.ts` is the tested TypeScript
 twin; `testdata/companies-module-vectors.json` is replayed against both sides
-by `scripts/verify-companies-bridge.mjs`.
+by `scripts/verify-companies-bridge.cjs`.
 
 Company identity is `company_id` (never the name). Display priority:
 `company_directory.company_name` → latest usable event company name
@@ -65,7 +65,7 @@ npm run typecheck
 npm run build
 ```
 
-Then `node scripts/verify-companies-bridge.mjs` with server-side
+Then `node scripts/verify-companies-bridge.cjs` with server-side
 `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` in the environment, plus the
 manual reconciliation check (table count = modal event sum; company total =
 users + unattributed) before shipping.

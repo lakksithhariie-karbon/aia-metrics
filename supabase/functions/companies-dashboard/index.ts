@@ -164,18 +164,14 @@ Deno.serve(async (request) => {
         if (!(MODULES as readonly string[]).includes(module)) continue;
         company.totals[module] += row.events;
         const key = row.user_key == null ? UNATTRIBUTED_ID : text(row.user_key) || UNATTRIBUTED_ID;
+        // Display emails come solely from the membership aggregate above;
+        // the usage aggregate carries counts only.
         let user = company.users.get(key);
         if (!user) {
           // The unattributed bucket exists only to preserve mapped activity
           // with no usable identity; membership already came from above.
-          user = {
-            id: key,
-            email: key === UNATTRIBUTED_ID ? UNATTRIBUTED_LABEL : text(row.user_email) || key,
-            totals: totals(),
-          };
+          user = { id: key, email: key === UNATTRIBUTED_ID ? UNATTRIBUTED_LABEL : key, totals: totals() };
           company.users.set(key, user);
-        } else if (user.email === user.id && text(row.user_email)) {
-          user.email = text(row.user_email);
         }
         user.totals[module] += row.events;
       }

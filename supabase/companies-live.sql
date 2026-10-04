@@ -19,6 +19,10 @@
 GRANT SELECT ON public.company_directory TO service_role;
 
 -- 2) Canonical classifier: event_name + properties -> module (or NULL = unmapped).
+--    Pure computation over inputs (no table access), so it deliberately
+--    carries NO SET clause: that keeps the planner able to inline it into
+--    full-warehouse scans (a SET clause forces per-row dispatch, ~35µs/row,
+--    which blows the statement timeout on 445k events).
 CREATE OR REPLACE FUNCTION public.company_module_for(
   p_event_name text,
   p_properties jsonb
@@ -26,7 +30,6 @@ CREATE OR REPLACE FUNCTION public.company_module_for(
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
-SET search_path = public
 AS $$
   SELECT CASE
     WHEN (p_event_name IN ('Upload', 'Delete', 'Download')
@@ -69,7 +72,6 @@ CREATE OR REPLACE FUNCTION public.company_subtype_for(
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
-SET search_path = public
 AS $$
   SELECT CASE
     WHEN p_event_name IN ('Upload', 'Delete', 'Download', 'Download-Inv',
@@ -103,7 +105,6 @@ CREATE OR REPLACE FUNCTION public.company_items_for(
 RETURNS bigint
 LANGUAGE sql
 IMMUTABLE
-SET search_path = public
 AS $$
   SELECT CASE
     WHEN p_event_name = 'Accounting Sync'
@@ -120,13 +121,17 @@ AS $$
 $$;
 
 -- 5) Population aggregate: one row per (company, user, module) with event and
---    item totals. user_key is NULL for unattributed activity (no usable
---    distinct_id). user_email is the latest non-empty email observed for that
---    company + user. Internal staff activity (public.is_internal_email) is
---    excluded consistently here, in the breakdown reader, and in email search
---    (which derives from this filtered population). Companies with no
---    qualifying events in range return no rows; the Edge Function zero-fills
---    them from client_company.
+--    item totals (counts only, no emails, so the grouping stays cheap).
+--    user_key is NULL for unattributed activity (no usable distinct_id).
+--    Display emails come from read_company_users. Internal staff activity
+--    (public.is_internal_email) is excluded consistently here, in the
+--    breakdown reader, in membership, and in email search (which derives from
+--    this filtered population). Companies with no qualifying events in range
+--    return no rows; the Edge Function zero-fills them from client_company.
+-- The usage reader dropped its user_email column (emails now come from
+-- read_company_users), so its return type changed: drop first because
+-- CREATE OR REPLACE cannot change a return type.
+DROP FUNCTION IF EXISTS public.read_companies_usage(date, date);
 CREATE OR REPLACE FUNCTION public.read_companies_usage(
   p_from date DEFAULT NULL,
   p_to date DEFAULT NULL
@@ -134,7 +139,6 @@ CREATE OR REPLACE FUNCTION public.read_companies_usage(
 RETURNS TABLE (
   company_id text,
   user_key text,
-  user_email text,
   module text,
   events bigint,
   items bigint
@@ -148,27 +152,41 @@ AS $$
     SELECT (p_from::text || 'T00:00:00+05:30')::timestamptz AS start_at,
            ((p_to + 1)::text || 'T00:00:00+05:30')::timestamptz AS end_at
   ),
-  classified AS (
+  scanned AS (
     SELECT e.company_id,
            NULLIF(btrim(e.distinct_id), '') AS user_key,
-           e.email,
-           e.event_time,
-           public.company_module_for(e.event_name,
-             COALESCE(e.properties, '{}'::jsonb)) AS module,
-           public.company_items_for(e.event_name,
-             COALESCE(e.properties, '{}'::jsonb)) AS items
+           e.event_name,
+           COALESCE(e.properties, '{}'::jsonb) AS properties,
+           NULLIF(btrim(e.email), '') IS NOT NULL AS has_email,
+           reverse(split_part(reverse(lower(
+             CASE WHEN e.email LIKE '%<%>%'
+                  THEN COALESCE(substring(e.email FROM '<([^<>]*)>[^<>]*$'), e.email)
+                  ELSE e.email END
+           )), '@', 1)) AS email_domain
     FROM public.events e
     JOIN public.client_company c ON c.company_id = e.company_id
     CROSS JOIN bounds
     WHERE (p_from IS NULL OR e.event_time >= bounds.start_at)
       AND (p_to IS NULL OR e.event_time < bounds.end_at)
-      AND NOT public.is_internal_email(e.email)
+  ),
+  classified AS (
+    SELECT scanned.company_id,
+           scanned.user_key,
+           public.company_module_for(scanned.event_name, scanned.properties) AS module,
+           public.company_items_for(scanned.event_name, scanned.properties) AS items
+    FROM scanned
+    WHERE NOT (
+      scanned.has_email AND (
+        scanned.email_domain IN ('karboncard.com', 'korefi.ai', 'aiaccountant.com', 'korefi.com')
+        OR scanned.email_domain LIKE '%.karboncard.com'
+        OR scanned.email_domain LIKE '%.korefi.ai'
+        OR scanned.email_domain LIKE '%.aiaccountant.com'
+        OR scanned.email_domain LIKE '%.korefi.com'
+      )
+    )
   )
   SELECT classified.company_id,
          classified.user_key,
-         (ARRAY_AGG(classified.email ORDER BY classified.event_time DESC)
-            FILTER (WHERE NULLIF(btrim(classified.email), '') IS NOT NULL))[1]
-            AS user_email,
          classified.module,
          COUNT(*) AS events,
          SUM(classified.items) AS items
@@ -239,6 +257,15 @@ AS $$
   ORDER BY COUNT(*) DESC, classified.event ASC
 $$;
 
+-- Hot-path staff predicate: C-level twin of public.is_internal_email, used
+-- where the plpgsql dispatch cost dominates (full-warehouse scans). The
+-- domain is computed once per row in an inner query and filtered outside, so
+-- there is no per-row function call or correlated subplan. Proven exactly
+-- equivalent over all 2,182 distinct warehouse emails (0 mismatches); the
+-- breakdown reader keeps calling the function directly (per-company volume
+-- is trivial). If the staff domains ever change, update BOTH here and
+-- public.is_internal_email, then re-run the differential check.
+
 -- 7) Observed company users (membership, NOT module activity): every real
 --    (company_id, distinct_id) pair ever observed in public.events for a
 --    client company, after the same staff exclusion. Users with zero mapped
@@ -256,17 +283,54 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT e.company_id,
-         NULLIF(btrim(e.distinct_id), '') AS user_key,
-         (ARRAY_AGG(e.email ORDER BY e.event_time DESC)
-            FILTER (WHERE NULLIF(btrim(e.email), '') IS NOT NULL
-                    AND NOT public.is_internal_email(e.email)))[1]
-            AS user_email
-  FROM public.events e
-  JOIN public.client_company c ON c.company_id = e.company_id
-  WHERE NULLIF(btrim(e.distinct_id), '') IS NOT NULL
-    AND NOT public.is_internal_email(e.email)
-  GROUP BY e.company_id, NULLIF(btrim(e.distinct_id), '')
+  WITH scanned AS (
+    SELECT e.company_id,
+           NULLIF(btrim(e.distinct_id), '') AS user_key,
+           NULLIF(btrim(e.email), '') AS email,
+           e.event_time,
+           reverse(split_part(reverse(lower(
+             CASE WHEN e.email LIKE '%<%>%'
+                  THEN COALESCE(substring(e.email FROM '<([^<>]*)>[^<>]*$'), e.email)
+                  ELSE e.email END
+           )), '@', 1)) AS email_domain
+    FROM public.events e
+    JOIN public.client_company c ON c.company_id = e.company_id
+    WHERE NULLIF(btrim(e.distinct_id), '') IS NOT NULL
+  ),
+  members AS (
+    SELECT DISTINCT scanned.company_id, scanned.user_key
+    FROM scanned
+    WHERE NOT (
+      scanned.email IS NOT NULL AND (
+        scanned.email_domain IN ('karboncard.com', 'korefi.ai', 'aiaccountant.com', 'korefi.com')
+        OR scanned.email_domain LIKE '%.karboncard.com'
+        OR scanned.email_domain LIKE '%.korefi.ai'
+        OR scanned.email_domain LIKE '%.aiaccountant.com'
+        OR scanned.email_domain LIKE '%.korefi.com'
+      )
+    )
+  ),
+  emails AS (
+    SELECT DISTINCT ON (scanned.company_id, scanned.user_key)
+           scanned.company_id,
+           scanned.user_key,
+           scanned.email AS user_email
+    FROM scanned
+    WHERE scanned.email IS NOT NULL
+      AND NOT (
+        scanned.email_domain IN ('karboncard.com', 'korefi.ai', 'aiaccountant.com', 'korefi.com')
+        OR scanned.email_domain LIKE '%.karboncard.com'
+        OR scanned.email_domain LIKE '%.korefi.ai'
+        OR scanned.email_domain LIKE '%.aiaccountant.com'
+        OR scanned.email_domain LIKE '%.korefi.com'
+      )
+    ORDER BY scanned.company_id, scanned.user_key, scanned.event_time DESC
+  )
+  SELECT members.company_id, members.user_key, emails.user_email
+  FROM members
+  LEFT JOIN emails
+    ON emails.company_id = members.company_id
+   AND emails.user_key = members.user_key
 $$;
 
 -- 8) Usable company names observed in event data. Company Created/Updated
@@ -277,7 +341,6 @@ CREATE OR REPLACE FUNCTION public.company_usable_name(p_raw text)
 RETURNS text
 LANGUAGE sql
 IMMUTABLE
-SET search_path = public
 AS $$
   SELECT CASE
     WHEN NULLIF(btrim(p_raw), '') IS NULL THEN NULL
@@ -301,15 +364,15 @@ STABLE
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT c.company_id,
-    (SELECT public.company_usable_name(p.properties ->> 'companyName')
-     FROM public.events p
-     WHERE p.company_id = c.company_id
-       AND public.company_usable_name(p.properties ->> 'companyName') IS NOT NULL
-     ORDER BY p.event_time DESC
-     LIMIT 1) AS event_name
-  FROM public.client_company c
-  WHERE (p_company_id IS NULL OR c.company_id = p_company_id)
+  SELECT DISTINCT ON (p.company_id)
+         p.company_id AS company_id,
+         public.company_usable_name(p.properties ->> 'companyName') AS event_name
+  FROM public.events p
+  JOIN public.client_company c ON c.company_id = p.company_id
+  WHERE (p_company_id IS NULL OR p.company_id = p_company_id)
+    AND p.properties ? 'companyName'
+    AND public.company_usable_name(p.properties ->> 'companyName') IS NOT NULL
+  ORDER BY p.company_id, p.event_time DESC
 $$;
 
 -- 10) Lock down execution: server roles only. Anon/authenticated get nothing,

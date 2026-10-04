@@ -23,8 +23,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid_action" }, { status: 400 });
   }
 
+  // Lifetime aggregates scan the full warehouse; the bridge answers in a few
+  // seconds, so allow headroom while still failing closed on hangs.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const timeout = setTimeout(() => controller.abort(), 25_000);
   try {
     const response = await fetch(DATA_URL, {
       method: "POST",

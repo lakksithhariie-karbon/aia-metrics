@@ -1,7 +1,7 @@
 /* Companies live-data tests. Run: node --test tests/companies-live.test.cjs
  * Covers the required contract against the canonical TypeScript twin
  * (lib/companies/modules.ts) and the shipped file/route surface. SQL/runtime
- * equivalence is proven separately by scripts/verify-companies-bridge.mjs
+ * equivalence is proven separately by scripts/verify-companies-bridge.cjs
  * against the deployed bridge plus the reconciliation check in the report. */
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -66,6 +66,7 @@ test('edge list honors direction for name sort with id tie-break', () => {
   assert(edge.includes('usageByCompany'), 'usage aggregate has its own binding');
   assert(/if \(sort === "name"\) return [^;]*\* sign;/.test(edge), 'name sort applies direction');
   assert(!edge.includes('.ilike("email"'), 'email search derives from the filtered aggregate, not raw events');
+  assert(edge.includes('read_company_users'), 'membership comes from the observed-users aggregate');
   const rows = [
     { id: 'b', name: 'B Co', users: [], totals: modules.emptyTotals() },
     { id: 'a', name: 'A Co', users: [], totals: modules.emptyTotals() },
@@ -77,7 +78,10 @@ test('SQL readers exclude internal staff activity in both paths', () => {
   const sql = read('supabase/companies-live.sql');
   const usageBody = sql.slice(sql.indexOf('read_companies_usage'), sql.indexOf('read_companies_breakdown'));
   const breakdownBody = sql.slice(sql.indexOf('read_companies_breakdown'));
-  assert(usageBody.includes('NOT public.is_internal_email(e.email)'), 'usage reader excludes staff');
+  // Hot paths use the inlined C-level twin (per-row plpgsql dispatch blew the
+  // statement timeout); the low-volume breakdown calls the function directly.
+  assert(usageBody.includes("'%.karboncard.com'"), 'usage reader excludes staff via inlined domains');
+  assert(usageBody.includes('has_email'), 'usage reader keeps the empty-email rule');
   assert(breakdownBody.includes('NOT public.is_internal_email(e.email)'), 'breakdown reader excludes staff');
 });
 

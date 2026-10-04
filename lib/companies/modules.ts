@@ -4,7 +4,7 @@
  * The RUNTIME implementation lives in `supabase/companies-live.sql`
  * (single canonical mapping, executed server-side inside the OIDC-gated Edge
  * Function). This module is its tested TypeScript twin: unit tests and the
- * conformance script `scripts/verify-companies-bridge.mjs` replay the shared
+ * conformance script `scripts/verify-companies-bridge.cjs` replay the shared
  * vectors in `testdata/companies-module-vectors.json` against both sides, so
  * any drift between SQL and this file is caught. Change all three together.
  *
