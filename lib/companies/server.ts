@@ -93,10 +93,7 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
 }
 
 async function rpc<T>(fn: string, params: Record<string, unknown>, signal?: AbortSignal, limit = 1000): Promise<T> {
-  // Cache-busting timestamp: upstream caches keyed without regard for query
-  // params or Cache-Control have served stale truncated/error payloads.
-  const bust = Date.now().toString(36);
-  return rest<T>(`/rpc/${fn}?limit=${limit}&_=${bust}`, { method: "POST", body: JSON.stringify(params) }, signal);
+  return rest<T>(`/rpc/${fn}?limit=${limit}`, { method: "POST", body: JSON.stringify(params) }, signal);
 }
 
 export interface ListParams {
@@ -116,16 +113,20 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
   const search = params.query.trim().toLowerCase();
   // Reads run in small sequential waves. Table GETs from shared serverless
   // egress intermittently answer empty Cloudflare 404s while POST RPCs
-  // succeed, so the hot list path is POST-only: two heavy aggregates first
-  // (latency overlaps), then the single-shot context plus name fallback.
-  const [usageRows, memberRows] = await Promise.all([
-    rpc<Array<{ company_id: string; user_key: string | null; module: string; events: number }>>(
-      "read_companies_usage", { p_from: params.from, p_to: params.to }, signal, 20000,
-    ),
-    rpc<Array<{ company_id: string; user_key: string; user_email: string | null }>>(
-      "read_company_users", {}, signal, 20000,
-    ),
-  ]);
+  // succeed, so the hot list path is POST-only. Usage groups and membership
+  // arrive in ONE snapshot statement (single response row), so company totals
+  // and nested users can never disagree from cross-request skew or row caps.
+  const snapshotRows = await rpc<
+    Array<{
+      usage: Array<{ company_id: string; user_key: string | null; module: string; events: number }>;
+      members: Array<{ company_id: string; user_key: string; user_email: string | null }>;
+    }>
+  >("read_companies_snapshot", { p_from: params.from, p_to: params.to }, signal);
+  // A scalar jsonb result arrives unwrapped (object, not a one-row array).
+  const snapshot = Array.isArray(snapshotRows) ? snapshotRows[0] : snapshotRows;
+  if (!snapshot) throw new Error("supabase_empty_snapshot");
+  const usageRows = snapshot.usage ?? [];
+  const memberRows = snapshot.members ?? [];
   const [nameRows, contextRows] = await Promise.all([
     rpc<Array<{ company_id: string; event_name: string }>>(
       "read_company_names", { p_company_id: null }, signal, 20000,

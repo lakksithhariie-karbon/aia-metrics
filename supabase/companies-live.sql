@@ -425,7 +425,81 @@ AS $$
        ORDER BY e.company_id, e.event_time DESC) t)
 $$;
 
--- 11) Lock down execution: server roles only. Anon/authenticated get nothing,
+-- 11) Single-snapshot list payload: usage groups plus membership in ONE
+--    statement and ONE response row, so company totals and nested users can
+--    never disagree from cross-request skew, and no row cap applies.
+CREATE OR REPLACE FUNCTION public.read_companies_snapshot(
+  p_from date DEFAULT NULL,
+  p_to date DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH bounds AS (
+    SELECT (p_from::text || 'T00:00:00+05:30')::timestamptz AS start_at,
+           ((p_to + 1)::text || 'T00:00:00+05:30')::timestamptz AS end_at
+  ),
+  scanned AS (
+    SELECT e.company_id,
+           NULLIF(btrim(e.distinct_id), '') AS user_key,
+           NULLIF(btrim(e.email), '') AS email,
+           e.event_time,
+           e.event_name,
+           COALESCE(e.properties, '{}'::jsonb) AS properties,
+           reverse(split_part(reverse(lower(
+             CASE WHEN e.email LIKE '%<%>%'
+                  THEN COALESCE(substring(e.email FROM '<([^<>]*)>[^<>]*$'), e.email)
+                  ELSE e.email END
+           )), '@', 1)) AS email_domain
+    FROM public.events e
+    JOIN public.client_company c ON c.company_id = e.company_id
+    CROSS JOIN bounds
+    WHERE (p_from IS NULL OR e.event_time >= bounds.start_at)
+      AND (p_to IS NULL OR e.event_time < bounds.end_at)
+  ),
+  live AS (
+    SELECT * FROM scanned
+    WHERE NOT (
+      scanned.email IS NOT NULL AND (
+        scanned.email_domain IN ('karboncard.com', 'korefi.ai', 'aiaccountant.com', 'korefi.com')
+        OR scanned.email_domain LIKE '%.karboncard.com'
+        OR scanned.email_domain LIKE '%.korefi.ai'
+        OR scanned.email_domain LIKE '%.aiaccountant.com'
+        OR scanned.email_domain LIKE '%.korefi.com'
+      )
+    )
+  ),
+  usage AS (
+    SELECT live.company_id, live.user_key,
+           public.company_module_for(live.event_name, live.properties) AS module,
+           COUNT(*) AS events,
+           SUM(public.company_items_for(live.event_name, live.properties)) AS items
+    FROM live
+    GROUP BY live.company_id, live.user_key, 3
+  ),
+  members AS (
+    SELECT DISTINCT live.company_id, live.user_key FROM live WHERE live.user_key IS NOT NULL
+  ),
+  emails AS (
+    SELECT DISTINCT ON (live.company_id, live.user_key)
+           live.company_id, live.user_key, live.email AS user_email
+    FROM live
+    WHERE live.user_key IS NOT NULL AND live.email IS NOT NULL
+    ORDER BY live.company_id, live.user_key, live.event_time DESC
+  )
+  SELECT jsonb_build_object(
+    'usage', (SELECT COALESCE(jsonb_agg(to_jsonb(u)), '[]'::jsonb)
+              FROM (SELECT company_id, user_key, module, events, items FROM usage WHERE module IS NOT NULL) u),
+    'members', (SELECT COALESCE(jsonb_agg(to_jsonb(m)), '[]'::jsonb)
+                FROM (SELECT members.company_id, members.user_key, emails.user_email
+                      FROM members LEFT JOIN emails USING (company_id, user_key)) m)
+  )
+$$;
+
+-- 12) Lock down execution: server roles only. Anon/authenticated get nothing,
 --    so these functions are unreachable from any browser client.
 REVOKE ALL ON FUNCTION public.company_module_for(text, jsonb) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.company_subtype_for(text, jsonb) FROM PUBLIC;
@@ -436,6 +510,7 @@ REVOKE ALL ON FUNCTION public.read_company_users() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.company_usable_name(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.read_company_names(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.read_companies_context() FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.read_companies_snapshot(date, date) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.company_module_for(text, jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.company_subtype_for(text, jsonb) TO service_role;
 GRANT EXECUTE ON FUNCTION public.company_items_for(text, jsonb) TO service_role;
@@ -445,8 +520,11 @@ GRANT EXECUTE ON FUNCTION public.read_company_users() TO service_role;
 GRANT EXECUTE ON FUNCTION public.company_usable_name(text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.read_company_names(text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.read_companies_context() TO service_role;
+GRANT EXECUTE ON FUNCTION public.read_companies_snapshot(date, date) TO service_role;
 GRANT EXECUTE ON FUNCTION public.read_companies_usage(date, date) TO product_metrics_fetcher;
 GRANT EXECUTE ON FUNCTION public.read_companies_breakdown(text, text, text, date, date) TO product_metrics_fetcher;
 GRANT EXECUTE ON FUNCTION public.read_company_users() TO product_metrics_fetcher;
 GRANT EXECUTE ON FUNCTION public.read_company_names(text) TO product_metrics_fetcher;
 GRANT EXECUTE ON FUNCTION public.read_companies_context() TO product_metrics_fetcher;
+GRANT EXECUTE ON FUNCTION public.read_companies_snapshot(date, date) TO product_metrics_fetcher;
+

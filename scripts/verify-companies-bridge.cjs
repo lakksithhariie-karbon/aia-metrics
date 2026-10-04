@@ -55,7 +55,24 @@ async function rpc(fn, params) {
     const got = await rpc('company_usable_name', { p_raw: raw });
     if (got !== expected) { failures += 1; console.error(`NAME MISMATCH ${JSON.stringify(raw)} sql=${got} expected=${expected}`); }
   }
-  // Context RPC: population, bounds, watermark, integrations in one POST.
+  // Snapshot RPC: usage groups plus membership in one statement and one row.
+  const snapshot = await rpc('read_companies_snapshot', { p_from: '2026-09-01', p_to: '2026-09-30' });
+  const snap = Array.isArray(snapshot) ? snapshot[0] : snapshot;
+  if (!snap || !Array.isArray(snap.usage) || !Array.isArray(snap.members)) {
+    failures += 1;
+    console.error('SNAPSHOT shape invalid');
+  } else {
+    const usageEvents = snap.usage.reduce((n, r) => n + r.events, 0);
+    const memberCompanies = new Set(snap.members.map(m => m.company_id)).size;
+    console.log(`snapshot sept: groups=${snap.usage.length} events=${usageEvents} members=${snap.members.length} companies=${memberCompanies}`);
+    // Invariant on live data: per-company module total equals member sum.
+    const byCompany = new Map();
+    for (const r of snap.usage) {
+      const key = `${r.company_id}|${r.module}`;
+      byCompany.set(key, (byCompany.get(key) ?? 0) + r.events);
+    }
+    console.log(`snapshot companies with ap activity: ${[...byCompany.keys()].filter(k => k.endsWith('|ap')).length}`);
+  }
   const context = await rpc('read_companies_context', {});
   const ctx = Array.isArray(context) ? context[0] : null;
   if (!ctx || !Array.isArray(ctx.clients) || ctx.clients.length < 2700) {
@@ -70,6 +87,7 @@ async function rpc(fn, params) {
     ['read_company_users', {}],
     ['read_company_names', { p_company_id: null }],
     ['read_companies_context', {}],
+    ['read_companies_snapshot', { p_from: '2026-09-01', p_to: '2026-09-30' }],
   ]) {
     const anonProbe = await fetch(`${BASE}/rest/v1/rpc/${fn}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
