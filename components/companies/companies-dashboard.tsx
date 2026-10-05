@@ -80,6 +80,12 @@ function prettyDateTime(value: string | null) {
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 }
+function prettyDate(value: string | null) {
+  if (!value) return "–";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+}
 
 async function postCompanies<T>(body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
   const response = await fetch("/api/companies", {
@@ -108,8 +114,8 @@ export default function CompaniesDashboard() {
   const [deferredQuery, setDeferredQuery] = useState("");
   const [integration, setIntegration] = useState("all");
   const [usage, setUsage] = useState<UsageFilter>("all");
-  const [sort, setSort] = useState<SortKey>("name");
-  const [direction, setDirection] = useState<SortDirection>("asc");
+  const [sort, setSort] = useState<SortKey>("integration_date");
+  const [direction, setDirection] = useState<SortDirection>("desc");
   const [range, setRange] = useState<MonthRange>({ ...LIFETIME });
   const [draft, setDraft] = useState<MonthRange>({ ...LIFETIME });
   const [year, setYear] = useState(() => Number(istMonthNow().slice(0, 4)));
@@ -131,6 +137,9 @@ export default function CompaniesDashboard() {
   const helpRef = useRef<HTMLDialogElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  const dateTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const datePanelRef = useRef<HTMLDivElement | null>(null);
+  const [datePosition, setDatePosition] = useState({ left: 12, top: 12 });
 
   const bounds = useMemo(() => rangeBounds(range), [range]);
   const label = useMemo(() => rangeLabel(range), [range]);
@@ -142,6 +151,27 @@ export default function CompaniesDashboard() {
     return () => clearTimeout(timer);
   }, [query]);
   useEffect(() => { setPage(1); }, [deferredQuery, integration, usage, range]);
+
+  useEffect(() => {
+    if (!dateOpen) return;
+    const position = () => {
+      const trigger = dateTriggerRef.current;
+      const panel = datePanelRef.current;
+      if (!trigger || !panel) return;
+      const anchor = trigger.getBoundingClientRect();
+      const rect = panel.getBoundingClientRect();
+      setDatePosition({
+        left: Math.max(12, Math.min(anchor.right - rect.width, window.innerWidth - rect.width - 12)),
+        top: Math.max(12, Math.min(anchor.bottom + 8, window.innerHeight - rect.height - 12)),
+      });
+    };
+    const frame = requestAnimationFrame(position);
+    window.addEventListener("resize", position);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("resize", position);
+    };
+  }, [dateOpen]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -201,7 +231,9 @@ export default function CompaniesDashboard() {
   });
   const sortBy = (key: SortKey) => {
     setSort(key);
-    setDirection(current => (key === sort ? (current === "asc" ? "desc" : "asc") : "asc"));
+    setDirection(current => key === sort
+      ? (current === "asc" ? "desc" : "asc")
+      : key === "integration_date" ? "desc" : "asc");
     setPage(1);
   };
   const applyRange = (next: MonthRange) => {
@@ -273,7 +305,7 @@ export default function CompaniesDashboard() {
         <div className="global-controls">
           {range.preset !== "lifetime" ? <button className="reset-range" type="button" onClick={() => applyRange({ ...LIFETIME })}>Reset</button> : null}
           <span className="global-control-label">Date range</span>
-          <button type="button" className="ui-control date-trigger" aria-label={`Date range: ${label}`} aria-haspopup="dialog" aria-expanded={dateOpen} onClick={() => { setDraft({ ...range }); setYear(Number((range.end || currentMonth).slice(0, 4))); setEditing(null); setAwaitingEnd(false); setDateOpen(open => !open); }}><Icon name="calendar" /><span>{label}</span><span className="chevron"><Icon name="down" /></span></button>
+          <button ref={dateTriggerRef} type="button" className="ui-control date-trigger" aria-label={`Date range: ${label}`} aria-haspopup="dialog" aria-expanded={dateOpen} onClick={() => { setDraft({ ...range }); setYear(Number((range.end || currentMonth).slice(0, 4))); setEditing(null); setAwaitingEnd(false); setDateOpen(open => !open); }}><Icon name="calendar" /><span>{label}</span><span className="chevron"><Icon name="down" /></span></button>
         </div>
       </div>
       <p className="po-context"><Icon name="info" /><span>Real product events · Counts are event occurrences · Click any module value for its event/subevent breakdown.</span></p>
@@ -305,8 +337,8 @@ export default function CompaniesDashboard() {
             : !data && error ? <div className="companies-error" role="alert"><div><strong>Live company data could not be loaded.</strong><span>The secure data bridge is unavailable ({error}). No fixture values are shown.</span></div></div>
             : <>{error ? <div className="companies-inline-error" role="status">Couldn’t refresh this view. Keeping the last loaded results.</div> : null}<table className="po-user-table companies-table" aria-label="Company module usage" aria-busy={loading}>
               <thead><tr><th scope="col"><span className="sr-only">Expand users</span></th>
-                {[{ key: "name" as const, label: "Company" }, ...MODULES].map(({ key, label }) => (
-                  <th key={key} scope="col" className={key === "name" ? "" : "numeric"} aria-sort={sort === key ? (direction === "asc" ? "ascending" : "descending") : undefined}>
+                {[{ key: "integration_date" as const, label: "Integration date" }, { key: "name" as const, label: "Company" }, ...MODULES].map(({ key, label }) => (
+                  <th key={key} scope="col" className={MODULES.some(module => module.key === key) ? "numeric" : ""} aria-sort={sort === key ? (direction === "asc" ? "ascending" : "descending") : undefined}>
                     <button type="button" onClick={() => sortBy(key)} title={`Sort by ${label}`}>{label}<Icon name={sort === key ? (direction === "asc" ? "up" : "down") : "sort"} /></button>
                   </th>
                 ))}
@@ -316,10 +348,11 @@ export default function CompaniesDashboard() {
                 return [
                   <tr key={company.id} className={`po-user-row ${open ? "po-expanded" : ""}`} data-company-id={company.id}>
                     <td><button className="po-expander" type="button" aria-label={`${open ? "Collapse" : "Expand"} users for ${company.name}`} aria-expanded={open} onClick={() => toggleCompany(company.id)}><Icon name={open ? "minus" : "plus"} /></button></td>
+                    <td className="companies-integration-date">{prettyDate(company.integration_at)}</td>
                     <td title={`${company.name} · ${company.id}`}>{company.name}{company.is_test ? <span className="po-status neutral" style={{ marginLeft: 8 }}>Test</span> : null}<span className="integration-tag" style={{ marginLeft: 8 }}>{company.integration}</span></td>
                     {cells(company, null, company.totals)}
                   </tr>,
-                  open ? <tr key={`${company.id}-users`} className="po-company-detail"><td colSpan={7}><p className="po-company-caption">{number.format(company.users.length)} observed {company.users.length === 1 ? "user" : "users"} · {label}</p>
+                  open ? <tr key={`${company.id}-users`} className="po-company-detail"><td colSpan={8}><p className="po-company-caption">{number.format(company.users.length)} observed {company.users.length === 1 ? "user" : "users"} · {label}</p>
                     <table className="po-company-subtable companies-user-table" aria-label={`Users for ${company.name}`}><thead><tr><th scope="col">User</th>{MODULES.map(module => <th key={module.key} scope="col">{module.label}</th>)}</tr></thead>
                       <tbody>{company.users.length ? company.users.map(user => <tr key={user.id}><td>{user.email}</td>{cells(company, user, user.totals)}</tr>) : <tr><td colSpan={6}>No attributed module activity in this range.</td></tr>}</tbody></table></td></tr> : null,
                 ];
@@ -336,7 +369,7 @@ export default function CompaniesDashboard() {
       <footer className="po-page-footer"><span className="companies-source-note"><Icon name="info" />Source freshness: {prettyDateTime(data?.source_watermark_at ?? null)}{unavailable ? " · Selected range has no warehouse history; values are unavailable, not zero." : ""}</span><span>Company totals and nested users use the same classified events.</span></footer>
     </main>
 
-    {dateOpen ? <div className="date-popover ui-menu-surface" role="dialog" aria-labelledby="companies-date-title" aria-describedby="companies-date-instructions">
+    {dateOpen ? <div ref={datePanelRef} className="date-popover ui-menu-surface" role="dialog" aria-labelledby="companies-date-title" aria-describedby="companies-date-instructions" style={{ left: datePosition.left, top: datePosition.top }}>
       <div className="date-popover-heading"><div><h2 id="companies-date-title">Date range</h2><span>Applies across this dashboard</span></div><button className="icon-button" type="button" aria-label="Close date range picker" onClick={() => setDateOpen(false)}><Icon name="close" /></button></div>
       <div className="date-picker-body">
         <div className="date-presets" role="group" aria-label="Date range presets">
