@@ -229,7 +229,7 @@ async function fetchActivationPage(
   if (cached) return cached;
 
   const result = await post<ActivationListResponse>(
-    "/api/retention-drill-preview",
+    "/api/retention-drill",
     {
       action: "list",
       from: args.from,
@@ -264,7 +264,7 @@ function getCompanyDetail(companyId: string): Promise<ActivationCompanyDetail> {
   if (pending) return pending;
 
   const promise = post<ActivationCompanyDetail>(
-    "/api/retention-drill-preview",
+    "/api/retention-drill",
     { action: "company", company_id: companyId },
   )
     .then(result => {
@@ -1118,12 +1118,11 @@ export default function RetentionPreview() {
             {menuOpen ? (
               <div className="rd-switcher-menu">
                 <a href="/overview">Product Overview<small>Active usage, adoption and workflow health</small></a>
-                <a href="/retention-preview" className="current">Retention & Churn<small>Activation, retention and monthly churn</small></a>
+                <a href="/retention" className="current">Retention & Churn<small>Activation, retention and monthly churn</small></a>
                 <a href="/customer">Companies<small>Module usage by company and user</small></a>
               </div>
             ) : null}
           </div>
-          <button type="button" className="rd-help" aria-label="Preview information"><Icon name="help" /></button>
         </div>
       </header>
 
@@ -1172,24 +1171,6 @@ export default function RetentionPreview() {
           />
         </section>
 
-        <section className="rd-preview-placeholder">
-          <div>
-            <span>PREVIEW SCOPE</span>
-            <h2>Cards + activation drill only</h2>
-            <p>
-              The retention heatmap and churn report are intentionally left out of this design spike.
-              This lets us judge the card language, activation cohort table, and company-level drill before changing the rest of the page.
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled={!kpis}
-            onClick={() => setActivationOpen(true)}
-          >
-            Explore activation drill
-            <Icon name="right" />
-          </button>
-        </section>
       </main>
 
       {activationOpen && kpis ? (
