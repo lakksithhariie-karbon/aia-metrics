@@ -249,6 +249,7 @@ export function inRangeIST(eventTime: string, from: string | null, to: string | 
 export interface NamedRow {
   id: string;
   name: string;
+  integration_at?: string | null;
   users: { email: string }[];
   totals: Totals;
 }
@@ -272,12 +273,24 @@ export function sortRows<T extends NamedRow>(
 ): T[] {
   const sign = direction === "asc" ? 1 : -1;
   return [...rows].sort((a, b) => {
-    const left = key === "name" ? a.name : a.totals[key];
-    const right = key === "name" ? b.name : b.totals[key];
+    const left = key === "name"
+      ? a.name
+      : key === "integration_date"
+        ? a.integration_at ?? null
+        : a.totals[key];
+    const right = key === "name"
+      ? b.name
+      : key === "integration_date"
+        ? b.integration_at ?? null
+        : b.totals[key];
+    if (key === "integration_date") {
+      if (left == null && right != null) return 1;
+      if (left != null && right == null) return -1;
+    }
     const diff =
       typeof left === "number" && typeof right === "number"
         ? left - right
-        : String(left).localeCompare(String(right));
+        : String(left ?? "").localeCompare(String(right ?? ""));
     if (diff !== 0) return sign * (diff < 0 ? -1 : 1);
     // Stable tie-breaks: name, then the stable company ID (never the name).
     return a.name.localeCompare(b.name) || a.id.localeCompare(b.id);
