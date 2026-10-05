@@ -206,7 +206,7 @@ as $function$
 with args as (
   select
     greatest(coalesce(p_page,1),1) as page_no,
-    least(greatest(coalesce(p_page_size,1000),1),2000) as page_size,
+    least(greatest(coalesce(p_page_size,1000),1),5000) as page_size,
     lower(btrim(coalesce(p_query,''))) as q,
     case when p_usage in ('active','inactive') then p_usage else 'all' end as usage_filter,
     case when p_integration in ('Tally','Zoho Books','Unknown') then p_integration else 'all' end as integration_filter,
