@@ -308,8 +308,16 @@ function KpiCard({
   interactive?: boolean;
   onClick?: () => void;
 }) {
-  const content = (
-    <>
+  return (
+    <article className={"rd-kpi-card " + (interactive ? "is-interactive" : "")}>
+      {interactive ? (
+        <button
+          type="button"
+          className="rd-card-hit-target"
+          onClick={onClick}
+          aria-label={label + ", " + value + ". View activation drill."}
+        />
+      ) : null}
       <div className="rd-card-top">
         <span>{label}</span>
         <span className="rd-card-period">{period}</span>
@@ -319,14 +327,7 @@ function KpiCard({
         {unit ? <span>{unit}</span> : null}
       </div>
       <div className="rd-card-note">{note}</div>
-    </>
-  );
-  return interactive ? (
-    <button type="button" className="rd-kpi-card is-interactive" onClick={onClick}>
-      {content}
-    </button>
-  ) : (
-    <article className="rd-kpi-card">{content}</article>
+    </article>
   );
 }
 
