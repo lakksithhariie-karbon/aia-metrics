@@ -2,17 +2,16 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  WEEK_MODULES,
+  MONTH_MODULES,
+  type CalendarMonthUsage,
   type CompanyUsageResponse,
   type CompanyUsageRow,
   type CompanyUsageUser,
-  type LifecycleWeekUsage,
   type ModuleBreakdownResponse,
+  type MonthModuleKey,
   type SortDirection,
   type SortKey,
   type UsageFilter,
-  type UsageWeek,
-  type WeekModuleKey,
 } from "../../lib/companies/types";
 
 type IconName =
@@ -44,7 +43,7 @@ function Icon({ name }: { name: IconName }) {
         : name === "search"
           ? [<circle key="c" cx="10.5" cy="10.5" r="6.5" />, <path key="p" d="m16 16 4.5 4.5" />]
           : name === "calendar"
-            ? [<rect key="r" x="4" y="5" width="16" height="16" rx="2" />, <path key="p" d="M8 3v4m8-4v4M4 10h16m-12 4h2m4 0h2m-8 3h2" />]
+            ? [<rect key="r" x="4" y="5" width="16" height="16" rx="2" />, <path key="p" d="M8 3v4m8-4v4M4 10h16m-12 4h2m4 0h2" />]
             : name === "help" || name === "info"
               ? [<circle key="c" cx="12" cy="12" r="9" />, <path key="p" d={name === "help" ? "M9.5 8.7a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2-2.5 3.8M12 16.8v.1" : "M12 10.5v6M12 7.3v.1"} />]
               : <path d={paths[name]} />}
@@ -53,74 +52,72 @@ function Icon({ name }: { name: IconName }) {
 }
 
 const number = new Intl.NumberFormat("en-US");
-const WEEKS: UsageWeek[] = [1, 2, 3, 4];
 const DATA_START_MONTH = "2026-03";
 
-function moduleLabel(key: WeekModuleKey) {
-  return WEEK_MODULES.find(module => module.key === key)?.label ?? key;
-}
-
-function istMonthNow(): string {
-  return new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }).slice(0, 7);
+function currentMonthIST(): string {
+  return new Date()
+    .toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" })
+    .slice(0, 7);
 }
 function shiftMonth(month: string, offset: number): string {
-  const [year, m] = month.split("-").map(Number);
-  return new Date(Date.UTC(year, m - 1 + offset, 1)).toISOString().slice(0, 7);
-}
-function lastDayOfMonth(month: string): string {
-  return new Date(Date.parse(shiftMonth(month, 1) + "-01T12:00:00Z") - 86_400_000)
+  const [year, value] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, value - 1 + offset, 1))
     .toISOString()
-    .slice(0, 10);
+    .slice(0, 7);
 }
 function shortMonth(month: string): string {
-  return new Date(month + "-01T12:00:00Z")
-    .toLocaleDateString("en-GB", { month: "short", year: "numeric", timeZone: "UTC" })
+  return new Date(month.slice(0, 7) + "-01T12:00:00Z")
+    .toLocaleDateString("en-GB", {
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    })
     .replace("Sept", "Sep");
-}
-function prettyDate(value: string | null) {
-  if (!value) return "–";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("en-IN", {
-    day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
-  });
 }
 function prettyDateTime(value: string | null) {
   if (!value) return "Not available";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleString("en-IN", {
-    day: "numeric", month: "short", year: "numeric",
-    hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
   });
 }
 
 interface MonthRange {
-  preset: "lifetime" | "3" | "6" | "12" | "custom";
-  start: string | null;
-  end: string | null;
+  preset: "current" | "3" | "6" | "12" | "custom";
+  start: string;
+  end: string;
 }
-const LIFETIME: MonthRange = { preset: "lifetime", start: null, end: null };
 
+function currentRange(): MonthRange {
+  const month = currentMonthIST();
+  return { preset: "current", start: month, end: month };
+}
 function presetRange(preset: MonthRange["preset"]): MonthRange {
-  if (preset === "lifetime" || preset === "custom") return { ...LIFETIME, preset };
-  const end = istMonthNow();
-  return { preset, start: shiftMonth(end, 1 - Number(preset)), end };
+  const end = currentMonthIST();
+  if (preset === "current") return { preset, start: end, end };
+  if (preset === "custom") return { preset, start: end, end };
+  return {
+    preset,
+    start: shiftMonth(end, 1 - Number(preset)),
+    end,
+  };
 }
 function rangeLabel(range: MonthRange): string {
-  if (range.preset === "lifetime") return "Lifetime";
-  if (!range.start || !range.end) return "Choose months";
   return range.start === range.end
     ? shortMonth(range.start)
     : `${shortMonth(range.start)} – ${shortMonth(range.end)}`;
 }
-function rangeBounds(range: MonthRange): { from: string | null; to: string | null } {
-  if (range.preset === "lifetime" || !range.start || !range.end) {
-    return { from: null, to: null };
-  }
-  const now = istMonthNow();
-  const end = range.end > now ? now : range.end;
-  return { from: `${range.start}-01`, to: lastDayOfMonth(end) };
+function rangeBounds(range: MonthRange): { from: string; to: string } {
+  return {
+    from: `${range.start}-01`,
+    to: `${range.end}-01`,
+  };
 }
 
 async function postCompanies<T>(
@@ -147,26 +144,45 @@ async function postCompanies<T>(
 interface BreakdownTarget {
   company: CompanyUsageRow;
   user: CompanyUsageUser | null;
-  week: UsageWeek;
-  module: WeekModuleKey;
+  month: string;
+  module: MonthModuleKey;
 }
 
 const DASHBOARDS = [
-  { name: "Product Overview", description: "Active usage, adoption and workflow health", href: "/overview" },
-  { name: "Retention & Churn", description: "Activation, retention and monthly churn", href: "/overview#retention" },
-  { name: "Companies", description: "Post-integration usage by company and user", href: "/customer" },
+  {
+    name: "Product Overview",
+    description: "Active usage, adoption and workflow health",
+    href: "/overview",
+  },
+  {
+    name: "Retention & Churn",
+    description: "Activation, retention and monthly churn",
+    href: "/overview#retention",
+  },
+  {
+    name: "Companies",
+    description: "Monthly usage by integration cohort",
+    href: "/customer",
+  },
 ];
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
 const PRESETS = [
-  ["lifetime", "Lifetime"],
+  ["current", "This month"],
   ["3", "Last 3 months"],
   ["6", "Last 6 months"],
   ["12", "Last 12 months"],
   ["custom", "Custom range"],
 ] as const;
 
-function weekValue(weeks: LifecycleWeekUsage[], week: UsageWeek) {
-  return weeks.find(item => item.week === week);
+function monthValue(months: CalendarMonthUsage[], month: string) {
+  return months.find(item => item.month.slice(0, 7) === month.slice(0, 7));
+}
+function moduleLabel(key: MonthModuleKey) {
+  return MONTH_MODULES.find(module => module.key === key)?.label ?? key;
 }
 
 export default function CompaniesDashboard() {
@@ -174,11 +190,11 @@ export default function CompaniesDashboard() {
   const [deferredQuery, setDeferredQuery] = useState("");
   const [integration, setIntegration] = useState("all");
   const [usage, setUsage] = useState<UsageFilter>("all");
-  const [sort, setSort] = useState<SortKey>("integration_date");
+  const [sort, setSort] = useState<SortKey>("integration_month");
   const [direction, setDirection] = useState<SortDirection>("desc");
-  const [range, setRange] = useState<MonthRange>({ ...LIFETIME });
-  const [draft, setDraft] = useState<MonthRange>({ ...LIFETIME });
-  const [year, setYear] = useState(() => Number(istMonthNow().slice(0, 4)));
+  const [range, setRange] = useState<MonthRange>(() => currentRange());
+  const [draft, setDraft] = useState<MonthRange>(() => currentRange());
+  const [year, setYear] = useState(() => Number(currentMonthIST().slice(0, 4)));
   const [editing, setEditing] = useState<"start" | "end" | null>(null);
   const [awaitingEnd, setAwaitingEnd] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -203,8 +219,11 @@ export default function CompaniesDashboard() {
 
   const bounds = useMemo(() => rangeBounds(range), [range]);
   const label = useMemo(() => rangeLabel(range), [range]);
-  const currentMonth = istMonthNow();
-  const filterCount = Number(usage !== "all") + Number(integration !== "all");
+  const currentMonth = currentMonthIST();
+  const filterCount =
+    Number(usage !== "all") + Number(integration !== "all");
+  const minMonth =
+    data?.data_start?.slice(0, 7) ?? DATA_START_MONTH;
 
   useEffect(() => {
     const timer = setTimeout(() => setDeferredQuery(query), 250);
@@ -222,11 +241,17 @@ export default function CompaniesDashboard() {
       setDatePosition({
         left: Math.max(
           12,
-          Math.min(anchor.right - rect.width, window.innerWidth - rect.width - 12),
+          Math.min(
+            anchor.right - rect.width,
+            window.innerWidth - rect.width - 12,
+          ),
         ),
         top: Math.max(
           12,
-          Math.min(anchor.bottom + 8, window.innerHeight - rect.height - 12),
+          Math.min(
+            anchor.bottom + 8,
+            window.innerHeight - rect.height - 12,
+          ),
         ),
       });
     };
@@ -245,7 +270,6 @@ export default function CompaniesDashboard() {
     postCompanies<CompanyUsageResponse>(
       {
         action: "list",
-        page: 1,
         query: deferredQuery,
         integration,
         usage,
@@ -270,8 +294,13 @@ export default function CompaniesDashboard() {
       });
     return () => controller.abort();
   }, [
-    deferredQuery, integration, usage, sort, direction,
-    bounds.from, bounds.to,
+    deferredQuery,
+    integration,
+    usage,
+    sort,
+    direction,
+    bounds.from,
+    bounds.to,
   ]);
 
   useEffect(() => {
@@ -285,7 +314,7 @@ export default function CompaniesDashboard() {
         company_id: target.company.id,
         user_id: target.user?.id ?? null,
         module: target.module,
-        week: target.week,
+        month: target.month.slice(0, 7) + "-01",
       },
       controller.signal,
     )
@@ -300,12 +329,12 @@ export default function CompaniesDashboard() {
   const openBreakdown = (
     company: CompanyUsageRow,
     user: CompanyUsageUser | null,
-    week: UsageWeek,
-    module: WeekModuleKey,
+    month: string,
+    module: MonthModuleKey,
     trigger: HTMLElement,
   ) => {
     triggerRef.current = trigger;
-    setTarget({ company, user, week, module });
+    setTarget({ company, user, month, module });
     requestAnimationFrame(() => {
       dialogRef.current?.showModal();
       document.body.classList.add("modal-open");
@@ -332,16 +361,19 @@ export default function CompaniesDashboard() {
     setSort(key);
     setDirection(current =>
       key === sort
-        ? current === "asc" ? "desc" : "asc"
-        : key === "integration_date" ? "desc" : "asc",
+        ? current === "asc"
+          ? "desc"
+          : "asc"
+        : key === "integration_month"
+          ? "desc"
+          : "asc",
     );
   };
 
   const applyRange = (next: MonthRange) => {
-    if (next.preset !== "lifetime" && (!next.start || !next.end)) return;
     setRange({ ...next });
     setDateOpen(false);
-    setAnnouncement(`Integration cohort changed to ${rangeLabel(next)}.`);
+    setAnnouncement(`Integration months changed to ${rangeLabel(next)}.`);
   };
 
   const chooseMonth = (month: string) => {
@@ -369,46 +401,59 @@ export default function CompaniesDashboard() {
     }
   };
 
-  const cohortSummary = useMemo(() => WEEKS.map(week => {
-    const totals = { ap: 0, ar: 0, transactions: 0, gst: 0 };
-    let reached = 0;
-    for (const company of data?.rows ?? []) {
-      const value = weekValue(company.weeks, week);
-      if (!value?.reached) continue;
-      reached += 1;
-      for (const module of WEEK_MODULES) {
-        totals[module.key] += value.totals[module.key] ?? 0;
-      }
-    }
-    return { week, reached, totals };
-  }), [data]);
+  const cohortSummary = useMemo(
+    () =>
+      (data?.months ?? []).map(month => {
+        const totals = { ap: 0, ar: 0, transactions: 0, gst: 0 };
+        let availableCompanies = 0;
+        for (const company of data?.rows ?? []) {
+          const value = monthValue(company.months, month);
+          if (!value?.available) continue;
+          availableCompanies += 1;
+          for (const module of MONTH_MODULES) {
+            totals[module.key] += value.totals[module.key] ?? 0;
+          }
+        }
+        return { month, availableCompanies, totals };
+      }),
+    [data],
+  );
 
   const matrixCell = (
     company: CompanyUsageRow,
     user: CompanyUsageUser | null,
-    week: UsageWeek,
-    module: WeekModuleKey,
+    month: string,
+    module: MonthModuleKey,
   ) => {
-    const source = user?.weeks ?? company.weeks;
-    const usageWeek = weekValue(source, week);
-    if (!usageWeek?.reached) {
+    const source = user?.months ?? company.months;
+    const usageMonth = monthValue(source, month);
+    if (!usageMonth?.available) {
       return (
-        <td className="numeric companies-week-future" key={`${week}-${module}`}>
-          <span title={`W${week} has not started for this company yet.`}>–</span>
+        <td
+          className="numeric companies-month-future"
+          key={`${month}-${module}`}
+        >
+          <span title="This company had not integrated yet.">–</span>
         </td>
       );
     }
 
-    const value = usageWeek.totals[module] ?? 0;
+    const value = usageMonth.totals[module] ?? 0;
     return (
-      <td className="numeric" key={`${week}-${module}`}>
+      <td className="numeric" key={`${month}-${module}`}>
         <button
           type="button"
           className={`companies-module-button ${value === 0 ? "is-zero" : ""}`}
           onClick={event =>
-            openBreakdown(company, user, week, module, event.currentTarget)
+            openBreakdown(
+              company,
+              user,
+              month,
+              module,
+              event.currentTarget,
+            )
           }
-          aria-label={`W${week} ${moduleLabel(module)} usage for ${user?.email ?? company.name}: ${number.format(value)} events. View breakdown.`}
+          aria-label={`${shortMonth(month)} ${moduleLabel(module)} usage for ${user?.email ?? company.name}: ${number.format(value)} events. View breakdown.`}
         >
           {number.format(value)}
         </button>
@@ -421,13 +466,18 @@ export default function CompaniesDashboard() {
     user: CompanyUsageUser | null,
   ) => (
     <>
-      {WEEKS.flatMap(week =>
-        WEEK_MODULES.map(module =>
-          matrixCell(company, user, week, module.key),
+      {(data?.months ?? []).flatMap(month =>
+        MONTH_MODULES.map(module =>
+          matrixCell(company, user, month, module.key),
         ),
       )}
     </>
   );
+
+  const totalColumns =
+    3 + (data?.months.length ?? 1) * MONTH_MODULES.length;
+  const tableMinWidth =
+    440 + Math.max(1, data?.months.length ?? 1) * 264;
 
   return (
     <div className="companies-shell">
@@ -449,14 +499,18 @@ export default function CompaniesDashboard() {
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen(open => !open)}
             >
-              <Icon name="grid" /><span>Companies</span><Icon name="down" />
+              <Icon name="grid" />
+              <span>Companies</span>
+              <Icon name="down" />
             </button>
             <div
               className="dashboard-menu ui-menu-surface"
               role="menu"
               hidden={!menuOpen}
             >
-              <div className="menu-heading" role="presentation">Dashboards</div>
+              <div className="menu-heading" role="presentation">
+                Dashboards
+              </div>
               {DASHBOARDS.map(item => (
                 <a
                   key={item.name}
@@ -472,12 +526,21 @@ export default function CompaniesDashboard() {
                   }}
                 >
                   <span className="menu-option-icon">
-                    <Icon name={item.name === "Retention & Churn" ? "trend" : "grid"} />
+                    <Icon
+                      name={
+                        item.name === "Retention & Churn"
+                          ? "trend"
+                          : "grid"
+                      }
+                    />
                   </span>
                   <span className="menu-option-copy">
-                    <strong>{item.name}</strong><small>{item.description}</small>
+                    <strong>{item.name}</strong>
+                    <small>{item.description}</small>
                   </span>
-                  {item.name === "Companies" ? <Icon name="check" /> : null}
+                  {item.name === "Companies" ? (
+                    <Icon name="check" />
+                  ) : null}
                 </a>
               ))}
             </div>
@@ -498,26 +561,28 @@ export default function CompaniesDashboard() {
         <div className="page-heading">
           <h1>Companies</h1>
           <div className="global-controls">
-            {range.preset !== "lifetime" ? (
+            {range.preset !== "current" ? (
               <button
                 className="reset-range"
                 type="button"
-                onClick={() => applyRange({ ...LIFETIME })}
+                onClick={() => applyRange(currentRange())}
               >
                 Reset
               </button>
             ) : null}
-            <span className="global-control-label">Integration cohort</span>
+            <span className="global-control-label">
+              Integration month
+            </span>
             <button
               ref={dateTriggerRef}
               type="button"
               className="ui-control date-trigger"
-              aria-label={`Integration cohort: ${label}`}
+              aria-label={`Integration month: ${label}`}
               aria-haspopup="dialog"
               aria-expanded={dateOpen}
               onClick={() => {
                 setDraft({ ...range });
-                setYear(Number((range.end || currentMonth).slice(0, 4)));
+                setYear(Number(range.end.slice(0, 4)));
                 setEditing(null);
                 setAwaitingEnd(false);
                 setDateOpen(open => !open);
@@ -525,14 +590,16 @@ export default function CompaniesDashboard() {
             >
               <Icon name="calendar" />
               <span>{label}</span>
-              <span className="chevron"><Icon name="down" /></span>
+              <span className="chevron">
+                <Icon name="down" />
+              </span>
             </button>
           </div>
         </div>
 
         <section
-          className="companies-records po-record-layout companies-lifecycle-records"
-          aria-label="Post-integration company usage"
+          className="companies-records po-record-layout companies-monthly-records"
+          aria-label="Monthly company usage"
         >
           <div className="po-record-toolbar">
             <div className="po-record-tools">
@@ -545,7 +612,9 @@ export default function CompaniesDashboard() {
                   placeholder="Search companies or users"
                   aria-label="Search companies or users"
                   autoComplete="off"
-                  onChange={event => setQuery(event.currentTarget.value)}
+                  onChange={event =>
+                    setQuery(event.currentTarget.value)
+                  }
                 />
                 {query ? (
                   <button
@@ -561,68 +630,97 @@ export default function CompaniesDashboard() {
                 ) : null}
               </div>
 
-              <button
-                type="button"
-                className={`ui-control ${filterCount ? "has-filters" : ""}`}
-                aria-expanded={filtersOpen}
-                onClick={() => setFiltersOpen(open => !open)}
-              >
-                <Icon name="filter" /><span>Filters · {filterCount}</span>
-              </button>
+              <div className="po-filter-wrap companies-filter-wrap">
+                <button
+                  type="button"
+                  className={`ui-control ${filterCount ? "has-filters" : ""}`}
+                  aria-expanded={filtersOpen}
+                  onClick={() =>
+                    setFiltersOpen(open => !open)
+                  }
+                >
+                  <Icon name="filter" />
+                  <span>Filters · {filterCount}</span>
+                </button>
+              </div>
             </div>
           </div>
 
           {filtersOpen ? (
-            <div className="companies-filter-tray" role="region" aria-label="Company filters">
-              <div className="companies-filter-field">
-                <label htmlFor="companies-usage-filter">First 4 weeks</label>
+            <div className="companies-filter-popover po-filters">
+              <div className="po-filter-head">
+                <strong>Filter companies</strong>
+                <button
+                  type="button"
+                  disabled={filterCount === 0}
+                  onClick={() => {
+                    setUsage("all");
+                    setIntegration("all");
+                  }}
+                >
+                  Reset
+                </button>
+              </div>
+
+              <label htmlFor="companies-usage-filter">
+                Usage in selected months
+              </label>
+              <span className="ui-select-host">
                 <select
                   id="companies-usage-filter"
                   className="ui-control ui-select-trigger"
                   value={usage}
-                  onChange={event => setUsage(event.currentTarget.value as UsageFilter)}
+                  onChange={event =>
+                    setUsage(
+                      event.currentTarget.value as UsageFilter,
+                    )
+                  }
                 >
-                  <option value="all">All integrated companies</option>
-                  <option value="active">With module usage</option>
-                  <option value="inactive">No module usage</option>
+                  <option value="all">
+                    All integrated companies
+                  </option>
+                  <option value="active">
+                    With module usage
+                  </option>
+                  <option value="inactive">
+                    No module usage
+                  </option>
                 </select>
-              </div>
-              <div className="companies-filter-field">
-                <label htmlFor="companies-integration-filter">Integration</label>
+              </span>
+
+              <label htmlFor="companies-integration-filter">
+                Integration
+              </label>
+              <span className="ui-select-host">
                 <select
                   id="companies-integration-filter"
                   className="ui-control ui-select-trigger"
                   value={integration}
-                  onChange={event => setIntegration(event.currentTarget.value)}
+                  onChange={event =>
+                    setIntegration(event.currentTarget.value)
+                  }
                 >
                   <option value="all">All integrations</option>
                   <option value="Tally">Tally</option>
-                  <option value="Zoho Books">Zoho Books</option>
+                  <option value="Zoho Books">
+                    Zoho Books
+                  </option>
                   <option value="Unknown">Unknown</option>
                 </select>
+              </span>
+
+              <div className="po-filter-note">
+                The cohort is based on first successful integration
+                month. Usage columns are calendar months.
               </div>
-              <div className="companies-filter-copy">
-                Cohort dates filter first successful integration. W1–W4 stay relative to each company.
-              </div>
-              <button
-                type="button"
-                className="companies-filter-reset"
-                disabled={filterCount === 0}
-                onClick={() => {
-                  setUsage("all");
-                  setIntegration("all");
-                }}
-              >
-                Reset
-              </button>
             </div>
           ) : null}
 
           <div
-            className="po-record-scroll companies-lifecycle-scroll"
+            className="po-record-scroll companies-monthly-scroll"
             role="region"
             tabIndex={0}
-            aria-label="Company and user post-integration usage, scroll horizontally for weeks"
+            aria-label="Company and user monthly usage, scroll horizontally for months"
           >
             {!data && loading ? (
               <div className="companies-loading" role="status">
@@ -631,52 +729,125 @@ export default function CompaniesDashboard() {
             ) : !data && error ? (
               <div className="companies-error" role="alert">
                 <div>
-                  <strong>Live company data could not be loaded.</strong>
-                  <span>The secure data bridge is unavailable ({error}). No fixture values are shown.</span>
+                  <strong>
+                    Live company data could not be loaded.
+                  </strong>
+                  <span>
+                    The secure data bridge is unavailable ({error}).
+                    No fixture values are shown.
+                  </span>
                 </div>
               </div>
             ) : (
               <>
                 {error ? (
-                  <div className="companies-inline-error" role="status">
-                    Couldn’t refresh this view. Keeping the last loaded results.
+                  <div
+                    className="companies-inline-error"
+                    role="status"
+                  >
+                    Couldn’t refresh this view. Keeping the last
+                    loaded results.
                   </div>
                 ) : null}
 
                 <table
-                  className="po-user-table companies-table companies-lifecycle-table"
-                  aria-label="Post-integration company module usage"
+                  className="po-user-table companies-table companies-monthly-table"
+                  aria-label="Monthly company module usage"
                   aria-busy={loading}
+                  style={{ minWidth: tableMinWidth }}
                 >
                   <thead>
-                    <tr className="companies-week-header">
-                      <th scope="col" rowSpan={2}>
-                        <span className="sr-only">Expand users</span>
+                    <tr className="companies-month-header">
+                      <th scope="col">
+                        <span className="sr-only">
+                          Expand users
+                        </span>
                       </th>
-                      <th scope="col" rowSpan={2} aria-sort={sort === "integration_date" ? (direction === "asc" ? "ascending" : "descending") : undefined}>
-                        <button type="button" onClick={() => sortBy("integration_date")}>
-                          Integration date
-                          <Icon name={sort === "integration_date" ? (direction === "asc" ? "up" : "down") : "sort"} />
+                      <th
+                        scope="col"
+                        aria-sort={
+                          sort === "integration_month"
+                            ? direction === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : undefined
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            sortBy("integration_month")
+                          }
+                        >
+                          Integration month
+                          <Icon
+                            name={
+                              sort === "integration_month"
+                                ? direction === "asc"
+                                  ? "up"
+                                  : "down"
+                                : "sort"
+                            }
+                          />
                         </button>
                       </th>
-                      <th scope="col" rowSpan={2} aria-sort={sort === "name" ? (direction === "asc" ? "ascending" : "descending") : undefined}>
-                        <button type="button" onClick={() => sortBy("name")}>
+                      <th
+                        scope="col"
+                        aria-sort={
+                          sort === "name"
+                            ? direction === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : undefined
+                        }
+                      >
+                        <button
+                          type="button"
+                          onClick={() => sortBy("name")}
+                        >
                           Company
-                          <Icon name={sort === "name" ? (direction === "asc" ? "up" : "down") : "sort"} />
+                          <Icon
+                            name={
+                              sort === "name"
+                                ? direction === "asc"
+                                  ? "up"
+                                  : "down"
+                                : "sort"
+                            }
+                          />
                         </button>
                       </th>
-                      {WEEKS.map(week => (
-                        <th key={week} scope="colgroup" colSpan={4} className="companies-week-group">
-                          <span>W{week}</span>
-                          <small>{number.format(cohortSummary.find(item => item.week === week)?.reached ?? 0)} reached</small>
+
+                      {(data?.months ?? []).map(month => (
+                        <th
+                          key={month}
+                          scope="colgroup"
+                          colSpan={4}
+                          className="companies-month-group"
+                        >
+                          {shortMonth(month)}
                         </th>
                       ))}
                     </tr>
+
                     <tr className="companies-module-header">
-                      {WEEKS.flatMap(week =>
-                        WEEK_MODULES.map(module => (
+                      <th
+                        aria-hidden="true"
+                        className="companies-frozen-header-spacer"
+                      />
+                      <th
+                        aria-hidden="true"
+                        className="companies-frozen-header-spacer"
+                      />
+                      <th
+                        aria-hidden="true"
+                        className="companies-frozen-header-spacer"
+                      />
+
+                      {(data?.months ?? []).flatMap(month =>
+                        MONTH_MODULES.map(module => (
                           <th
-                            key={`${week}-${module.key}`}
+                            key={`${month}-${module.key}`}
                             scope="col"
                             className={`numeric companies-module-head companies-module-${module.key}`}
                           >
@@ -703,20 +874,37 @@ export default function CompaniesDashboard() {
                                 type="button"
                                 aria-label={`${open ? "Collapse" : "Expand"} users for ${company.name}`}
                                 aria-expanded={open}
-                                onClick={() => toggleCompany(company.id)}
+                                onClick={() =>
+                                  toggleCompany(company.id)
+                                }
                               >
-                                <Icon name={open ? "minus" : "plus"} />
+                                <Icon
+                                  name={
+                                    open ? "minus" : "plus"
+                                  }
+                                />
                               </button>
                             </td>
-                            <td className="companies-integration-date">
-                              {prettyDate(company.integration_at)}
+                            <td className="companies-integration-month">
+                              {shortMonth(
+                                company.integration_month,
+                              )}
                             </td>
-                            <td className="companies-company-cell" title={`${company.name} · ${company.id}`}>
-                              <span className="companies-company-name">{company.name}</span>
+                            <td
+                              className="companies-company-cell"
+                              title={`${company.name} · ${company.id}`}
+                            >
+                              <span className="companies-company-name">
+                                {company.name}
+                              </span>
                               {company.is_test ? (
-                                <span className="po-status neutral">Test</span>
+                                <span className="po-status neutral">
+                                  Test
+                                </span>
                               ) : null}
-                              <span className="integration-tag">{company.integration}</span>
+                              <span className="integration-tag">
+                                {company.integration}
+                              </span>
                             </td>
                             {matrixCells(company, null)}
                           </tr>
@@ -731,19 +919,27 @@ export default function CompaniesDashboard() {
                                 className="companies-nested-user-row"
                               >
                                 <td className="companies-expander-cell" />
-                                <td className="companies-integration-date companies-user-date"> </td>
-                                <td className="companies-user-email" title={user.email}>
+                                <td className="companies-user-month" />
+                                <td
+                                  className="companies-user-email"
+                                  title={user.email}
+                                >
                                   {user.email}
                                 </td>
                                 {matrixCells(company, user)}
                               </tr>
                             ))
                           : [
-                              <tr key={`${company.id}-empty-users`} className="companies-nested-user-row">
+                              <tr
+                                key={`${company.id}-empty-users`}
+                                className="companies-nested-user-row"
+                              >
                                 <td />
                                 <td />
-                                <td className="companies-user-email">No observed users after integration.</td>
-                                <td colSpan={16} />
+                                <td className="companies-user-email">
+                                  No observed users after integration.
+                                </td>
+                                <td colSpan={Math.max(4, totalColumns - 3)} />
                               </tr>,
                             ];
 
@@ -751,26 +947,46 @@ export default function CompaniesDashboard() {
                       })
                     ) : (
                       <tr>
-                        <td colSpan={19}>
+                        <td colSpan={totalColumns}>
                           <div className="po-empty">
-                            <strong>No integrated companies match this view</strong>
-                            <span>Try a different search, filter or integration cohort.</span>
+                            <strong>
+                              No integrated companies match this
+                              view
+                            </strong>
+                            <span>
+                              Try a different search, filter or
+                              integration month.
+                            </span>
                           </div>
                         </td>
                       </tr>
                     )}
                   </tbody>
+
                   <tfoot>
                     <tr className="companies-total-row">
                       <td />
-                      <td className="companies-total-label">Total</td>
-                      <td className="companies-total-count">{number.format(data?.total ?? 0)} companies</td>
-                      {WEEKS.flatMap(week => {
-                        const summary = cohortSummary.find(item => item.week === week);
-                        return WEEK_MODULES.map(module => (
-                          <td className="numeric" key={`total-${week}-${module.key}`}>
-                            {summary?.reached
-                              ? number.format(summary.totals[module.key])
+                      <td className="companies-total-label">
+                        Total
+                      </td>
+                      <td className="companies-total-count">
+                        {number.format(data?.total ?? 0)} companies
+                      </td>
+                      {(data?.months ?? []).flatMap(month => {
+                        const summary = cohortSummary.find(
+                          item =>
+                            item.month.slice(0, 7) ===
+                            month.slice(0, 7),
+                        );
+                        return MONTH_MODULES.map(module => (
+                          <td
+                            className="numeric"
+                            key={`total-${month}-${module.key}`}
+                          >
+                            {summary?.availableCompanies
+                              ? number.format(
+                                  summary.totals[module.key],
+                                )
                               : "–"}
                           </td>
                         ));
@@ -780,18 +996,25 @@ export default function CompaniesDashboard() {
                 </table>
 
                 {loading ? (
-                  <div className="companies-refreshing" role="status">Loading…</div>
+                  <div
+                    className="companies-refreshing"
+                    role="status"
+                  >
+                    Loading…
+                  </div>
                 ) : null}
               </>
             )}
           </div>
-
         </section>
 
         <footer className="po-page-footer">
           <span className="companies-source-note">
             <Icon name="info" />
-            Source freshness: {prettyDateTime(data?.source_watermark_at ?? null)}
+            Source freshness:{" "}
+            {prettyDateTime(
+              data?.source_watermark_at ?? null,
+            )}
           </span>
         </footer>
       </main>
@@ -803,17 +1026,24 @@ export default function CompaniesDashboard() {
           role="dialog"
           aria-labelledby="companies-date-title"
           aria-describedby="companies-date-instructions"
-          style={{ left: datePosition.left, top: datePosition.top }}
+          style={{
+            left: datePosition.left,
+            top: datePosition.top,
+          }}
         >
           <div className="date-popover-heading">
             <div>
-              <h2 id="companies-date-title">Integration cohort</h2>
-              <span>Filter companies by first successful integration month</span>
+              <h2 id="companies-date-title">
+                Integration month
+              </h2>
+              <span>
+                Choose one cohort month or a month range
+              </span>
             </div>
             <button
               className="icon-button"
               type="button"
-              aria-label="Close integration cohort picker"
+              aria-label="Close integration month picker"
               onClick={() => setDateOpen(false)}
             >
               <Icon name="close" />
@@ -821,39 +1051,42 @@ export default function CompaniesDashboard() {
           </div>
 
           <div className="date-picker-body">
-            <div className="date-presets" role="group" aria-label="Integration cohort presets">
-              {PRESETS.map(([value, text]) => (
-                <button
-                  key={value}
-                  type="button"
-                  className="date-preset"
-                  aria-pressed={draft.preset === value}
-                  onClick={() => {
-                    setDraft(
-                      value === "custom"
-                        ? { ...draft, preset: value }
-                        : presetRange(value),
-                    );
-                    setAwaitingEnd(false);
-                    setEditing(null);
-                  }}
-                >
-                  <span>
-                    <strong>{text}</strong>
-                    <small>
-                      {value === "lifetime"
-                        ? "All integrated companies"
-                        : value === "custom"
-                          ? "Select one or more months"
-                          : rangeLabel(presetRange(value))}
-                    </small>
-                  </span>
-                  <span className="preset-check"><Icon name="check" /></span>
-                </button>
-              ))}
-              <p className="preset-footnote">
-                Presets include the current partial month (Asia/Kolkata).
-              </p>
+            <div
+              className="date-presets"
+              role="group"
+              aria-label="Integration month presets"
+            >
+              {PRESETS.map(([value, text]) => {
+                const next =
+                  value === "custom"
+                    ? { ...draft, preset: value }
+                    : presetRange(value);
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    className="date-preset"
+                    aria-pressed={draft.preset === value}
+                    onClick={() => {
+                      setDraft(next);
+                      setAwaitingEnd(false);
+                      setEditing(null);
+                    }}
+                  >
+                    <span>
+                      <strong>{text}</strong>
+                      <small>
+                        {value === "custom"
+                          ? "Choose start and end months"
+                          : rangeLabel(next)}
+                      </small>
+                    </span>
+                    <span className="preset-check">
+                      <Icon name="check" />
+                    </span>
+                  </button>
+                );
+              })}
             </div>
 
             <div className="month-picker">
@@ -862,38 +1095,32 @@ export default function CompaniesDashboard() {
                   type="button"
                   className={`range-field ${editing === "start" ? "is-picking" : ""}`}
                   onClick={() => {
-                    setDraft({ ...draft, preset: "custom" });
+                    setDraft({
+                      ...draft,
+                      preset: "custom",
+                    });
                     setEditing("start");
                     setAwaitingEnd(false);
                   }}
                 >
                   <span>Start month</span>
-                  <strong>
-                    {draft.preset === "lifetime"
-                      ? "All time"
-                      : draft.start
-                        ? shortMonth(draft.start)
-                        : "Choose month"}
-                  </strong>
+                  <strong>{shortMonth(draft.start)}</strong>
                 </button>
                 <Icon name="arrow" />
                 <button
                   type="button"
                   className={`range-field ${editing === "end" || awaitingEnd ? "is-picking" : ""}`}
                   onClick={() => {
-                    setDraft({ ...draft, preset: "custom" });
+                    setDraft({
+                      ...draft,
+                      preset: "custom",
+                    });
                     setEditing("end");
                     setAwaitingEnd(false);
                   }}
                 >
                   <span>End month</span>
-                  <strong>
-                    {draft.preset === "lifetime"
-                      ? "Present"
-                      : draft.end
-                        ? shortMonth(draft.end)
-                        : "Choose month"}
-                  </strong>
+                  <strong>{shortMonth(draft.end)}</strong>
                 </button>
               </div>
 
@@ -913,7 +1140,10 @@ export default function CompaniesDashboard() {
                     className="icon-button"
                     type="button"
                     aria-label="Next year"
-                    disabled={year >= Number(currentMonth.slice(0, 4))}
+                    disabled={
+                      year >=
+                      Number(currentMonth.slice(0, 4))
+                    }
                     onClick={() => setYear(year + 1)}
                   >
                     <Icon name="right" />
@@ -921,13 +1151,14 @@ export default function CompaniesDashboard() {
                 </div>
               </div>
 
-              <div className="month-grid" role="group" aria-label="Select integration months">
-                {MONTH_NAMES.map((name, i) => {
-                  const key = `${year}-${String(i + 1).padStart(2, "0")}`;
+              <div
+                className="month-grid"
+                role="group"
+                aria-label="Select integration months"
+              >
+                {MONTH_NAMES.map((name, index) => {
+                  const key = `${year}-${String(index + 1).padStart(2, "0")}`;
                   const selected =
-                    draft.preset !== "lifetime" &&
-                    !!draft.start &&
-                    !!draft.end &&
                     key >= draft.start &&
                     key <= draft.end;
                   return (
@@ -937,7 +1168,10 @@ export default function CompaniesDashboard() {
                       className={`month-button ${selected ? "in-range" : ""} ${selected && (key === draft.start || key === draft.end) ? "is-endpoint" : ""} ${key === currentMonth ? "is-current" : ""}`}
                       aria-label={shortMonth(key)}
                       aria-pressed={selected}
-                      disabled={key > currentMonth || key < DATA_START_MONTH}
+                      disabled={
+                        key > currentMonth ||
+                        key < minMonth
+                      }
                       onClick={() => chooseMonth(key)}
                     >
                       {name}
@@ -946,10 +1180,13 @@ export default function CompaniesDashboard() {
                 })}
               </div>
 
-              <p className="month-picker-instructions" id="companies-date-instructions">
+              <p
+                className="month-picker-instructions"
+                id="companies-date-instructions"
+              >
                 {awaitingEnd
                   ? "Choose an end month, or Apply to use just this month."
-                  : "Choose a month. Choose another to extend the cohort range."}
+                  : "Choose one month, or choose another to create a range."}
               </p>
             </div>
           </div>
@@ -957,17 +1194,15 @@ export default function CompaniesDashboard() {
           <div className="date-scope-note">
             <Icon name="info" />
             <span>
-              This filters companies by first successful integration date. W1–W4 always stay relative to each company’s own integration timestamp.
+              Companies are selected by first successful
+              integration month. Usage columns are calendar
+              months; the integration month starts at the actual
+              integration timestamp.
             </span>
           </div>
 
           <div className="date-picker-footer">
-            <span role="status">
-              {draft.preset === "lifetime" ? "All integrated companies" : rangeLabel(draft)}
-              {draft.end === currentMonth && draft.preset !== "lifetime" ? (
-                <span className="partial-period">Current month is partial</span>
-              ) : null}
-            </span>
+            <span role="status">{rangeLabel(draft)}</span>
             <div>
               <button
                 className="ui-control"
@@ -979,9 +1214,6 @@ export default function CompaniesDashboard() {
               <button
                 className="ui-control ui-primary"
                 type="button"
-                disabled={
-                  draft.preset !== "lifetime" && (!draft.start || !draft.end)
-                }
                 onClick={() => applyRange(draft)}
               >
                 Apply
@@ -991,7 +1223,11 @@ export default function CompaniesDashboard() {
         </div>
       ) : null}
 
-      <div className="sr-only" role="status" aria-live="polite">
+      <div
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+      >
         {announcement}
       </div>
 
@@ -1005,14 +1241,24 @@ export default function CompaniesDashboard() {
           <header className="dialog-header">
             <div>
               <p className="dialog-eyebrow">
-                {target ? `W${target.week} · ${moduleLabel(target.module)}` : "Module usage"}
+                {target
+                  ? `${shortMonth(target.month)} · ${moduleLabel(target.module)}`
+                  : "Module usage"}
               </p>
-              <h2 className="dialog-title" id="companies-breakdown-title">
-                {target?.company.name ?? "Usage breakdown"}
+              <h2
+                className="dialog-title"
+                id="companies-breakdown-title"
+              >
+                {target?.company.name ??
+                  "Usage breakdown"}
               </h2>
               <p className="dialog-subtitle">
-                {target?.user ? `${target.user.email} · ` : "Company total · "}
-                {target ? `Day ${(target.week - 1) * 7}–${target.week * 7 - 1} after integration` : ""}
+                {target?.user
+                  ? `${target.user.email} · `
+                  : "Company total · "}
+                {target
+                  ? `${shortMonth(target.month)} calendar-month usage`
+                  : ""}
               </p>
             </div>
             <button
@@ -1028,17 +1274,23 @@ export default function CompaniesDashboard() {
           <div className="companies-breakdown-summary">
             <span>
               <strong>
-                {breakdownLoading ? "…" : number.format(breakdown?.total ?? 0)}
+                {breakdownLoading
+                  ? "…"
+                  : number.format(breakdown?.total ?? 0)}
               </strong>{" "}
               events
             </span>
             {breakdown?.item_total != null ? (
               <span>
-                <strong>{number.format(breakdown.item_total)}</strong>{" "}
+                <strong>
+                  {number.format(breakdown.item_total)}
+                </strong>{" "}
                 affected items reported by instrumented events
               </span>
             ) : (
-              <span>No instrumented item volume for this selection</span>
+              <span>
+                No instrumented item volume for this selection
+              </span>
             )}
           </div>
 
@@ -1049,12 +1301,17 @@ export default function CompaniesDashboard() {
             aria-label="Module event breakdown"
           >
             {breakdownLoading ? (
-              <div className="companies-loading">Loading event breakdown…</div>
+              <div className="companies-loading">
+                Loading event breakdown…
+              </div>
             ) : !breakdown ? (
               <div className="companies-error">
                 <div>
                   <strong>Breakdown unavailable</strong>
-                  <span>The secure data bridge is unavailable. No fallback data is shown.</span>
+                  <span>
+                    The secure data bridge is unavailable. No
+                    fallback data is shown.
+                  </span>
                 </div>
               </div>
             ) : (
@@ -1063,43 +1320,70 @@ export default function CompaniesDashboard() {
                   <tr>
                     <th scope="col">Event / subtype</th>
                     <th scope="col">Status</th>
-                    <th scope="col" className="numeric">Events</th>
-                    <th scope="col" className="numeric">Affected items</th>
-                    <th scope="col">Latest activity</th>
+                    <th scope="col" className="numeric">
+                      Events
+                    </th>
+                    <th scope="col" className="numeric">
+                      Affected items
+                    </th>
+                    <th scope="col">
+                      Latest activity
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {breakdown.rows.length ? (
                     breakdown.rows.map((row, index) => (
-                      <tr key={`${row.event}-${row.subtype}-${row.status}-${index}`}>
+                      <tr
+                        key={`${row.event}-${row.subtype}-${row.status}-${index}`}
+                      >
                         <td>
                           {row.event}
                           {row.subtype ? (
-                            <span className="companies-breakdown-subtype">{row.subtype}</span>
+                            <span className="companies-breakdown-subtype">
+                              {row.subtype}
+                            </span>
                           ) : null}
                         </td>
                         <td>
                           {row.status ? (
-                            <span className={`companies-breakdown-status ${row.status.toLowerCase() === "failed" ? "failed" : ""}`}>
+                            <span
+                              className={`companies-breakdown-status ${row.status.toLowerCase() === "failed" ? "failed" : ""}`}
+                            >
                               {row.status}
                             </span>
-                          ) : "–"}
+                          ) : (
+                            "–"
+                          )}
                         </td>
-                        <td className="numeric">{number.format(row.count)}</td>
+                        <td className="numeric">
+                          {number.format(row.count)}
+                        </td>
                         <td className="numeric">
                           {row.items == null ? (
-                            <span title="Item volume is not instrumented for this event.">–</span>
-                          ) : number.format(row.items)}
+                            <span title="Item volume is not instrumented for this event.">
+                              –
+                            </span>
+                          ) : (
+                            number.format(row.items)
+                          )}
                         </td>
-                        <td>{prettyDateTime(row.latest_at)}</td>
+                        <td>
+                          {prettyDateTime(row.latest_at)}
+                        </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
                       <td colSpan={5}>
                         <div className="po-empty">
-                          <strong>No events in this module</strong>
-                          <span>This is a real zero for this company/user and lifecycle week.</span>
+                          <strong>
+                            No events in this module
+                          </strong>
+                          <span>
+                            This is a real zero for this
+                            company/user and calendar month.
+                          </span>
                         </div>
                       </td>
                     </tr>
@@ -1114,10 +1398,12 @@ export default function CompaniesDashboard() {
               {breakdown?.window_start
                 ? `${prettyDateTime(breakdown.window_start)} → ${prettyDateTime(breakdown.window_end)}`
                 : target
-                  ? `W${target.week} post-integration window`
+                  ? shortMonth(target.month)
                   : ""}
             </span>
-            <span>{target?.user ? "User scope" : "Company scope"}</span>
+            <span>
+              {target?.user ? "User scope" : "Company scope"}
+            </span>
           </footer>
         </div>
       </dialog>
@@ -1128,8 +1414,11 @@ export default function CompaniesDashboard() {
         aria-labelledby="companies-help-title"
       >
         <header className="dialog-header">
-          <h2 className="dialog-title" id="companies-help-title">
-            Post-integration company usage
+          <h2
+            className="dialog-title"
+            id="companies-help-title"
+          >
+            Monthly company usage
           </h2>
           <button
             className="close-button"
@@ -1142,26 +1431,39 @@ export default function CompaniesDashboard() {
         </header>
         <div className="info-body">
           <section className="definition-block">
-            <h3>Lifecycle weeks</h3>
+            <h3>Integration cohort</h3>
             <p>
-              Each company starts at its first successful integration. W1 is day 0–6, W2 is day 7–13, W3 is day 14–20, and W4 is day 21–27.
+              A company belongs to the calendar month of its first
+              successful integration. Selecting Aug–Oct includes
+              companies first integrated in Aug, Sep or Oct.
+            </p>
+          </section>
+          <section className="definition-block">
+            <h3>Month usage</h3>
+            <p>
+              AP, AR, TXN and GST are counted in calendar months
+              using Asia/Kolkata boundaries. In the integration
+              month, only events at or after the actual integration
+              timestamp are counted.
             </p>
           </section>
           <section className="definition-block">
             <h3>Zero versus dash</h3>
             <p>
-              Zero means that lifecycle week has started and no qualifying events were recorded for that module. A dash means the company has not reached that lifecycle week yet.
+              Zero means the company was already integrated but
+              recorded no qualifying events for that module in the
+              month. A dash means the company had not integrated
+              yet.
             </p>
           </section>
           <section className="definition-block">
-            <h3>Companies and users</h3>
+            <h3>Nested users</h3>
             <p>
-              Expand a company to see observed non-internal users after integration. Company cells equal attributed users plus any explicit unattributed activity from the same classified events.
+              Expand a company to see observed non-internal users.
+              User cells use the same calendar-month and module
+              definitions as the parent company.
             </p>
           </section>
-        </div>
-        <div className="info-footnote">
-          AP, AR, Transactions and GST count qualifying product events. Click any reached cell to inspect its granular events.
         </div>
       </dialog>
     </div>
