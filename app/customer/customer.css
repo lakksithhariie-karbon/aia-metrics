@@ -16,6 +16,12 @@
 .companies-module-button.is-zero{color:#9aa6b7}
 .companies-source-note{font-size:10px;color:#8b98aa;display:flex;align-items:center;gap:6px}
 .companies-source-note .icon{width:12px;height:12px}
+
+.companies-inline-error{margin:0 0 8px;padding:8px 10px;border:1px solid #eadfdc;background:#fcf7f5;border-radius:4px;color:#8a625b;font-size:10px}
+.companies-page .po-record-scroll{position:relative}
+.companies-refreshing{position:absolute;top:8px;right:8px;padding:5px 8px;border:1px solid #dfe5ee;background:rgba(255,255,255,.94);border-radius:4px;color:#738198;font-size:10px;box-shadow:0 1px 3px rgba(24,40,72,.06)}
+.companies-table[aria-busy="true"]{opacity:.72}
+
 .companies-loading,.companies-error{min-height:260px;display:grid;place-items:center;text-align:center;color:#7d8ca1;padding:24px}
 .companies-error strong{display:block;color:#52647f;font-weight:550;margin-bottom:7px}
 .companies-breakdown{width:980px;max-width:calc(100vw - 48px);height:650px;max-height:calc(100dvh - 56px);overflow:hidden;padding:0}
