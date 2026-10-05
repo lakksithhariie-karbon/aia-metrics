@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
 import { companyBreakdown, listCompanies } from "../../../lib/companies/server";
-import type { ModuleKey, SortDirection, SortKey, UsageFilter } from "../../../lib/companies/types";
+import type {
+  SortDirection,
+  SortKey,
+  UsageFilter,
+  UsageWeek,
+  WeekModuleKey,
+} from "../../../lib/companies/types";
 
-const MODULES = ["ap", "ar", "transactions", "gst", "sync"] as const;
+const MODULES = ["ap", "ar", "transactions", "gst"] as const;
 
 function validSort(value: unknown): SortKey {
-  return value === "integration_date" || value === "name" || (MODULES as readonly string[]).includes(String(value))
-    ? (value as SortKey)
-    : "name";
+  return value === "name" ? "name" : "integration_date";
+}
+
+function validWeek(value: unknown): value is UsageWeek {
+  return value === 1 || value === 2 || value === 3 || value === 4;
 }
 
 export async function POST(request: Request) {
@@ -24,9 +32,8 @@ export async function POST(request: Request) {
   const from = typeof body.from === "string" && body.from ? body.from : null;
   const to = typeof body.to === "string" && body.to ? body.to : null;
   const controller = new AbortController();
-  // Lifetime aggregates scan the full warehouse; allow headroom while still
-  // failing closed on hangs. No fixture fallback on any failure path.
-  const timeout = setTimeout(() => controller.abort(), 25_000);
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+
   try {
     if (body.action === "list") {
       const payload = await listCompanies({
@@ -37,23 +44,33 @@ export async function POST(request: Request) {
           ? (body.usage as UsageFilter)
           : "all",
         sort: validSort(body.sort),
-        direction: body.direction === "desc" ? ("desc" as SortDirection) : ("asc" as SortDirection),
+        direction:
+          body.direction === "asc"
+            ? ("asc" as SortDirection)
+            : ("desc" as SortDirection),
         from,
         to,
         signal: controller.signal,
       });
       return NextResponse.json(payload);
     }
+
     const module = typeof body.module === "string" ? body.module : "";
-    if (typeof body.company_id !== "string" || !body.company_id || !MODULES.includes(module as ModuleKey)) {
+    const week = Number(body.week);
+    if (
+      typeof body.company_id !== "string" ||
+      !body.company_id ||
+      !MODULES.includes(module as WeekModuleKey) ||
+      !validWeek(week)
+    ) {
       return NextResponse.json({ error: "invalid_parameters" }, { status: 400 });
     }
+
     const payload = await companyBreakdown({
       company_id: body.company_id,
       user_id: body.user_id == null ? null : String(body.user_id),
-      module: module as ModuleKey,
-      from,
-      to,
+      module: module as WeekModuleKey,
+      week,
       signal: controller.signal,
     });
     return NextResponse.json(payload);
@@ -63,7 +80,10 @@ export async function POST(request: Request) {
     if (signal === "supabase_unavailable") {
       return NextResponse.json({ error: "bridge_unavailable" }, { status: 503 });
     }
-    return NextResponse.json({ error: "companies_data_unavailable" }, { status: 503 });
+    return NextResponse.json(
+      { error: "companies_data_unavailable" },
+      { status: 503 },
+    );
   } finally {
     clearTimeout(timeout);
   }

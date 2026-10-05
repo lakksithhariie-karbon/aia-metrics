@@ -185,12 +185,12 @@ test('4. multiple users under one company keep their own totals', () => {
   assert.equal(rows[0].totals.ar, 2);
 });
 
-test('5. zero-usage company behavior is a real zero, unavailable is flagged', () => {
-  const rows = modules.aggregateEvents([]);
-  assert.equal(rows.length, 0);
+test('5. reached zero is clickable while future lifecycle weeks render a dash', () => {
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(source.includes('No events in this module'), 'real zero is labeled, not hidden');
-  assert(source.includes('unavailable, not zero'), 'unavailable ranges are dashed, never zeroed');
+  assert(source.includes('if (!usageWeek?.reached)'), 'future weeks have an explicit reached gate');
+  assert(source.includes('companies-week-future'), 'future weeks render the dash state');
+  assert(source.includes('value === 0 ? "is-zero"'), 'reached zero remains a real numeric cell');
+  assert(source.includes('No events in this module'), 'zero-cell drilldown explains the real zero');
 });
 
 test('6. search by company matches the parent row', () => {
@@ -236,18 +236,38 @@ test('8. sorting works for every module and the name column', () => {
   assert.equal(JSON.stringify(rows.map(row => row.id)), JSON.stringify(['c', 'a', 'b']), 'input is not mutated');
 });
 
-test('integration date is the first data column and defaults to newest first', () => {
+test('integration date is first, uses first successful integration, and defaults newest first', () => {
   const types = read('lib/companies/types.ts');
   const dashboard = read('components/companies/companies-dashboard.tsx');
-  const sql = read('supabase/companies-fast-pagination.sql');
-  assert(types.includes('SortKey = "integration_date"'), 'integration date is a sortable key');
-  assert(types.includes('integration_at: string | null'), 'rows carry the integration timestamp');
+  const sql = read('supabase/companies-lifecycle-weeks.sql');
+  assert(types.includes('SortKey = "integration_date" | "name"'), 'only integration date and company are sortable');
+  assert(types.includes('integration_at: string;'), 'integrated rows carry their anchor timestamp');
   assert(dashboard.includes('useState<SortKey>("integration_date")'), 'default sort is integration date');
   assert(dashboard.includes('useState<SortDirection>("desc")'), 'default direction is newest first');
-  assert(dashboard.indexOf('label: "Integration date"') < dashboard.indexOf('label: "Company"'), 'integration date precedes company');
+  assert(dashboard.indexOf('Integration date') < dashboard.indexOf('Company'), 'integration date precedes company');
   assert(dashboard.includes('prettyDate(company.integration_at)'), 'integration date is rendered');
-  assert(sql.includes("sort_key='integration_date'"), 'fast page RPC sorts integration date in SQL');
-  assert(sql.includes("'integration_at', r.integration_at"), 'RPC returns integration timestamp');
+  assert(sql.includes("order by e.company_id, e.event_time asc, e.insert_id asc"), 'anchor is the first successful integration');
+  assert(sql.includes("sort_key='integration_date'"), 'lifecycle RPC sorts integration date');
+});
+
+test('post-integration matrix is exactly W1-W4 x AP/AR/TXN/GST', () => {
+  const types = read('lib/companies/types.ts');
+  const dashboard = read('components/companies/companies-dashboard.tsx');
+  const sql = read('supabase/companies-lifecycle-weeks.sql');
+  assert(types.includes('export const WEEK_MODULES'), 'matrix has its own four-module contract');
+  assert(types.includes('{ key: "ap", label: "AP" }'));
+  assert(types.includes('{ key: "ar", label: "AR" }'));
+  assert(types.includes('{ key: "transactions", label: "TXN" }'));
+  assert(types.includes('{ key: "gst", label: "GST" }'));
+  assert(dashboard.includes('const WEEKS: UsageWeek[] = [1, 2, 3, 4]'));
+  assert(sql.includes("interval '28 days'"), 'cache only spans the first 28 days');
+  assert(sql.includes('604800'), 'weeks are exact seven-day windows');
+  assert(sql.includes("module in ('ap','ar','transactions','gst')"), 'Sync is not a matrix column');
+});
+
+test('the old explanatory product-events line is removed', () => {
+  const dashboard = read('components/companies/companies-dashboard.tsx');
+  assert(!dashboard.includes('Real product events · Counts are event occurrences · Click any module value for its event/subevent breakdown.'));
 });
 
 test('date picker is anchored to the date trigger when opened', () => {
@@ -267,19 +287,24 @@ test('9. date filtering uses Asia/Kolkata calendar boundaries', () => {
   assert(modules.inRangeIST('2026-09-10T10:00:00+00:00', null, null));
 });
 
-test('10. module modal scoping at company level uses a null user', () => {
+test('10. module modal is scoped to company + lifecycle week + module', () => {
   const source = read('components/companies/companies-dashboard.tsx');
+  const route = read('app/api/companies/route.ts');
   assert(source.includes('user_id: target.user?.id ?? null'), 'company scope sends null user');
+  assert(source.includes('week: target.week'), 'clicked lifecycle week is sent');
   assert(source.includes('Company total'), 'company scope is labeled');
+  assert(route.includes('p_usage_week') === false, 'route passes a typed week to the server rather than raw SQL params');
+  assert(route.includes('!validWeek(week)'), 'invalid lifecycle weeks are rejected');
 });
 
-test('11. module modal scoping at user level and unattributed sentinel', () => {
+test('11. nested user cells open the same week/module breakdown at user scope', () => {
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(source.includes('moduleButton(company, user,'), 'user cells open user scope');
-  assert(source.includes('User scope'), 'user scope is labeled');
-  const edge = read('supabase/functions/companies-dashboard/index.ts');
-  assert(edge.includes('"__unattributed__"'), 'edge maps the unattributed sentinel');
-  assert(edge.includes('UNATTRIBUTED_LABEL'), 'edge labels unattributed activity');
+  const server = read('lib/companies/server.ts');
+  assert(source.includes('matrixCells(company, user)'), 'nested users use the same W1-W4 grid');
+  assert(source.includes('openBreakdown(company, user, week, module'), 'user cell carries company, week and module');
+  assert(source.includes('User scope'), 'modal labels user scope');
+  assert(server.includes('params.user_id === UNATTRIBUTED_ID'), 'unattributed activity is preserved');
+  assert(server.includes('read_companies_lifecycle_breakdown'), 'user/company modal uses lifecycle breakdown RPC');
 });
 
 test('15. failed backend request never falls back to fixtures', () => {
@@ -295,34 +320,34 @@ test('15. failed backend request never falls back to fixtures', () => {
   assert(server.includes('SUPABASE_URL'), 'server reads the Supabase URL server-side');
   assert(!server.includes('NEXT_PUBLIC'), 'server leaks no public env');
   assert(!server.includes('localStorage') && !server.includes('window.'), 'server has no browser globals');
-  assert(server.includes('read_companies_page_fast'), 'list path uses the pre-aggregated fast page RPC');
+  assert(server.includes('read_companies_lifecycle_page'), 'list path uses the pre-aggregated lifecycle RPC');
   assert(!server.includes('read_companies_snapshot'), 'pagination never reruns the raw lifetime snapshot');
-  assert(server.includes('read_companies_identity_fast'), 'breakdown labels use the cached identity RPC');
+  assert(server.includes('read_companies_lifecycle_identity'), 'breakdown labels use the lifecycle identity cache');
   const component = read('components/companies/companies-dashboard.tsx');
   assert(component.includes('No fixture values are shown'), ' UI states the honest error');
   assert(!component.includes('customerFixtures') && !component.includes('lib/customer'), 'component has no fixture wiring');
   assert(!fs.existsSync(path.join(root, 'lib/customer/fixtures.ts')), 'fixture adapter is gone');
 });
 
-test('16. pagination uses the fast RPC and preserves the last good table while refreshing', () => {
+test('16. pagination uses lifecycle facts and preserves the last good table', () => {
   const server = read('lib/companies/server.ts');
-  const sql = read('supabase/companies-fast-pagination.sql');
+  const sql = read('supabase/companies-lifecycle-weeks.sql');
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(server.includes('read_companies_page_fast'), 'each page is returned directly by the fast RPC');
-  assert(sql.includes('company_month_module_usage'), 'module usage is pre-aggregated by month');
-  assert(sql.includes('companies-fast-cache-hourly'), 'reporting cache refreshes hourly');
-  assert(source.includes('Preserve the last good table'), 'refresh failures do not blank the table');
+  assert(server.includes('read_companies_lifecycle_page'), 'each page is returned directly by the lifecycle RPC');
+  assert(sql.includes('company_lifecycle_week_module_usage'), 'W1-W4 module usage is pre-aggregated');
+  assert(sql.includes('companies-lifecycle-cache-hourly'), 'lifecycle cache refreshes hourly');
+  assert(source.includes('setError(String(err.message || err))'), 'refresh failures are surfaced');
   assert(source.includes('aria-busy={loading}'), 'table exposes refresh state without disappearing');
   assert(source.includes('disabled={loading || visiblePage >= pages}'), 'next is disabled during a pending page load');
   assert(source.includes('visiblePage = data?.page ?? page'), 'pagination reflects the last successfully loaded page');
 });
 
-test('fast page SQL stays private and restricted to server roles', () => {
-  const sql = read('supabase/companies-fast-pagination.sql');
-  assert(sql.includes('create schema if not exists metrics_private'), 'facts live outside the exposed public schema');
-  assert(sql.includes('revoke all on schema metrics_private from public'), 'private facts are not exposed');
-  assert(sql.includes('revoke all on function public.read_companies_page_fast'), 'fast RPC revokes default PUBLIC execute');
-  assert(sql.includes('grant execute on function public.read_companies_page_fast'), 'fast RPC is explicitly granted to server roles');
+test('lifecycle SQL stays private and restricted to server roles', () => {
+  const sql = read('supabase/companies-lifecycle-weeks.sql');
+  assert(sql.includes('metrics_private.company_lifecycle_week_module_usage'), 'facts live in the private metrics schema');
+  assert(sql.includes('revoke all on metrics_private.company_lifecycle_week_module_usage from public, anon, authenticated'), 'private facts are not exposed');
+  assert(sql.includes('revoke all on function public.read_companies_lifecycle_page'), 'lifecycle RPC revokes default/public execution');
+  assert(sql.includes('grant execute on function public.read_companies_lifecycle_page'), 'lifecycle RPC is explicitly granted to server roles');
   assert(sql.includes("set statement_timeout = '5s'"), 'page reads have a tight timeout');
 });
 
