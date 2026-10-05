@@ -299,38 +299,46 @@ user_identity as (
       in ('ap','ar','transactions','gst','sync')
   having count(*)>0
 ),
+evidence_ranked as (
+  select
+    e.event_time as at,
+    e.event_name as event,
+    case public.company_module_for(e.event_name,coalesce(e.properties,'{}'::jsonb))
+      when 'ap' then 'AP'
+      when 'ar' then 'AR'
+      when 'transactions' then 'Transaction'
+      when 'gst' then 'GST'
+      when 'sync' then 'Sync'
+      else null
+    end as module,
+    coalesce(nullif(btrim(e.email),''),nullif(btrim(e.distinct_id),'')) as user_label,
+    row_number() over(order by e.event_time,e.insert_id) as rn
+  from company_events e
+  cross join identity i
+  where i.training_sync_at is not null
+    and (e.event_time at time zone 'Asia/Kolkata')::date
+        > (i.training_sync_at at time zone 'Asia/Kolkata')::date
+    and (i.activated_at is null or e.event_time<=i.activated_at)
+    and public.company_module_for(e.event_name,coalesce(e.properties,'{}'::jsonb))
+        in ('ap','ar','transactions','gst','sync')
+),
 evidence as (
-  select *
-  from (
-    select
-      e.event_time as at,
-      e.event_name as event,
-      case public.company_module_for(e.event_name,coalesce(e.properties,'{}'::jsonb))
-        when 'ap' then 'AP'
-        when 'ar' then 'AR'
-        when 'transactions' then 'Transaction'
-        when 'gst' then 'GST'
-        when 'sync' then 'Sync'
-        else null
-      end as module,
-      coalesce(nullif(btrim(e.email),''),nullif(btrim(e.distinct_id),'')) as user_label,
-      row_number() over(order by e.event_time,e.insert_id) as rn
-    from company_events e
-    cross join identity i
-    where i.training_sync_at is not null
-      and (e.event_time at time zone 'Asia/Kolkata')::date
-          > (i.training_sync_at at time zone 'Asia/Kolkata')::date
-      and (i.activated_at is null or e.event_time<=i.activated_at)
-      and public.company_module_for(e.event_name,coalesce(e.properties,'{}'::jsonb))
-          in ('ap','ar','transactions','gst','sync')
-  ) x
-  where rn<=10
+  select er.*
+  from evidence_ranked er
+  where er.rn<=9
+  union all
+  select er.*
+  from evidence_ranked er
+  cross join identity i
+  where i.activated_at is not null
+    and er.at=i.activated_at
+    and er.rn>9
 ),
 last_core as (
   select max(e.event_time) as last_core_activity_at
   from company_events e
   cross join identity i
-  where i.activated_at is null or e.event_time>=i.activated_at
+  where (i.activated_at is null or e.event_time>=i.activated_at)
     and public.is_core_activity(e.event_name,coalesce(e.properties,'{}'::jsonb))
 ),
 active_weeks as (
