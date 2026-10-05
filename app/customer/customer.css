@@ -6,8 +6,10 @@
 .companies-page .po-record-scroll{margin:0}
 .companies-page .po-record-foot{padding:15px 0}
 .companies-page .po-page-footer{padding-top:8px}
-.companies-table>thead>tr>th:nth-child(2){width:36%}
-.companies-table>tbody>tr>td:nth-child(2){max-width:360px;overflow:hidden;text-overflow:ellipsis}
+.companies-table>thead>tr>th:nth-child(2){width:138px}
+.companies-table>thead>tr>th:nth-child(3){width:31%}
+.companies-table>tbody>tr>td:nth-child(3){max-width:360px;overflow:hidden;text-overflow:ellipsis}
+.companies-integration-date{white-space:nowrap;color:#687890;font-variant-numeric:tabular-nums}
 .companies-user-table th:not(:first-child),.companies-user-table td:not(:first-child){text-align:right!important}
 .companies-user-table th:first-child{width:36%!important;text-align:left!important}
 .companies-user-table td:first-child{color:#42546f;text-align:left!important}
@@ -40,6 +42,7 @@
 .companies-breakdown-status.failed{background:#fbf3f1;border-color:#f0dfda;color:#a16559}
 .companies-breakdown-foot{display:flex;justify-content:space-between;align-items:center;padding:13px 24px;color:#8b97a8;font-size:10px}
 .companies-shell .date-trigger>.chevron{display:inline-flex;margin-left:auto}
+.companies-shell .date-popover{z-index:400}
 .companies-shell .date-trigger>.chevron>.icon{width:13px;height:13px}
 .companies-shell .date-preset .preset-check{display:inline-flex}
 .companies-shell .date-preset .preset-check .icon{width:13px;height:13px}
