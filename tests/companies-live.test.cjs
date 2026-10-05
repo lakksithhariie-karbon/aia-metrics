@@ -447,6 +447,41 @@ test('retention card copy matches the v2 contract', () => {
   assert(runtime.includes("$('#activation-card').addEventListener('click',()=>openInfo('activation'))"));
 });
 
+test('Companies and Retention share the same Product Metrics header', () => {
+  const header = read('components/product-metrics-header.tsx');
+  const companies = read('components/companies/companies-dashboard.tsx');
+  const retention = read('components/retention/retention-dashboard.tsx');
+
+  assert(header.includes('className="app-header product-metrics-header"'));
+  assert(header.includes('className="dashboard-menu ui-menu-surface"'));
+  assert(header.includes('className="header-help"'));
+  assert(header.includes('href: "/retention"'));
+  assert(companies.includes('<ProductMetricsHeader'));
+  assert(companies.includes('current="companies"'));
+  assert(retention.includes('<ProductMetricsHeader'));
+  assert(retention.includes('current="retention"'));
+  assert(retention.includes('helpRef.current?.showModal()'));
+});
+
+test('native Retention restores the live cohort heatmap', () => {
+  const dashboard = read('components/retention/retention-dashboard.tsx');
+  const heatmap = read('components/retention/retention-heatmap.tsx');
+  const route = read('app/api/retention-heatmap/route.ts');
+  const sql = read('supabase/retention-heatmap-v2.sql');
+
+  assert(dashboard.includes('<RetentionHeatmap'));
+  assert(!dashboard.includes('preview cards'), 'production Retention has no preview copy');
+  assert(heatmap.includes('"/api/retention-heatmap"'));
+  assert(heatmap.includes('className="heatmap-table'));
+  assert(heatmap.includes('Week 1') === false, 'week columns are generated from the live response');
+  assert(route.includes('retention_heatmap_unavailable'));
+  assert(sql.includes('metrics_private.retention_week_core_v2'));
+  assert(sql.includes('generate_series(1,8)'));
+  assert(sql.includes('generate_series(1,6)'));
+  assert(sql.includes('not metrics_private.is_retention_internal_email_v2(e.email)'));
+  assert(sql.includes('revoke all on function public.read_retention_heatmap_v2(text,date,date)'));
+});
+
 test('the app uses Oxanium as its only runtime font family', () => {
   const layout = read('app/layout.tsx');
   assert(layout.includes('variable: "--font-oxanium"'), 'Oxanium owns the app font variable');
@@ -493,7 +528,9 @@ test('all shipped TypeScript and JSX transpile without syntax errors', () => {
     'components/companies/companies-dashboard.tsx', 'app/customer/page.tsx',
     'app/api/companies/route.ts', 'lib/companies/types.ts', 'lib/companies/modules.ts',
     'app/api/retention-kpis/route.ts', 'app/api/retention-drill/route.ts',
-    'app/retention/page.tsx', 'components/retention/retention-dashboard.tsx',
+    'app/api/retention-heatmap/route.ts', 'app/retention/page.tsx',
+    'components/product-metrics-header.tsx',
+    'components/retention/retention-dashboard.tsx', 'components/retention/retention-heatmap.tsx',
     'lib/retention/types.ts', 'lib/retention/server.ts', 'lib/retention/drill-types.ts', 'lib/retention/drill.ts',
     'lib/prototype/customer-navigation.ts',
   ]) {
