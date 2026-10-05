@@ -26,3 +26,19 @@ export interface RetentionKpiResponse {
   source_watermark_at: string | null;
   refreshed_at: string | null;
 }
+
+export type RetentionHeatmapInterval = "weekly" | "monthly";
+
+export interface RetentionHeatmapRow {
+  cohort_start: string;
+  cohort_size: number;
+  values: Array<number | null>;
+}
+
+export interface RetentionHeatmapResponse {
+  interval: RetentionHeatmapInterval;
+  columns: number;
+  rows: RetentionHeatmapRow[];
+  source_watermark_at: string | null;
+  refreshed_at: string | null;
+}

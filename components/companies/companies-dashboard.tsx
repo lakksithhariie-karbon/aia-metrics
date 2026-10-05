@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ProductMetricsHeader from "../product-metrics-header";
 import {
   MONTH_MODULES,
   type CalendarMonthUsage,
@@ -148,24 +149,6 @@ interface BreakdownTarget {
   module: MonthModuleKey;
 }
 
-const DASHBOARDS = [
-  {
-    name: "Product Overview",
-    description: "Active usage, adoption and workflow health",
-    href: "/overview",
-  },
-  {
-    name: "Retention & Churn",
-    description: "Activation, retention and monthly churn",
-    href: "/retention",
-  },
-  {
-    name: "Companies",
-    description: "Monthly usage by integration cohort",
-    href: "/customer",
-  },
-];
-
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -198,7 +181,6 @@ export default function CompaniesDashboard() {
   const [editing, setEditing] = useState<"start" | "end" | null>(null);
   const [awaitingEnd, setAwaitingEnd] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [menuOpen, setMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [dateOpen, setDateOpen] = useState(false);
   const [data, setData] = useState<CompanyUsageResponse | null>(null);
@@ -481,81 +463,10 @@ export default function CompaniesDashboard() {
 
   return (
     <div className="companies-shell">
-      <header className="app-header">
-        <div className="brand-left">
-          <div className="brand">
-            <span className="brand-mark"><Icon name="grid" /></span>
-            AI Accountant
-          </div>
-          <span className="brand-divider" />
-          <span className="product-name">Product Metrics</span>
-        </div>
-        <nav aria-label="Product metrics navigation" className="top-nav">
-          <div className="dashboard-switcher">
-            <button
-              className="dashboard-trigger ui-control"
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen(open => !open)}
-            >
-              <Icon name="grid" />
-              <span>Companies</span>
-              <Icon name="down" />
-            </button>
-            <div
-              className="dashboard-menu ui-menu-surface"
-              role="menu"
-              hidden={!menuOpen}
-            >
-              <div className="menu-heading" role="presentation">
-                Dashboards
-              </div>
-              {DASHBOARDS.map(item => (
-                <a
-                  key={item.name}
-                  href={item.href}
-                  role="menuitemradio"
-                  aria-checked={item.name === "Companies"}
-                  className={`dashboard-option ${item.name === "Companies" ? "is-current" : ""}`}
-                  onClick={event => {
-                    if (item.name === "Companies") {
-                      event.preventDefault();
-                      setMenuOpen(false);
-                    }
-                  }}
-                >
-                  <span className="menu-option-icon">
-                    <Icon
-                      name={
-                        item.name === "Retention & Churn"
-                          ? "trend"
-                          : "grid"
-                      }
-                    />
-                  </span>
-                  <span className="menu-option-copy">
-                    <strong>{item.name}</strong>
-                    <small>{item.description}</small>
-                  </span>
-                  {item.name === "Companies" ? (
-                    <Icon name="check" />
-                  ) : null}
-                </a>
-              ))}
-            </div>
-          </div>
-          <button
-            className="header-help"
-            type="button"
-            aria-label="Metric definitions"
-            title="Metric definitions"
-            onClick={() => helpRef.current?.showModal()}
-          >
-            <Icon name="help" />
-          </button>
-        </nav>
-      </header>
+      <ProductMetricsHeader
+        current="companies"
+        onHelp={() => helpRef.current?.showModal()}
+      />
 
       <main className="companies-page" id="companies-main">
         <div className="page-heading companies-page-heading">
