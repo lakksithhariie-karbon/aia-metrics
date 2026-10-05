@@ -72,8 +72,7 @@
 .rd-date-foot button{height:32px;padding:0 12px;border:1px solid #dfe5ee;background:#fff;border-radius:5px;color:#65748a;font-size:9.5px}
 .rd-date-foot button.primary{background:var(--rd-blue);border-color:var(--rd-blue);color:#fff}
 .rd-kpi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:24px 0 20px}
-.rd-kpi-card{height:128px;border:1px solid #dfe5ee;border-radius:8px;background:#fff;padding:15px 17px 14px;text-align:left;position:relative;display:grid;grid-template-rows:22px 44px 18px;align-content:center;box-shadow:0 1px 1px rgba(22,41,75,.02);font-family:var(--app-font),sans-serif;font-style:normal;font-variant:normal;color:#202a3b}
-.rd-kpi-card *{font-family:inherit}
+.rd-kpi-card{height:128px;border:1px solid #dfe5ee;border-radius:8px;background:#fff;padding:15px 17px 14px;text-align:left;position:relative;display:grid;grid-template-rows:22px 44px 18px;align-content:center;box-shadow:0 1px 1px rgba(22,41,75,.02);font-style:normal;font-variant:normal;color:#202a3b}
 .rd-kpi-card.is-interactive{cursor:pointer;transition:border-color .14s ease,box-shadow .14s ease,transform .14s ease}
 .rd-kpi-card.is-interactive:hover{border-color:#b8c7ee;box-shadow:0 7px 22px rgba(44,70,128,.08);transform:translateY(-1px)}
 .rd-card-hit-target{position:absolute;inset:0;z-index:2;border:0;border-radius:8px;background:transparent;cursor:pointer}
