@@ -194,6 +194,103 @@ async function post<T>(url: string, body: Record<string, unknown>, signal?: Abor
   return payload as T;
 }
 
+const activationPageCache = new Map<string, ActivationListResponse>();
+const companyDetailCache = new Map<string, ActivationCompanyDetail>();
+const companyDetailPromises = new Map<string, Promise<ActivationCompanyDetail>>();
+
+function activationPageKey(args: {
+  from: string | null;
+  to: string | null;
+  query: string;
+  status: ActivationStatus | "all";
+  page: number;
+}): string {
+  return [
+    args.from ?? "all",
+    args.to ?? "all",
+    args.status,
+    args.query.trim().toLowerCase(),
+    String(args.page),
+  ].join("|");
+}
+
+async function fetchActivationPage(
+  args: {
+    from: string | null;
+    to: string | null;
+    query: string;
+    status: ActivationStatus | "all";
+    page: number;
+  },
+  signal?: AbortSignal,
+): Promise<ActivationListResponse> {
+  const key = activationPageKey(args);
+  const cached = activationPageCache.get(key);
+  if (cached) return cached;
+
+  const result = await post<ActivationListResponse>(
+    "/api/retention-drill-preview",
+    {
+      action: "list",
+      from: args.from,
+      to: args.to,
+      query: args.query,
+      status: args.status,
+      page: args.page,
+      page_size: 8,
+    },
+    signal,
+  );
+  activationPageCache.set(key, result);
+  return result;
+}
+
+function prefetchActivationPage(args: {
+  from: string | null;
+  to: string | null;
+  query: string;
+  status: ActivationStatus | "all";
+  page: number;
+}) {
+  const key = activationPageKey(args);
+  if (activationPageCache.has(key)) return;
+  void fetchActivationPage(args).catch(() => undefined);
+}
+
+function getCompanyDetail(companyId: string): Promise<ActivationCompanyDetail> {
+  const cached = companyDetailCache.get(companyId);
+  if (cached) return Promise.resolve(cached);
+  const pending = companyDetailPromises.get(companyId);
+  if (pending) return pending;
+
+  const promise = post<ActivationCompanyDetail>(
+    "/api/retention-drill-preview",
+    { action: "company", company_id: companyId },
+  )
+    .then(result => {
+      companyDetailCache.set(companyId, result);
+      return result;
+    })
+    .finally(() => {
+      companyDetailPromises.delete(companyId);
+    });
+
+  companyDetailPromises.set(companyId, promise);
+  return promise;
+}
+
+function prefetchCompanyDetail(companyId: string) {
+  void getCompanyDetail(companyId).catch(() => undefined);
+}
+
+function paginationItems(current: number, total: number): Array<number | "ellipsis"> {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, "ellipsis", total];
+  if (current >= total - 3)
+    return [1, "ellipsis", total - 4, total - 3, total - 2, total - 1, total];
+  return [1, "ellipsis", current - 1, current, current + 1, "ellipsis", total];
+}
+
 function KpiCard({
   label,
   period,
@@ -433,25 +530,49 @@ function ActivationModal({
   }, [query]);
 
   useEffect(() => {
+    setPage(1);
+    setExpanded(new Set());
+  }, [status, deferredQuery, rangeBounds.from, rangeBounds.to]);
+
+  useEffect(() => {
     const controller = new AbortController();
+    const args = {
+      from: rangeBounds.from,
+      to: rangeBounds.to,
+      query: deferredQuery,
+      status,
+      page,
+    };
+    const cached = activationPageCache.get(activationPageKey(args));
+    if (cached) {
+      setData(cached);
+      setLoading(false);
+      const totalPages = Math.max(1, Math.ceil(cached.total / cached.page_size));
+      if (page > 1) prefetchActivationPage({ ...args, page: page - 1 });
+      if (page < totalPages) prefetchActivationPage({ ...args, page: page + 1 });
+      return () => controller.abort();
+    }
+
     setLoading(true);
-    post<ActivationListResponse>(
-      "/api/retention-drill-preview",
-      {
-        action: "list",
-        from: rangeBounds.from,
-        to: rangeBounds.to,
-        query: deferredQuery,
-      },
-      controller.signal,
-    )
-      .then(setData)
-      .catch(() => setData(null))
+    fetchActivationPage(args, controller.signal)
+      .then(result => {
+        if (controller.signal.aborted) return;
+        setData(result);
+        const totalPages = Math.max(1, Math.ceil(result.total / result.page_size));
+        if (result.page > 1)
+          prefetchActivationPage({ ...args, page: result.page - 1 });
+        if (result.page < totalPages)
+          prefetchActivationPage({ ...args, page: result.page + 1 });
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setData(null);
+      })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
+
     return () => controller.abort();
-  }, [rangeBounds.from, rangeBounds.to, deferredQuery]);
+  }, [rangeBounds.from, rangeBounds.to, deferredQuery, status, page]);
 
   const counts = {
     all: kpis.activation.integrated,
@@ -461,29 +582,18 @@ function ActivationModal({
     awaiting_sync: kpis.activation.post_training_core - kpis.activation.activated,
   };
 
-  const visible = (data?.rows ?? []).filter(row =>
-    status === "all" ? true : row.status === status,
+  const visible = data?.rows ?? [];
+  const pageCount = Math.max(
+    1,
+    Math.ceil((data?.total ?? 0) / (data?.page_size ?? 8)),
   );
-  const pageSize = 8;
-  const pageCount = Math.max(1, Math.ceil(visible.length / pageSize));
-  const safePage = Math.min(page, pageCount);
-  const pagedVisible = visible.slice(
-    (safePage - 1) * pageSize,
-    safePage * pageSize,
-  );
-
-  useEffect(() => {
-    setPage(1);
-    setExpanded(new Set());
-  }, [status, deferredQuery, data]);
+  const safePage = data?.page ?? page;
+  const pagedVisible = visible;
 
   const toggle = (id: string) => {
-    setExpanded(current => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    setExpanded(current =>
+      current.has(id) ? new Set() : new Set([id]),
+    );
   };
 
   return (
@@ -602,6 +712,8 @@ function ActivationModal({
                           <button
                             type="button"
                             className="rd-company-link"
+                            onMouseEnter={() => prefetchCompanyDetail(company.id)}
+                            onFocus={() => prefetchCompanyDetail(company.id)}
                             onClick={() => setDetailId(company.id)}
                           >
                             <strong>{company.name}</strong>
@@ -649,9 +761,7 @@ function ActivationModal({
               </span>
               <small>
                 {data
-                  ? data.sampled
-                    ? "Previewing " + nf.format(data.loaded) + " of " + nf.format(data.total) + " matching companies"
-                    : nf.format(visible.length) + " matching companies"
+                  ? nf.format(data.total) + " matching companies"
                   : ""}
               </small>
             </div>
@@ -665,16 +775,20 @@ function ActivationModal({
                 >
                   <Icon name="left" />
                 </button>
-                {Array.from({ length: pageCount }, (_, index) => index + 1).map(item => (
-                  <button
-                    type="button"
-                    key={item}
-                    aria-current={safePage === item ? "page" : undefined}
-                    onClick={() => setPage(item)}
-                  >
-                    {item}
-                  </button>
-                ))}
+                {paginationItems(safePage, pageCount).map((item, index) =>
+                  item === "ellipsis" ? (
+                    <span className="rd-page-ellipsis" key={"ellipsis-" + index}>…</span>
+                  ) : (
+                    <button
+                      type="button"
+                      key={item}
+                      aria-current={safePage === item ? "page" : undefined}
+                      onClick={() => setPage(item)}
+                    >
+                      {item}
+                    </button>
+                  ),
+                )}
                 <button
                   type="button"
                   disabled={safePage === pageCount}
@@ -706,23 +820,36 @@ function CompanyDetailModal({
   companyId: string;
   onClose: () => void;
 }) {
-  const [detail, setDetail] = useState<ActivationCompanyDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const initialDetail = companyDetailCache.get(companyId) ?? null;
+  const [detail, setDetail] = useState<ActivationCompanyDetail | null>(initialDetail);
+  const [loading, setLoading] = useState(!initialDetail);
 
   useEffect(() => {
-    const controller = new AbortController();
+    let active = true;
+    const cached = companyDetailCache.get(companyId);
+    if (cached) {
+      setDetail(cached);
+      setLoading(false);
+      return () => {
+        active = false;
+      };
+    }
+
     setLoading(true);
-    post<ActivationCompanyDetail>(
-      "/api/retention-drill-preview",
-      { action: "company", company_id: companyId },
-      controller.signal,
-    )
-      .then(setDetail)
-      .catch(() => setDetail(null))
+    getCompanyDetail(companyId)
+      .then(result => {
+        if (active) setDetail(result);
+      })
+      .catch(() => {
+        if (active) setDetail(null);
+      })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (active) setLoading(false);
       });
-    return () => controller.abort();
+
+    return () => {
+      active = false;
+    };
   }, [companyId]);
 
   return (
