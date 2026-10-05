@@ -35,8 +35,8 @@ export interface ActivationCompanyRow {
 export interface ActivationListResponse {
   rows: ActivationCompanyRow[];
   total: number;
-  loaded: number;
-  sampled: boolean;
+  page: number;
+  page_size: number;
 }
 
 export interface ActivationEvidenceRow {
