@@ -1,17 +1,18 @@
 /**
- * Server-only Companies data plane.
+ * Server-only Companies lifecycle data plane.
  *
- * Main table reads a pre-aggregated private reporting cache through one
- * service-role-only RPC. Raw events are only touched for a single-company
- * breakdown modal. Browser code never receives Supabase credentials.
+ * The main table reads a private, pre-aggregated post-integration cache.
+ * W1-W4 are anchored to each company's FIRST successful integration.
+ * Browser code never receives Supabase credentials or raw event access.
  */
 import {
   type CompanyUsageResponse,
   type ModuleBreakdownResponse,
-  type ModuleKey,
   type SortDirection,
   type SortKey,
   type UsageFilter,
+  type UsageWeek,
+  type WeekModuleKey,
 } from "./types";
 
 const UNATTRIBUTED_ID = "__unattributed__";
@@ -47,7 +48,7 @@ async function rest<T>(path: string, init?: RequestInit, signal?: AbortSignal): 
     const server = response.headers.get("server") ?? "";
     const ray = response.headers.get("cf-ray") ?? response.headers.get("x-vercel-id") ?? "";
     throw new Error(
-      `supabase_${response.status}:${path.slice(0, 60)}:srv=${server}:ray=${ray}:body=${detail.slice(0, 100)}`,
+      `supabase_${response.status}:${path.slice(0, 70)}:srv=${server}:ray=${ray}:body=${detail.slice(0, 120)}`,
     );
   }
   return (await response.json()) as T;
@@ -88,7 +89,7 @@ export interface ListParams {
 
 export async function listCompanies(params: ListParams): Promise<CompanyUsageResponse> {
   const payload = await rpc<CompanyUsageResponse | CompanyUsageResponse[]>(
-    "read_companies_page_fast",
+    "read_companies_lifecycle_page",
     {
       p_from: params.from,
       p_to: params.to,
@@ -109,9 +110,8 @@ export interface BreakdownParams {
   signal?: AbortSignal;
   company_id: string;
   user_id: string | null;
-  module: ModuleKey;
-  from: string | null;
-  to: string | null;
+  module: WeekModuleKey;
+  week: UsageWeek;
 }
 
 export async function companyBreakdown(
@@ -134,23 +134,32 @@ export async function companyBreakdown(
         items: number | null;
         instrumented: number;
         latest_at: string | null;
+        window_start: string | null;
+        window_end: string | null;
       }>
     >(
-      "read_companies_breakdown",
+      "read_companies_lifecycle_breakdown",
       {
         p_company_id: params.company_id,
         p_module: params.module,
         p_user_key: userKey,
-        p_from: params.from,
-        p_to: params.to,
+        p_usage_week: params.week,
       },
       params.signal,
     ),
     rpc<
-      | { company_name: string | null; user_label: string | null }
-      | Array<{ company_name: string | null; user_label: string | null }>
+      | {
+          company_name: string | null;
+          integration_at: string | null;
+          user_label: string | null;
+        }
+      | Array<{
+          company_name: string | null;
+          integration_at: string | null;
+          user_label: string | null;
+        }>
     >(
-      "read_companies_identity_fast",
+      "read_companies_lifecycle_identity",
       {
         p_company_id: params.company_id,
         p_user_key:
@@ -174,6 +183,8 @@ export async function companyBreakdown(
 
   const total = rows.reduce((sum, row) => sum + row.count, 0);
   const instrumented = rows.filter(row => row.items != null);
+  const windowStart = grouped[0]?.window_start ?? null;
+  const windowEnd = grouped[0]?.window_end ?? null;
 
   return {
     company_id: params.company_id,
@@ -186,6 +197,9 @@ export async function companyBreakdown(
           ? UNATTRIBUTED_LABEL
           : text(identity.user_label) || params.user_id,
     module: params.module,
+    week: params.week,
+    window_start: windowStart,
+    window_end: windowEnd,
     total,
     item_total: instrumented.length
       ? instrumented.reduce((sum, row) => sum + (row.items ?? 0), 0)
