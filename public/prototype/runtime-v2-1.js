@@ -39,6 +39,75 @@ const MONTH_WINDOW_COUNT=6;
 let appliedRange={preset:'lifetime',start:null,end:null};
 let retentionView='weekly';
 let activationTotals={active:512,inactive:2210,total:2722,ttv:10.7,ttvN:512};
+let liveRetentionKpis=null,retentionKpiRequest=0;
+
+function retentionDateBounds(){
+ if(appliedRange.preset==='lifetime')return {from:null,to:null};
+ return {from:monthFirst(appliedRange.start),to:monthLast(appliedRange.end)};
+}
+function retentionMonthLabel(key){
+ if(!key)return 'No completed month';
+ return new Date(key+'-01T12:00:00Z').toLocaleDateString('en-GB',{month:'short',year:'numeric',timeZone:'UTC'}).replace('Sept','Sep');
+}
+function updateLiveRetentionCards(){
+ const data=liveRetentionKpis;if(!data)return;
+ const scope=rangeLabel(appliedRange),activation=data.activation,ttv=data.ttv,churn=data.churn;
+ const activationRate=activation.rate_pct==null?'-':Number(activation.rate_pct).toFixed(1)+'%';
+ $('#activation-card .metric-period').textContent=scope;
+ $('#activation-card .metric-value').textContent=activationRate;
+ $('#activation-card .metric-note').textContent=activation.integrated
+   ? `${fmt.format(activation.activated)} of ${fmt.format(activation.integrated)} integrated companies activated`
+   : 'No successful integrations in this range';
+ $('#activation-card').setAttribute('aria-label',`Activation rate, ${activationRate}, ${scope}. View definition.`);
+
+ const avgDays=ttv.avg_hours==null?null:Number(ttv.avg_hours)/24;
+ const medianDays=ttv.median_hours==null?null:Number(ttv.median_hours)/24;
+ $('#ttv-card .metric-period').textContent=scope;
+ $('#ttv-card .metric-value').innerHTML=avgDays==null?'-':avgDays.toFixed(1)+'<span class="unit">days</span>';
+ $('#ttv-card .metric-note').textContent=ttv.companies
+   ? `${fmt.format(ttv.companies)} activated companies with measurable TTV`
+   : 'No activated companies with measurable TTV';
+ $('#ttv-modal-value').innerHTML=avgDays==null?'-':avgDays.toFixed(1)+' <span>days</span>';
+ $('#ttv-description').textContent='Average time from first successful integration to the activation-closing sync: a later-day non-sync core job, followed by a qualifying Accounting Sync.';
+ $('#ttv-scope-detail').hidden=false;
+ $('#ttv-scope-detail').innerHTML=ttv.companies
+   ? `<span>${esc(scope)} · ${fmt.format(ttv.companies)} companies · median ${medianDays.toFixed(1)} days</span>`
+   : `<span>${esc(scope)} · no measurable TTV</span>`;
+
+ const churnRate=churn.rate_pct==null?'-':Number(churn.rate_pct).toFixed(1)+'%';
+ const churnPeriod=retentionMonthLabel(churn.month);
+ $('#churn-metric-card .metric-period').textContent=churnPeriod;
+ $('#churn-metric-card .metric-value').textContent=churnRate;
+ $('#churn-metric-card .metric-note').textContent=churn.month
+   ? `${fmt.format(churn.churned)} of ${fmt.format(churn.eligible)} eligible companies churned`
+   : 'No completed month in this range';
+ $('#churn-metric-card').setAttribute('aria-label',`Monthly churn, ${churnPeriod}: ${churnRate}. View definition.`);
+ $('#churn-modal-period').textContent=churnPeriod;
+ $('#churn-modal-value').textContent=churnRate;
+ $('#churn-metric-description').textContent=churn.month
+   ? `Share of companies activated before ${churnPeriod} with no core activity during that completed calendar month.`
+   : 'Monthly churn is calculated only for completed calendar months.';
+ $('#churn-modal-detail').innerHTML=churn.month
+   ? `<span><strong>${fmt.format(churn.churned)}</strong> of <strong>${fmt.format(churn.eligible)}</strong> eligible companies</span>`
+   : `<span>${esc(scope)}</span>`;
+}
+async function loadRetentionKpis(){
+ const requestId=++retentionKpiRequest,bounds=retentionDateBounds();
+ try{
+  const response=await fetch('/api/retention-kpis',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify(bounds)
+  });
+  if(!response.ok)throw new Error('retention_kpis_unavailable');
+  const data=await response.json();
+  if(requestId!==retentionKpiRequest)return;
+  liveRetentionKpis=data;updateLiveRetentionCards();
+ }catch(error){
+  if(requestId!==retentionKpiRequest)return;
+  console.error('retention-kpis',error);
+ }
+}
 function shiftMonth(key,offset){const [year,month]=key.split('-').map(Number);return new Date(Date.UTC(year,month-1+offset,1)).toISOString().slice(0,7);}
 function monthFirst(key){return key+'-01';}
 function monthLast(key){return new Date(Date.parse(shiftMonth(key,1)+'-01T12:00:00Z')-86400000).toISOString().slice(0,10);}
@@ -523,7 +592,7 @@ function hideTooltip(){const tip=$('#heatmap-tooltip');tip.hidden=true;if(tip.pa
 
 $('#retention-view').addEventListener('change',event=>{retentionView=event.target.value;renderHeatmap();syncAllSelects();});
 $('#cohort-order').addEventListener('change',event=>{reverseCohorts=event.target.value==='newest';renderHeatmap();});
-$('#activation-card').addEventListener('click',openActivationRecords);
+$('#activation-card').addEventListener('click',()=>openInfo('activation'));
 $('#ttv-card').addEventListener('click',()=>openDialog('ttv-dialog'));
 $('#churn-metric-card').addEventListener('click',()=>openDialog('churn-dialog'));
 
@@ -825,7 +894,7 @@ function updateChurnMetric(latest){
  $('#churn-modal-detail').innerHTML=latest?`<span><strong>${latest.churned}</strong> of <strong>${latest.eligible}</strong> eligible companies</span>`:`<span>${esc(rangeLabel(appliedRange))}</span>`;
 }
 function renderDashboard(){
- prepareActivationData();updateActivationMetrics();renderHeatmap();renderChurn();
+ prepareActivationData();updateActivationMetrics();renderHeatmap();renderChurn();loadRetentionKpis();
  $('#date-range-value').textContent=rangeLabel(appliedRange);
  $('#date-range-trigger').title='Global date range: '+rangeLabel(appliedRange);
  $('#reset-range').hidden=appliedRange.preset==='lifetime';
@@ -834,10 +903,14 @@ function renderDashboard(){
 }
 function currentDefinitions(){
  const latest=visibleChurnMonths().at(-1),rate=activationTotals.total?(100*activationTotals.active/activationTotals.total).toFixed(1)+'%':'Not available';
+ const live=liveRetentionKpis,activation=live?.activation,ttv=live?.ttv,churn=live?.churn;
+ const liveActivationRate=activation?.rate_pct==null?rate:Number(activation.rate_pct).toFixed(1)+'%';
+ const liveTtvDays=ttv?.avg_hours==null?activationTotals.ttv:Number(ttv.avg_hours)/24;
+ const liveChurnRate=churn?.rate_pct==null?(latest?latest.rate.toFixed(1)+'%':'Not available'):Number(churn.rate_pct).toFixed(1)+'%';
  return {
-  activation:`<section class="definition-block"><h3>Activation rate</h3><div class="definition-value">${rate}</div><p>A company is activated when it syncs again after its first sync. The date range selects companies by signup date. Their activation status is measured through 4 October 2026.</p><div class="formula">${activationTotals.active} activated companies ÷ ${activationTotals.total} companies × 100</div></section>`,
-  ttv:`<section class="definition-block"><h3>Average time to value</h3><div class="definition-value">${activationTotals.ttv===null?'Not available':activationTotals.ttv.toFixed(1)+' days'}</div><p>Average time from successful integration to the first later-day sync. This is the existing dashboard definition, not simply elapsed time since signup. The date range selects successful integration dates; companies without a later-day sync are excluded from the average.</p></section>`,
-  churn:`<section class="definition-block"><h3>Month-on-month churn</h3><div class="definition-value">${latest?latest.rate.toFixed(1)+'%':'Not available'}</div><p>Share of eligible activated companies with no core activity in the month. The chart shows completed calendar months in the selected range. The KPI shows the latest of those months. Current, incomplete months are excluded, not treated as zero.</p>${latest?`<div class="formula">${latest.churned} churned companies ÷ ${latest.eligible} eligible companies × 100</div>`:''}<p>Percentage-point changes compare against the immediately previous calendar month, including when it falls outside your filter.</p></section>`,
+  activation:`<section class="definition-block"><h3>Activation rate</h3><div class="definition-value">${liveActivationRate}</div><p>A company starts from its first successful integration. Its first qualifying Accounting Sync after integration is treated as the guided training sync. Training-day activity does not count. The company activates only after it returns on a later IST calendar day, completes a non-sync core job that is not failed, and then completes a qualifying Accounting Sync.</p>${activation?`<div class="formula">${activation.activated} activated companies ÷ ${activation.integrated} integrated companies × 100</div>`:''}</section>`,
+  ttv:`<section class="definition-block"><h3>Average time to value</h3><div class="definition-value">${liveTtvDays==null?'Not available':liveTtvDays.toFixed(1)+' days'}</div><p>Time to value runs from the first successful integration to the same Accounting Sync that closes activation after independent post-training core work. Only activated companies enter the average.</p>${ttv?`<div class="formula">${ttv.companies} companies · median ${(Number(ttv.median_hours)/24).toFixed(1)} days</div>`:''}</section>`,
+  churn:`<section class="definition-block"><h3>Monthly churn</h3><div class="definition-value">${liveChurnRate}</div><p>For the latest completed calendar month in the selected range, a company is eligible if it activated before the month began. It is churned when it has no core activity during that month.</p>${churn?.month?`<div class="formula">${churn.churned} churned companies ÷ ${churn.eligible} eligible companies × 100</div>`:''}</section>`,
   retention:`<section class="definition-block"><h3>Retention</h3><p>The global range selects activation cohort start dates. Return windows are evaluated using all available data through the snapshot, not truncated at the end of the cohort filter.</p><p>Weekly keeps the supplied cohort data. Monthly groups unique companies by activation calendar month. Month 1 is the next calendar month; only completed return months are eligible. Monthly data here is illustrative company-level activity, not a mean or sum of weekly percentages.</p><p>Each cell counts unique retained companies. Average pools retained and eligible companies across visible cohorts. A missing window is not yet eligible. In the drill-down, Churned means no qualifying return in the selected window, not permanent churn. A user can own companies in both tabs.</p></section>`,
   scope:`<section class="definition-block"><h3>Global date range</h3><p>Current selection: <strong>${esc(rangeLabel(appliedRange))}</strong>. Lifetime includes all available data. Last 3, 6 and 12 months use completed calendar months. Custom ranges select whole months; an included current month is partial. Click Apply to commit or Cancel to discard changes.</p><p>Scoped activation and time-to-value results use illustrative company-level fixtures because the supplied screenshot contains only their lifetime aggregates. Connect actual event data before using these values for decisions.</p></section>`
  };
