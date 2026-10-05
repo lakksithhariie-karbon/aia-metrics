@@ -222,11 +222,6 @@ function KpiCard({
         {unit ? <span>{unit}</span> : null}
       </div>
       <div className="rd-card-note">{note}</div>
-      {interactive ? (
-        <span className="rd-card-action" aria-hidden="true">
-          <Icon name="right" />
-        </span>
-      ) : null}
     </>
   );
   return interactive ? (
@@ -429,6 +424,7 @@ function ActivationModal({
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<ActivationStatus | "all">("all");
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
   const rangeBounds = useMemo(() => bounds(range), [range]);
 
   useEffect(() => {
@@ -468,6 +464,18 @@ function ActivationModal({
   const visible = (data?.rows ?? []).filter(row =>
     status === "all" ? true : row.status === status,
   );
+  const pageSize = 8;
+  const pageCount = Math.max(1, Math.ceil(visible.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const pagedVisible = visible.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  );
+
+  useEffect(() => {
+    setPage(1);
+    setExpanded(new Set());
+  }, [status, deferredQuery, data]);
 
   const toggle = (id: string) => {
     setExpanded(current => {
@@ -576,7 +584,7 @@ function ActivationModal({
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.length ? visible.flatMap(company => {
+                  {pagedVisible.length ? pagedVisible.flatMap(company => {
                     const open = expanded.has(company.id);
                     const parent = (
                       <tr key={company.id} className={open ? "is-expanded" : ""}>
@@ -634,13 +642,49 @@ function ActivationModal({
             )}
           </div>
 
-          <footer className="rd-modal-foot">
-            <span>
-              Independent usage is counted after the training day through activation, or through data freshness if not activated.
-            </span>
-            <span>
-              {data?.sampled ? "Preview: newest " + nf.format(data.loaded) + " of " + nf.format(data.total) + " matching companies" : data ? nf.format(data.total) + " companies" : ""}
-            </span>
+          <footer className="rd-modal-foot rd-modal-foot-paginated">
+            <div className="rd-table-summary">
+              <span>
+                Independent usage is counted after the training day through activation, or through data freshness if not activated.
+              </span>
+              <small>
+                {data
+                  ? data.sampled
+                    ? "Previewing " + nf.format(data.loaded) + " of " + nf.format(data.total) + " matching companies"
+                    : nf.format(visible.length) + " matching companies"
+                  : ""}
+              </small>
+            </div>
+            {data && visible.length ? (
+              <nav className="rd-pagination" aria-label="Activation company pages">
+                <button
+                  type="button"
+                  disabled={safePage === 1}
+                  onClick={() => setPage(value => Math.max(1, value - 1))}
+                  aria-label="Previous page"
+                >
+                  <Icon name="left" />
+                </button>
+                {Array.from({ length: pageCount }, (_, index) => index + 1).map(item => (
+                  <button
+                    type="button"
+                    key={item}
+                    aria-current={safePage === item ? "page" : undefined}
+                    onClick={() => setPage(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  disabled={safePage === pageCount}
+                  onClick={() => setPage(value => Math.min(pageCount, value + 1))}
+                  aria-label="Next page"
+                >
+                  <Icon name="right" />
+                </button>
+              </nav>
+            ) : null}
           </footer>
         </section>
       </div>
