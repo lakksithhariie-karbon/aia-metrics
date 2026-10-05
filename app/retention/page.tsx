@@ -1,6 +1,6 @@
-import RetentionPreview from "../../components/retention/retention-preview";
+import RetentionDashboard from "../../components/retention/retention-dashboard";
 import "./retention.css";
 
 export default function RetentionPage() {
-  return <RetentionPreview />;
+  return <RetentionDashboard />;
 }
