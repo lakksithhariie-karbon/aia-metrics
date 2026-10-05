@@ -558,8 +558,11 @@ export default function CompaniesDashboard() {
       </header>
 
       <main className="companies-page" id="companies-main">
-        <div className="page-heading">
-          <h1>Companies</h1>
+        <div className="page-heading companies-page-heading">
+          <div className="companies-title-block">
+            <h1>Companies</h1>
+            <p>Monthly product adoption by integration cohort</p>
+          </div>
           <div className="global-controls">
             {range.preset !== "current" ? (
               <button
@@ -598,10 +601,14 @@ export default function CompaniesDashboard() {
         </div>
 
         <section
-          className="companies-records po-record-layout companies-monthly-records"
+          className="companies-records po-record-layout companies-monthly-records companies-grid-card"
           aria-label="Monthly company usage"
         >
-          <div className="po-record-toolbar">
+          <div className="po-record-toolbar companies-command-bar">
+            <div className="companies-toolbar-meta">
+              <strong>{number.format(data?.total ?? 0)} companies</strong>
+              <span>{label} cohort · updated {prettyDateTime(data?.source_watermark_at ?? null)}</span>
+            </div>
             <div className="po-record-tools">
               <div className="po-search">
                 <Icon name="search" />
@@ -633,21 +640,19 @@ export default function CompaniesDashboard() {
               <div className="po-filter-wrap companies-filter-wrap">
                 <button
                   type="button"
-                  className={`ui-control ${filterCount ? "has-filters" : ""}`}
+                  className={`ui-control companies-filter-trigger ${filterCount ? "has-filters" : ""}`}
                   aria-expanded={filtersOpen}
                   onClick={() =>
                     setFiltersOpen(open => !open)
                   }
                 >
                   <Icon name="filter" />
-                  <span>Filters · {filterCount}</span>
+                  <span>Filters</span>
+                  {filterCount ? <span className="companies-filter-badge">{filterCount}</span> : null}
                 </button>
-              </div>
-            </div>
-          </div>
 
-          {filtersOpen ? (
-            <div className="companies-filter-popover po-filters">
+                {filtersOpen ? (
+                  <div className="companies-filter-popover po-filters">
               <div className="po-filter-head">
                 <strong>Filter companies</strong>
                 <button
@@ -713,8 +718,11 @@ export default function CompaniesDashboard() {
                 The cohort is based on first successful integration
                 month. Usage columns are calendar months.
               </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          ) : null}
+          </div>
 
           <div
             className="po-record-scroll companies-monthly-scroll"
@@ -878,11 +886,7 @@ export default function CompaniesDashboard() {
                                   toggleCompany(company.id)
                                 }
                               >
-                                <Icon
-                                  name={
-                                    open ? "minus" : "plus"
-                                  }
-                                />
+                                <Icon name={open ? "down" : "right"} />
                               </button>
                             </td>
                             <td className="companies-integration-month">
@@ -1008,15 +1012,6 @@ export default function CompaniesDashboard() {
           </div>
         </section>
 
-        <footer className="po-page-footer">
-          <span className="companies-source-note">
-            <Icon name="info" />
-            Source freshness:{" "}
-            {prettyDateTime(
-              data?.source_watermark_at ?? null,
-            )}
-          </span>
-        </footer>
       </main>
 
       {dateOpen ? (
