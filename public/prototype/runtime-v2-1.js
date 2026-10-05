@@ -1,8 +1,8 @@
 
 'use strict';
-/* Self-contained UI prototype. Report data is transcribed from the supplied
-   screenshot. Account records are fictional and use reserved .example domains.
-   No libraries, analytics, remote requests, or production data connections.
+/* Compatibility runtime for the approved prototype surface.
+   Retention KPI cards read live production aggregates through the app API.
+   Remaining report fixtures and drill-down identities are illustrative until migrated.
    v6: company activity drill-down; card-level navigation; requested font stack.
    PP Neue Montreal is resolved from the viewer's installed fonts. The licensed
    font is NOT embedded. Add your licensed @font-face URL in production.
@@ -182,7 +182,6 @@ function renderChurn(){
  $('#churn-empty-copy').textContent=appliedRange.start===CURRENT_MONTH?'October 2026 is still in progress. Its churn rate is not calculated yet.':'There is no monthly churn data for the selected dates. Try a wider or earlier range.';
  $('#churn-trend-view').hidden=visible.length===0||churnView!=='trend';
  $('#churn-data-view').hidden=visible.length===0||churnView!=='table';
- updateChurnMetric(latest);
  renderChurnChart();
 }
 
@@ -894,7 +893,7 @@ function updateChurnMetric(latest){
  $('#churn-modal-detail').innerHTML=latest?`<span><strong>${latest.churned}</strong> of <strong>${latest.eligible}</strong> eligible companies</span>`:`<span>${esc(rangeLabel(appliedRange))}</span>`;
 }
 function renderDashboard(){
- prepareActivationData();updateActivationMetrics();renderHeatmap();renderChurn();loadRetentionKpis();
+ prepareActivationData();renderHeatmap();renderChurn();loadRetentionKpis();
  $('#date-range-value').textContent=rangeLabel(appliedRange);
  $('#date-range-trigger').title='Global date range: '+rangeLabel(appliedRange);
  $('#reset-range').hidden=appliedRange.preset==='lifetime';
@@ -912,7 +911,7 @@ function currentDefinitions(){
   ttv:`<section class="definition-block"><h3>Average time to value</h3><div class="definition-value">${liveTtvDays==null?'Not available':liveTtvDays.toFixed(1)+' days'}</div><p>Time to value runs from the first successful integration to the same Accounting Sync that closes activation after independent post-training core work. Only activated companies enter the average.</p>${ttv?`<div class="formula">${ttv.companies} companies · median ${(Number(ttv.median_hours)/24).toFixed(1)} days</div>`:''}</section>`,
   churn:`<section class="definition-block"><h3>Monthly churn</h3><div class="definition-value">${liveChurnRate}</div><p>For the latest completed calendar month in the selected range, a company is eligible if it activated before the month began. It is churned when it has no core activity during that month.</p>${churn?.month?`<div class="formula">${churn.churned} churned companies ÷ ${churn.eligible} eligible companies × 100</div>`:''}</section>`,
   retention:`<section class="definition-block"><h3>Retention</h3><p>The global range selects activation cohort start dates. Return windows are evaluated using all available data through the snapshot, not truncated at the end of the cohort filter.</p><p>Weekly keeps the supplied cohort data. Monthly groups unique companies by activation calendar month. Month 1 is the next calendar month; only completed return months are eligible. Monthly data here is illustrative company-level activity, not a mean or sum of weekly percentages.</p><p>Each cell counts unique retained companies. Average pools retained and eligible companies across visible cohorts. A missing window is not yet eligible. In the drill-down, Churned means no qualifying return in the selected window, not permanent churn. A user can own companies in both tabs.</p></section>`,
-  scope:`<section class="definition-block"><h3>Global date range</h3><p>Current selection: <strong>${esc(rangeLabel(appliedRange))}</strong>. Lifetime includes all available data. Last 3, 6 and 12 months use completed calendar months. Custom ranges select whole months; an included current month is partial. Click Apply to commit or Cancel to discard changes.</p><p>Scoped activation and time-to-value results use illustrative company-level fixtures because the supplied screenshot contains only their lifetime aggregates. Connect actual event data before using these values for decisions.</p></section>`
+  scope:`<section class="definition-block"><h3>Global date range</h3><p>Current selection: <strong>${esc(rangeLabel(appliedRange))}</strong>. Activation and time to value select companies by first successful integration date. Churn uses the latest completed calendar month inside the selected range. Current, incomplete churn months are excluded.</p></section>`
  };
 }
 
