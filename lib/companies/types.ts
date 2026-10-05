@@ -9,7 +9,7 @@ export const MODULES = [
 export type ModuleKey = (typeof MODULES)[number]["key"];
 export type Totals = Record<ModuleKey, number>;
 
-export type SortKey = "name" | ModuleKey;
+export type SortKey = "integration_date" | "name" | ModuleKey;
 export type SortDirection = "asc" | "desc";
 export type UsageFilter = "all" | "active" | "inactive";
 
@@ -23,6 +23,7 @@ export interface CompanyUsageRow {
   id: string;
   name: string;
   integration: string;
+  integration_at: string | null;
   is_test: boolean;
   totals: Totals;
   users: CompanyUsageUser[];

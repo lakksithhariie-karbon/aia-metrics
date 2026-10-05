@@ -28,8 +28,12 @@ create table if not exists metrics_private.company_reporting_identity (
   company_id text primary key,
   company_name text not null,
   is_test boolean not null default false,
-  integration text not null default 'Unknown'
+  integration text not null default 'Unknown',
+  integration_at timestamptz
 );
+
+alter table metrics_private.company_reporting_identity
+  add column if not exists integration_at timestamptz;
 
 create table if not exists metrics_private.company_reporting_meta (
   singleton boolean primary key default true check (singleton),
@@ -106,7 +110,7 @@ begin
   delete from metrics_private.company_reporting_identity;
 
   insert into metrics_private.company_reporting_identity (
-    company_id, company_name, is_test, integration
+    company_id, company_name, is_test, integration, integration_at
   )
   with event_names as (
     select distinct on (e.company_id)
@@ -126,7 +130,8 @@ begin
         when 'zoho' then 'Zoho Books'
         when 'zoho books' then 'Zoho Books'
         else 'Unknown'
-      end as integration
+      end as integration,
+      e.event_time as integration_at
     from public.events e
     join public.client_company c on c.company_id = e.company_id
     where e.event_name = 'Integration status'
@@ -137,7 +142,8 @@ begin
     c.company_id,
     coalesce(nullif(btrim(d.company_name), ''), n.company_name, c.company_id),
     coalesce(d.is_test, false),
-    coalesce(i.integration, 'Unknown')
+    coalesce(i.integration, 'Unknown'),
+    i.integration_at
   from public.client_company c
   left join public.company_directory d on d.company_uuid::text = c.company_id
   left join event_names n on n.company_id = c.company_id
@@ -199,7 +205,7 @@ with args as (
     lower(btrim(coalesce(p_query, ''))) as q,
     case when p_usage in ('active','inactive') then p_usage else 'all' end as usage_filter,
     case when p_integration in ('Tally','Zoho Books','Unknown') then p_integration else 'all' end as integration_filter,
-    case when p_sort in ('ap','ar','transactions','gst','sync') then p_sort else 'name' end as sort_key,
+    case when p_sort in ('integration_date','name','ap','ar','transactions','gst','sync') then p_sort else 'integration_date' end as sort_key,
     case when lower(coalesce(p_direction, '')) = 'desc' then 'desc' else 'asc' end as sort_direction,
     case when p_from is null then null else date_trunc('month', p_from)::date end as from_month,
     case when p_to is null then null else date_trunc('month', p_to)::date end as to_month
@@ -224,6 +230,7 @@ base as (
     i.company_name,
     i.is_test,
     i.integration,
+    i.integration_at,
     coalesce(u.ap,0)::bigint as ap,
     coalesce(u.ar,0)::bigint as ar,
     coalesce(u.transactions,0)::bigint as transactions,
@@ -258,6 +265,8 @@ ranked as (
     f.*,
     row_number() over (
       order by
+        case when a.sort_key='integration_date' and a.sort_direction='asc' then f.integration_at end asc nulls last,
+        case when a.sort_key='integration_date' and a.sort_direction='desc' then f.integration_at end desc nulls last,
         case when a.sort_key='name' and a.sort_direction='asc' then lower(f.company_name) end asc,
         case when a.sort_key='name' and a.sort_direction='desc' then lower(f.company_name) end desc,
         case when a.sort_key='ap' and a.sort_direction='asc' then f.ap end asc,
@@ -343,6 +352,7 @@ select jsonb_build_object(
         'id', r.company_id,
         'name', r.company_name,
         'integration', r.integration,
+        'integration_at', r.integration_at,
         'is_test', r.is_test,
         'totals', jsonb_build_object(
           'ap', r.ap,

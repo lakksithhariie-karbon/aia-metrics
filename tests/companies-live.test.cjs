@@ -227,7 +227,36 @@ test('8. sorting works for every module and the name column', () => {
   assert.deepEqual(byAp.map(row => row.id), ['a', 'b', 'c'], 'ap desc with stable id tie-break');
   const byName = modules.sortRows(rows, 'name', 'asc');
   assert.deepEqual(byName.map(row => row.id), ['a', 'b', 'c']);
+  const byIntegration = modules.sortRows([
+    { ...rows[0], integration_at: '2026-09-01T00:00:00Z' },
+    { ...rows[1], integration_at: '2026-10-01T00:00:00Z' },
+    { ...rows[2], integration_at: null },
+  ], 'integration_date', 'desc');
+  assert.deepEqual(byIntegration.map(row => row.id), ['a', 'c', 'b'], 'latest integration first, null last');
   assert.equal(JSON.stringify(rows.map(row => row.id)), JSON.stringify(['c', 'a', 'b']), 'input is not mutated');
+});
+
+test('integration date is the first data column and defaults to newest first', () => {
+  const types = read('lib/companies/types.ts');
+  const dashboard = read('components/companies/companies-dashboard.tsx');
+  const sql = read('supabase/companies-fast-pagination.sql');
+  assert(types.includes('SortKey = "integration_date"'), 'integration date is a sortable key');
+  assert(types.includes('integration_at: string | null'), 'rows carry the integration timestamp');
+  assert(dashboard.includes('useState<SortKey>("integration_date")'), 'default sort is integration date');
+  assert(dashboard.includes('useState<SortDirection>("desc")'), 'default direction is newest first');
+  assert(dashboard.indexOf('label: "Integration date"') < dashboard.indexOf('label: "Company"'), 'integration date precedes company');
+  assert(dashboard.includes('prettyDate(company.integration_at)'), 'integration date is rendered');
+  assert(sql.includes("sort_key='integration_date'"), 'fast page RPC sorts integration date in SQL');
+  assert(sql.includes("'integration_at', r.integration_at"), 'RPC returns integration timestamp');
+});
+
+test('date picker is anchored to the date trigger when opened', () => {
+  const dashboard = read('components/companies/companies-dashboard.tsx');
+  assert(dashboard.includes('dateTriggerRef'), 'date trigger has an anchor ref');
+  assert(dashboard.includes('datePanelRef'), 'date popover has a panel ref');
+  assert(dashboard.includes('getBoundingClientRect()'), 'popover position is measured');
+  assert(dashboard.includes('style={{ left: datePosition.left, top: datePosition.top }}'), 'popover receives visible fixed coordinates');
+  assert(dashboard.includes('window.addEventListener("resize", position)'), 'popover repositions on resize');
 });
 
 test('9. date filtering uses Asia/Kolkata calendar boundaries', () => {
