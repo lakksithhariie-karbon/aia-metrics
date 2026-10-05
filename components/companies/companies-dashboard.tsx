@@ -151,7 +151,14 @@ export default function CompaniesDashboard() {
       sort, direction, from: bounds.from, to: bounds.to,
     }, controller.signal)
       .then(result => { setData(result); setExpanded(new Set()); })
-      .catch(err => { if (err.name !== "AbortError") { setData(null); setError(String(err.message || err)); } })
+      .catch(err => {
+        if (err.name !== "AbortError") {
+          // Preserve the last good table instead of replacing it with a
+          // full-page error when a pagination/filter refresh fails.
+          setError(String(err.message || err));
+          if (data && page !== data.page) setPage(data.page);
+        }
+      })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [page, deferredQuery, integration, usage, sort, direction, bounds.from, bounds.to]);
@@ -218,10 +225,11 @@ export default function CompaniesDashboard() {
   };
 
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
+  const visiblePage = data?.page ?? page;
   const pageItems = useMemo(() => {
-    const set = new Set<number>([1, pages, page - 1, page, page + 1]);
+    const set = new Set<number>([1, pages, visiblePage - 1, visiblePage, visiblePage + 1]);
     return [...set].filter(value => value >= 1 && value <= pages).sort((a, b) => a - b);
-  }, [page, pages]);
+  }, [visiblePage, pages]);
   const unavailable = !!data && !data.available;
 
   const moduleButton = (company: CompanyUsageRow, user: CompanyUsageUser | null, module: ModuleKey, value: number) => {
@@ -293,9 +301,9 @@ export default function CompaniesDashboard() {
         </div>
 
         <div className="po-record-scroll" role="region" tabIndex={0} aria-label="Company and user module usage, scroll for more columns">
-          {loading ? <div className="companies-loading" role="status">Loading company usage…</div>
-            : error ? <div className="companies-error" role="alert"><div><strong>Live company data could not be loaded.</strong><span>The secure data bridge is unavailable ({error}). No fixture values are shown.</span></div></div>
-            : <table className="po-user-table companies-table" aria-label="Company module usage">
+          {!data && loading ? <div className="companies-loading" role="status">Loading company usage…</div>
+            : !data && error ? <div className="companies-error" role="alert"><div><strong>Live company data could not be loaded.</strong><span>The secure data bridge is unavailable ({error}). No fixture values are shown.</span></div></div>
+            : <>{error ? <div className="companies-inline-error" role="status">Couldn’t refresh this view. Keeping the last loaded results.</div> : null}<table className="po-user-table companies-table" aria-label="Company module usage" aria-busy={loading}>
               <thead><tr><th scope="col"><span className="sr-only">Expand users</span></th>
                 {[{ key: "name" as const, label: "Company" }, ...MODULES].map(({ key, label }) => (
                   <th key={key} scope="col" className={key === "name" ? "" : "numeric"} aria-sort={sort === key ? (direction === "asc" ? "ascending" : "descending") : undefined}>
@@ -316,12 +324,12 @@ export default function CompaniesDashboard() {
                       <tbody>{company.users.length ? company.users.map(user => <tr key={user.id}><td>{user.email}</td>{cells(company, user, user.totals)}</tr>) : <tr><td colSpan={6}>No attributed module activity in this range.</td></tr>}</tbody></table></td></tr> : null,
                 ];
               }) : <tr><td colSpan={7}><div className="po-empty"><strong>No companies match this view</strong><span>Try a different search, filter or date range.</span></div></td></tr>}</tbody>
-            </table>}
+            </table>{loading ? <div className="companies-refreshing" role="status">Loading…</div> : null}</>}
         </div>
 
         <footer className="po-record-foot">
-          <span role="status">{data && !loading && !error ? (data.total ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, data.total)} of ${number.format(data.total)} companies` : "0 matching companies") : "…"}</span>
-          <nav className="po-pagination" aria-label="Company table pages"><button type="button" disabled={page <= 1} aria-label="Previous page" onClick={() => setPage(page - 1)}><Icon name="left" /></button>{pageItems.flatMap((value, index) => [index > 0 && value - pageItems[index - 1] > 1 ? <span className="page-ellipsis" key={`gap-${value}`} aria-hidden="true">…</span> : null, <button type="button" key={value} aria-label={`Page ${value}`} aria-current={page === value ? "page" : undefined} onClick={() => setPage(value)}>{value}</button>])}<button type="button" disabled={page >= pages} aria-label="Next page" onClick={() => setPage(page + 1)}><Icon name="right" /></button></nav>
+          <span role="status">{data ? (data.total ? `${(visiblePage - 1) * PAGE_SIZE + 1}–${Math.min(visiblePage * PAGE_SIZE, data.total)} of ${number.format(data.total)} companies` : "0 matching companies") : "…"}</span>
+          <nav className="po-pagination" aria-label="Company table pages"><button type="button" disabled={loading || visiblePage <= 1} aria-label="Previous page" onClick={() => setPage(visiblePage - 1)}><Icon name="left" /></button>{pageItems.flatMap((value, index) => [index > 0 && value - pageItems[index - 1] > 1 ? <span className="page-ellipsis" key={`gap-${value}`} aria-hidden="true">…</span> : null, <button type="button" key={value} disabled={loading} aria-label={`Page ${value}`} aria-current={visiblePage === value ? "page" : undefined} onClick={() => setPage(value)}>{value}</button>])}<button type="button" disabled={loading || visiblePage >= pages} aria-label="Next page" onClick={() => setPage(visiblePage + 1)}><Icon name="right" /></button></nav>
         </footer>
       </section>
 
