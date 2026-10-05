@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   readActivationCompanyDetail,
-  readActivationPreviewList,
+  readActivationList,
 } from "../../../lib/retention/drill";
 
 function validDate(value: unknown): string | null {
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
           ? Math.min(50, Math.max(1, Math.floor(body.page_size)))
           : 8;
 
-      const payload = await readActivationPreviewList({
+      const payload = await readActivationList({
         from,
         to,
         query: typeof body.query === "string" ? body.query : "",
