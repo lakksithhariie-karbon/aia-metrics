@@ -7,6 +7,8 @@
 --   followed by a qualifying Accounting Sync.
 --   TTV = first successful integration -> activation-closing sync.
 --   Monthly churn = activated before month start + no core activity in month.
+--   Internal staff events are excluded for aiaccountant.com, korefi.ai, and
+--   karboncard.com (including subdomains) at every stage.
 
 create table if not exists metrics_private.retention_activation_v2 (
   company_id text primary key,
@@ -45,6 +47,64 @@ revoke all on metrics_private.retention_activation_v2 from public, anon, authent
 revoke all on metrics_private.retention_month_core_v2 from public, anon, authenticated;
 revoke all on metrics_private.retention_kpi_meta_v2 from public, anon, authenticated;
 
+
+create or replace function metrics_private.is_retention_internal_email_v2(p_email text)
+returns boolean
+language plpgsql
+immutable
+parallel safe
+set search_path = pg_catalog
+as $function$
+declare
+  raw text;
+  last_lt int;
+  last_gt int;
+  domain text;
+begin
+  if p_email is null or btrim(p_email) = '' then
+    return false;
+  end if;
+
+  raw := lower(btrim(p_email));
+  last_lt := case
+    when strpos(raw, '<') = 0 then 0
+    else length(raw) - strpos(reverse(raw), '<') + 1
+  end;
+  last_gt := case
+    when strpos(raw, '>') = 0 then 0
+    else length(raw) - strpos(reverse(raw), '>') + 1
+  end;
+
+  if last_lt > 0 and last_gt > 0 then
+    raw := btrim(
+      substring(
+        raw
+        from last_lt + 1
+        for greatest(last_gt - last_lt - 1, 0)
+      )
+    );
+  end if;
+
+  if strpos(raw, '@') = 0 then
+    return false;
+  end if;
+
+  domain := substring(raw from length(raw) - strpos(reverse(raw), '@') + 2);
+
+  return domain in (
+      'aiaccountant.com',
+      'korefi.ai',
+      'karboncard.com'
+    )
+    or domain like '%.aiaccountant.com'
+    or domain like '%.korefi.ai'
+    or domain like '%.karboncard.com';
+end;
+$function$;
+
+revoke all on function metrics_private.is_retention_internal_email_v2(text)
+  from public, anon, authenticated;
+
 create or replace function public.refresh_retention_kpis_v2()
 returns jsonb
 language plpgsql
@@ -75,56 +135,52 @@ begin
     from public.events e
     join public.client_company c on c.company_id = e.company_id
     where public.is_successful_integration(e.event_name, e.properties)
+      and not metrics_private.is_retention_internal_email_v2(e.email)
     order by e.company_id, e.event_time asc, e.insert_id asc
-  ),
-  training as (
-    select
-      i.company_id,
-      i.integration_at,
-      min(e.event_time) as training_sync_at
-    from first_integration i
-    left join public.events e
-      on e.company_id = i.company_id
-     and e.event_time >= i.integration_at
-     and public.is_qualifying_sync(e.event_name, e.properties)
-    group by i.company_id, i.integration_at
-  ),
-  post_training_core as (
-    select
-      t.company_id,
-      min(e.event_time) as post_training_core_at
-    from training t
-    join public.events e on e.company_id = t.company_id
-    where t.training_sync_at is not null
+  )
+  select
+    i.company_id,
+    i.integration_at,
+    date_trunc('month', i.integration_at at time zone 'Asia/Kolkata')::date,
+    training.training_sync_at,
+    core.post_training_core_at,
+    activation.activated_at
+  from first_integration i
+  left join lateral (
+    select e.event_time as training_sync_at
+    from public.events e
+    where e.company_id = i.company_id
+      and e.event_time >= i.integration_at
+      and public.is_qualifying_sync(e.event_name, e.properties)
+      and not metrics_private.is_retention_internal_email_v2(e.email)
+    order by e.event_time asc, e.insert_id asc
+    limit 1
+  ) training on true
+  left join lateral (
+    select e.event_time as post_training_core_at
+    from public.events e
+    where e.company_id = i.company_id
+      and training.training_sync_at is not null
       and (e.event_time at time zone 'Asia/Kolkata')::date
-          > (t.training_sync_at at time zone 'Asia/Kolkata')::date
+          > (training.training_sync_at at time zone 'Asia/Kolkata')::date
       and public.is_core_activity(e.event_name, e.properties)
       and e.event_name <> 'Accounting Sync'
       and lower(btrim(coalesce(e.properties->>'status', ''))) <> 'failed'
-    group by t.company_id
-  ),
-  activation as (
-    select
-      t.company_id,
-      min(e.event_time) as activated_at
-    from training t
-    join post_training_core c on c.company_id = t.company_id
-    join public.events e
-      on e.company_id = t.company_id
-     and e.event_time > c.post_training_core_at
-     and public.is_qualifying_sync(e.event_name, e.properties)
-    group by t.company_id
-  )
-  select
-    t.company_id,
-    t.integration_at,
-    date_trunc('month', t.integration_at at time zone 'Asia/Kolkata')::date,
-    t.training_sync_at,
-    c.post_training_core_at,
-    a.activated_at
-  from training t
-  left join post_training_core c on c.company_id = t.company_id
-  left join activation a on a.company_id = t.company_id;
+      and not metrics_private.is_retention_internal_email_v2(e.email)
+    order by e.event_time asc, e.insert_id asc
+    limit 1
+  ) core on true
+  left join lateral (
+    select e.event_time as activated_at
+    from public.events e
+    where e.company_id = i.company_id
+      and core.post_training_core_at is not null
+      and e.event_time > core.post_training_core_at
+      and public.is_qualifying_sync(e.event_name, e.properties)
+      and not metrics_private.is_retention_internal_email_v2(e.email)
+    order by e.event_time asc, e.insert_id asc
+    limit 1
+  ) activation on true;
 
   get diagnostics v_integrated = row_count;
 
@@ -144,6 +200,7 @@ begin
    and a.activated_at is not null
   where e.event_time >= a.activated_at
     and public.is_core_activity(e.event_name, e.properties)
+    and not metrics_private.is_retention_internal_email_v2(e.email)
   group by
     e.company_id,
     date_trunc('month', e.event_time at time zone 'Asia/Kolkata')::date;
