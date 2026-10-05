@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import ProductMetricsHeader from "../product-metrics-header";
+import RetentionHeatmap from "./retention-heatmap";
 import type { RetentionKpiResponse } from "../../lib/retention/types";
 import type {
   ActivationCompanyDetail,
@@ -1062,7 +1064,7 @@ export default function RetentionDashboard() {
   const [kpis, setKpis] = useState<RetentionKpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [activationOpen, setActivationOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const helpRef = useRef<HTMLDialogElement | null>(null);
   const rangeBounds = useMemo(() => bounds(range), [range]);
 
   useEffect(() => {
@@ -1099,32 +1101,10 @@ export default function RetentionDashboard() {
 
   return (
     <div className="rd-shell">
-      <header className="rd-header">
-        <div className="rd-brand-left">
-          <div className="rd-brand">
-            <span><Icon name="grid" /></span>
-            AI Accountant
-          </div>
-          <i />
-          <span>Product Metrics</span>
-        </div>
-        <div className="rd-header-actions">
-          <div className="rd-switcher">
-            <button type="button" onClick={() => setMenuOpen(value => !value)} aria-expanded={menuOpen}>
-              <Icon name="trend" />
-              Retention & Churn
-              <Icon name="down" />
-            </button>
-            {menuOpen ? (
-              <div className="rd-switcher-menu">
-                <a href="/overview">Product Overview<small>Active usage, adoption and workflow health</small></a>
-                <a href="/retention" className="current">Retention & Churn<small>Activation, retention and monthly churn</small></a>
-                <a href="/customer">Companies<small>Module usage by company and user</small></a>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </header>
+      <ProductMetricsHeader
+        current="retention"
+        onHelp={() => helpRef.current?.showModal()}
+      />
 
       <main className="rd-page">
         <div className="rd-page-head">
@@ -1171,6 +1151,10 @@ export default function RetentionDashboard() {
           />
         </section>
 
+        <RetentionHeatmap
+          from={rangeBounds.from}
+          to={rangeBounds.to}
+        />
       </main>
 
       {activationOpen && kpis ? (
@@ -1180,6 +1164,60 @@ export default function RetentionDashboard() {
           onClose={() => setActivationOpen(false)}
         />
       ) : null}
+
+      <dialog
+        ref={helpRef}
+        className="info-dialog"
+        aria-labelledby="retention-help-title"
+      >
+        <header className="dialog-header">
+          <h2 className="dialog-title" id="retention-help-title">
+            Retention & Churn definitions
+          </h2>
+          <button
+            className="close-button"
+            type="button"
+            aria-label="Close metric definitions"
+            onClick={() => helpRef.current?.close()}
+          >
+            <Icon name="close" />
+          </button>
+        </header>
+        <div className="info-body">
+          <section className="definition-block">
+            <h3>Activation</h3>
+            <p>
+              First successful integration, then a guided training sync.
+              Activation requires a later-day independent non-failed core job,
+              followed by a qualifying Accounting Sync. Internal staff activity
+              is excluded.
+            </p>
+          </section>
+          <section className="definition-block">
+            <h3>Time to value</h3>
+            <p>
+              Elapsed time from first successful integration to the
+              activation-closing Accounting Sync.
+            </p>
+          </section>
+          <section className="definition-block">
+            <h3>Retention heatmap</h3>
+            <p>
+              Companies are grouped by activation cohort. Weekly retention
+              checks for core activity in each subsequent completed IST week.
+              Monthly retention checks each subsequent completed calendar
+              month. A dash means that return window is not complete yet.
+            </p>
+          </section>
+          <section className="definition-block">
+            <h3>Monthly churn</h3>
+            <p>
+              An activated company is churned for a completed calendar month
+              when it records no core activity during that month.
+            </p>
+          </section>
+        </div>
+      </dialog>
     </div>
   );
 }
