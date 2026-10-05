@@ -409,6 +409,19 @@ test('retention KPI v2 uses integration -> training -> independent core work -> 
   assert(sql.includes('activated_at - integration_at'), 'TTV runs from integration to activation');
 });
 
+test('retention KPI v2 excludes exactly the approved internal staff domains', () => {
+  const sql = read('supabase/retention-kpis-v2.sql');
+  assert(sql.includes("'aiaccountant.com'"));
+  assert(sql.includes("'korefi.ai'"));
+  assert(sql.includes("'karboncard.com'"));
+  const helper = sql.slice(
+    sql.indexOf('create or replace function metrics_private.is_retention_internal_email_v2'),
+    sql.indexOf('create or replace function public.refresh_retention_kpis_v2'),
+  );
+  assert(!helper.includes("'korefi.com'"), 'retention-specific helper does not broaden the requested domain list');
+  assert(sql.includes('not metrics_private.is_retention_internal_email_v2(e.email)'), 'staff events are excluded from the KPI pipeline');
+});
+
 test('retention KPI v2 is private and cards use the secure app API', () => {
   const sql = read('supabase/retention-kpis-v2.sql');
   const route = read('app/api/retention-kpis/route.ts');
@@ -425,7 +438,7 @@ test('retention KPI v2 is private and cards use the secure app API', () => {
 test('retention card copy matches the v2 contract', () => {
   const markup = read('lib/prototype/markup.ts');
   const runtime = read('public/prototype/runtime-v2-1.js');
-  assert(markup.includes('246 of 989 integrated companies activated'));
+  assert(markup.includes('244 of 981 integrated companies activated'));
   assert(markup.includes('Monthly churn'));
   assert(!markup.includes('metric-label\\">Month-on-month churn'));
   assert(runtime.includes('integrated companies activated'));
