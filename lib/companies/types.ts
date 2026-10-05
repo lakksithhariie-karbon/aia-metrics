@@ -6,7 +6,7 @@ export const MODULES = [
   { key: "sync", label: "Sync" },
 ] as const;
 
-export const WEEK_MODULES = [
+export const MONTH_MODULES = [
   { key: "ap", label: "AP" },
   { key: "ar", label: "AR" },
   { key: "transactions", label: "TXN" },
@@ -14,25 +14,24 @@ export const WEEK_MODULES = [
 ] as const;
 
 export type ModuleKey = (typeof MODULES)[number]["key"];
-export type WeekModuleKey = (typeof WEEK_MODULES)[number]["key"];
+export type MonthModuleKey = (typeof MONTH_MODULES)[number]["key"];
 export type Totals = Record<ModuleKey, number>;
-export type WeekTotals = Record<WeekModuleKey, number>;
-export type UsageWeek = 1 | 2 | 3 | 4;
+export type MonthTotals = Record<MonthModuleKey, number>;
 
-export type SortKey = "integration_date" | "name";
+export type SortKey = "integration_month" | "name";
 export type SortDirection = "asc" | "desc";
 export type UsageFilter = "all" | "active" | "inactive";
 
-export interface LifecycleWeekUsage {
-  week: UsageWeek;
-  reached: boolean;
-  totals: WeekTotals;
+export interface CalendarMonthUsage {
+  month: string;
+  available: boolean;
+  totals: MonthTotals;
 }
 
 export interface CompanyUsageUser {
   id: string;
   email: string;
-  weeks: LifecycleWeekUsage[];
+  months: CalendarMonthUsage[];
 }
 
 export interface CompanyUsageRow {
@@ -40,28 +39,27 @@ export interface CompanyUsageRow {
   name: string;
   integration: string;
   integration_at: string;
+  integration_month: string;
   is_test: boolean;
-  weeks: LifecycleWeekUsage[];
+  months: CalendarMonthUsage[];
   users: CompanyUsageUser[];
 }
 
 export interface CompanyListRequest {
   action: "list";
-  page: number;
   query: string;
   integration: string;
   usage: UsageFilter;
   sort: SortKey;
   direction: SortDirection;
-  from: string | null;
-  to: string | null;
+  from: string;
+  to: string;
 }
 
 export interface CompanyUsageResponse {
   rows: CompanyUsageRow[];
+  months: string[];
   total: number;
-  page: number;
-  page_size: number;
   data_start: string | null;
   data_end: string | null;
   source_watermark_at: string | null;
@@ -82,8 +80,8 @@ export interface ModuleBreakdownResponse {
   company_name: string;
   user_id: string | null;
   user_label: string | null;
-  module: WeekModuleKey;
-  week: UsageWeek;
+  module: MonthModuleKey;
+  month: string;
   window_start: string | null;
   window_end: string | null;
   total: number;
