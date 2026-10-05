@@ -7,6 +7,8 @@ const oxanium = Oxanium({
   weight: ["200", "300", "400", "500", "600", "700", "800"],
   variable: "--font-oxanium",
   display: "swap",
+  fallback: [],
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
