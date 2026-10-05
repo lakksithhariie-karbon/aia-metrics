@@ -230,6 +230,29 @@ test('8. sorting works for every module and the name column', () => {
   assert.equal(JSON.stringify(rows.map(row => row.id)), JSON.stringify(['c', 'a', 'b']), 'input is not mutated');
 });
 
+test('integration date is the first data column and defaults to newest first', () => {
+  const types = read('lib/companies/types.ts');
+  const dashboard = read('components/companies/companies-dashboard.tsx');
+  const sql = read('supabase/companies-fast-pagination.sql');
+  assert(types.includes('SortKey = "integration_date"'), 'integration date is a sortable key');
+  assert(types.includes('integration_at: string | null'), 'rows carry the integration timestamp');
+  assert(dashboard.includes('useState<SortKey>("integration_date")'), 'default sort is integration date');
+  assert(dashboard.includes('useState<SortDirection>("desc")'), 'default direction is newest first');
+  assert(dashboard.indexOf('label: "Integration date"') < dashboard.indexOf('label: "Company"'), 'integration date precedes company');
+  assert(dashboard.includes('prettyDate(company.integration_at)'), 'integration date is rendered');
+  assert(sql.includes("sort_key='integration_date'"), 'fast page RPC sorts integration date in SQL');
+  assert(sql.includes("'integration_at', r.integration_at"), 'RPC returns integration timestamp');
+});
+
+test('date picker is anchored to the date trigger when opened', () => {
+  const dashboard = read('components/companies/companies-dashboard.tsx');
+  assert(dashboard.includes('dateTriggerRef'), 'date trigger has an anchor ref');
+  assert(dashboard.includes('datePanelRef'), 'date popover has a panel ref');
+  assert(dashboard.includes('getBoundingClientRect()'), 'popover position is measured');
+  assert(dashboard.includes('style={{ left: datePosition.left, top: datePosition.top }}'), 'popover receives visible fixed coordinates');
+  assert(dashboard.includes('window.addEventListener("resize", position)'), 'popover repositions on resize');
+});
+
 test('9. date filtering uses Asia/Kolkata calendar boundaries', () => {
   // 2026-09-30 23:30 UTC is 2026-10-01 05:00 IST: October, not September.
   assert(!modules.inRangeIST('2026-09-30T23:30:00+00:00', '2026-09-01', '2026-09-30'));
