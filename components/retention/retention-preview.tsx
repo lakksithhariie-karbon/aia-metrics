@@ -730,8 +730,9 @@ function ActivationModal({
                       </tr>
                     );
                     if (!open) return [parent];
+                    const visibleUsers = company.users.slice(0, 5);
                     const children = company.users.length
-                      ? company.users.map(user => (
+                      ? visibleUsers.map(user => (
                           <tr className="rd-user-row" key={company.id + "-" + user.id}>
                             <td />
                             <td><span className="rd-user-indent">{user.email}</span></td>
@@ -745,6 +746,23 @@ function ActivationModal({
                           </tr>
                         ))
                       : [];
+                    if (company.users.length > visibleUsers.length) {
+                      children.push(
+                        <tr className="rd-user-row rd-more-users-row" key={company.id + "-more-users"}>
+                          <td />
+                          <td colSpan={8}>
+                            <button
+                              type="button"
+                              onMouseEnter={() => prefetchCompanyDetail(company.id)}
+                              onFocus={() => prefetchCompanyDetail(company.id)}
+                              onClick={() => setDetailId(company.id)}
+                            >
+                              +{company.users.length - visibleUsers.length} more users · View company profile
+                            </button>
+                          </td>
+                        </tr>,
+                      );
+                    }
                     return [parent, ...children];
                   }) : (
                     <tr><td colSpan={9}><div className="rd-empty">No companies in this preview segment.</div></td></tr>
