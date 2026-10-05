@@ -37,10 +37,29 @@ export async function POST(request: Request) {
         );
       }
 
+      const status =
+        body.status === "activated" ||
+        body.status === "awaiting_sync" ||
+        body.status === "no_core" ||
+        body.status === "no_training"
+          ? body.status
+          : "all";
+      const page =
+        typeof body.page === "number" && Number.isFinite(body.page)
+          ? Math.max(1, Math.floor(body.page))
+          : 1;
+      const pageSize =
+        typeof body.page_size === "number" && Number.isFinite(body.page_size)
+          ? Math.min(50, Math.max(1, Math.floor(body.page_size)))
+          : 8;
+
       const payload = await readActivationPreviewList({
         from,
         to,
         query: typeof body.query === "string" ? body.query : "",
+        status,
+        page,
+        pageSize,
         signal: controller.signal,
       });
       return NextResponse.json(payload);
