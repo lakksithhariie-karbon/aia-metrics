@@ -80,7 +80,7 @@ with args as (
     date_trunc('week',now() at time zone 'Asia/Kolkata')::date as current_week,
     date_trunc('month',now() at time zone 'Asia/Kolkata')::date as current_month
 ),
-activated as (
+activated_all as (
   select
     a.company_id,
     a.activated_at,
@@ -93,16 +93,21 @@ activated as (
       a.activated_at at time zone 'Asia/Kolkata'
     )::date as cohort_month
   from metrics_private.retention_activation_v2 a
-  cross join args x
   where a.activated_at is not null
-    and (
-      x.from_date is null
-      or (a.activated_at at time zone 'Asia/Kolkata')::date>=x.from_date
-    )
-    and (
-      x.to_date is null
-      or (a.activated_at at time zone 'Asia/Kolkata')::date<=x.to_date
-    )
+),
+activated as (
+  select a.*
+  from activated_all a
+  cross join args x
+  where (
+    x.interval_kind='weekly'
+    and (x.from_date is null or a.cohort_week>=x.from_date)
+    and (x.to_date is null or a.cohort_week<=x.to_date)
+  ) or (
+    x.interval_kind='monthly'
+    and (x.from_date is null or a.cohort_month>=date_trunc('month',x.from_date::timestamp)::date)
+    and (x.to_date is null or a.cohort_month<=date_trunc('month',x.to_date::timestamp)::date)
+  )
 ),
 weekly_cohorts as (
   select cohort_week as cohort_start,count(*)::bigint as cohort_size
