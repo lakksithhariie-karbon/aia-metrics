@@ -227,6 +227,12 @@ test('8. sorting works for every module and the name column', () => {
   assert.deepEqual(byAp.map(row => row.id), ['a', 'b', 'c'], 'ap desc with stable id tie-break');
   const byName = modules.sortRows(rows, 'name', 'asc');
   assert.deepEqual(byName.map(row => row.id), ['a', 'b', 'c']);
+  const byIntegration = modules.sortRows([
+    { ...rows[0], integration_at: '2026-09-01T00:00:00Z' },
+    { ...rows[1], integration_at: '2026-10-01T00:00:00Z' },
+    { ...rows[2], integration_at: null },
+  ], 'integration_date', 'desc');
+  assert.deepEqual(byIntegration.map(row => row.id), ['a', 'c', 'b'], 'latest integration first, null last');
   assert.equal(JSON.stringify(rows.map(row => row.id)), JSON.stringify(['c', 'a', 'b']), 'input is not mutated');
 });
 
