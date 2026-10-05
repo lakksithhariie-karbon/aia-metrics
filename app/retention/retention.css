@@ -263,3 +263,65 @@
   .rd-milestone i{left:4px;right:auto;top:10px;bottom:-2px;width:1px;height:auto}
   .rd-milestone small{margin-top:0}
 }
+
+/* Shared Product Metrics chrome + restored retention report. */
+.rd-shell .product-metrics-header{
+  position:sticky;
+  top:0;
+  z-index:250;
+}
+.rd-shell .dashboard-option{text-decoration:none}
+.rd-retention-report{
+  width:100%;
+  max-width:none;
+  margin:0 0 24px;
+}
+.rd-retention-report .report-header{
+  flex-basis:70px;
+}
+.rd-retention-report .report-subtitle{
+  margin-top:3px;
+}
+.rd-retention-select,
+.rd-retention-order{
+  appearance:auto;
+  background:#fff;
+  border:1px solid #dfe5ee;
+  border-radius:5px;
+  color:#66768d;
+  font-size:9.5px;
+}
+.rd-retention-select{
+  height:30px;
+  min-width:96px;
+  padding:0 8px;
+}
+.rd-retention-order{
+  height:28px;
+  min-width:100px;
+  padding:0 7px;
+}
+.rd-retention-report .heat-cell{
+  cursor:default;
+}
+.rd-retention-report .heat-cell:hover{
+  box-shadow:none;
+}
+.rd-retention-report .heatmap-empty{
+  min-height:150px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:5px;
+  color:#8794a6;
+  font-size:10px;
+}
+.rd-retention-report .heatmap-empty strong{
+  color:#53657d;
+  font-weight:600;
+}
+.rd-retention-report .heatmap-empty p{
+  margin:0;
+  color:#99a4b3;
+}
