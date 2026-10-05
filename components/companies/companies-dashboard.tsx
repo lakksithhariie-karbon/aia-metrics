@@ -157,7 +157,7 @@ const DASHBOARDS = [
   {
     name: "Retention & Churn",
     description: "Activation, retention and monthly churn",
-    href: "/overview#retention",
+    href: "/retention",
   },
   {
     name: "Companies",

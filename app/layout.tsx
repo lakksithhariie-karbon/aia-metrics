@@ -5,8 +5,10 @@ import "./prototype.css";
 const oxanium = Oxanium({
   subsets: ["latin"],
   weight: ["200", "300", "400", "500", "600", "700", "800"],
-  variable: "--app-font",
+  variable: "--font-oxanium",
   display: "swap",
+  fallback: [],
+  adjustFontFallback: false,
 });
 
 export const metadata: Metadata = {
@@ -16,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={oxanium.variable}>
+    <html lang="en" className={`${oxanium.variable} ${oxanium.className}`}>
       <body className={oxanium.className}>{children}</body>
     </html>
   );

@@ -50,16 +50,25 @@ export function installCustomerNavigation(): () => void {
     if (item?.getAttribute("aria-checked") !== "true") item?.click();
   };
   const onClick = (event: MouseEvent) => {
-    const target = event.target instanceof Element ? event.target.closest("#po-menu-item, #retention-menu-item") : null;
-    if (target) history.replaceState(history.state, "", location.pathname + location.search + (target.id === "retention-menu-item" ? "#retention" : ""));
+    const target = event.target instanceof Element
+      ? event.target.closest("#po-menu-item, #retention-menu-item")
+      : null;
+    if (!target) return;
+    if (target.id === "retention-menu-item") {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      window.location.assign("/retention");
+      return;
+    }
+    history.replaceState(history.state, "", location.pathname + location.search);
   };
   document.addEventListener("keydown", onKey, true);
-  document.addEventListener("click", onClick);
+  document.addEventListener("click", onClick, true);
   window.addEventListener("hashchange", applyHash);
   applyHash();
   return () => {
     document.removeEventListener("keydown", onKey, true);
-    document.removeEventListener("click", onClick);
+    document.removeEventListener("click", onClick, true);
     window.removeEventListener("hashchange", applyHash);
   };
 }

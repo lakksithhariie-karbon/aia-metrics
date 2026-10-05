@@ -447,8 +447,38 @@ test('retention card copy matches the v2 contract', () => {
   assert(runtime.includes("$('#activation-card').addEventListener('click',()=>openInfo('activation'))"));
 });
 
+test('the app uses Oxanium as its only runtime font family', () => {
+  const layout = read('app/layout.tsx');
+  assert(layout.includes('variable: "--font-oxanium"'), 'Oxanium owns the app font variable');
+  assert(layout.includes('oxanium.className'), 'Oxanium class is applied at the document root/body');
+
+  for (const file of [
+    'app/prototype.css',
+    'app/customer/customer.css',
+    'app/retention/retention.css',
+  ]) {
+    const source = read(file);
+    assert(!source.includes('PP Neue Montreal'), file + ' has no legacy PP font');
+    const declarations = [...source.matchAll(/font-family\s*:\s*([^;}\n]+)/gi)]
+      .map(match => match[1].trim());
+    for (const declaration of declarations) {
+      assert(
+        declaration === 'var(--font-oxanium)' ||
+        declaration === 'var(--font-oxanium)!important',
+        file + ' contains a non-Oxanium font declaration: ' + declaration,
+      );
+    }
+  }
+
+  const globalCss = read('app/prototype.css');
+  assert(
+    globalCss.includes('html,body,body *,body *::before,body *::after,body *::placeholder'),
+    'Oxanium is enforced for every rendered app element and pseudo-element',
+  );
+});
+
 test('no raw Supabase or secret keys in the browser bundle', () => {
-  for (const relative of ['components/companies/companies-dashboard.tsx', 'lib/companies/types.ts', 'lib/companies/modules.ts']) {
+  for (const relative of ['components/companies/companies-dashboard.tsx', 'components/retention/retention-dashboard.tsx', 'lib/companies/types.ts', 'lib/companies/modules.ts']) {
     const source = read(relative);
     assert(!source.includes('service_role'), `${relative} has no service_role`);
     assert(!source.includes('SUPABASE_'), `${relative} reads no Supabase env`);
@@ -462,7 +492,9 @@ test('all shipped TypeScript and JSX transpile without syntax errors', () => {
   for (const relative of [
     'components/companies/companies-dashboard.tsx', 'app/customer/page.tsx',
     'app/api/companies/route.ts', 'lib/companies/types.ts', 'lib/companies/modules.ts',
-    'app/api/retention-kpis/route.ts', 'lib/retention/types.ts', 'lib/retention/server.ts',
+    'app/api/retention-kpis/route.ts', 'app/api/retention-drill/route.ts',
+    'app/retention/page.tsx', 'components/retention/retention-dashboard.tsx',
+    'lib/retention/types.ts', 'lib/retention/server.ts', 'lib/retention/drill-types.ts', 'lib/retention/drill.ts',
     'lib/prototype/customer-navigation.ts',
   ]) {
     const result = ts.transpileModule(read(relative), {
