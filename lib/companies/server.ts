@@ -183,8 +183,15 @@ export async function companyBreakdown(
 
   const total = rows.reduce((sum, row) => sum + row.count, 0);
   const instrumented = rows.filter(row => row.items != null);
-  const windowStart = grouped[0]?.window_start ?? null;
-  const windowEnd = grouped[0]?.window_end ?? null;
+  const integrationAt = identity.integration_at ? Date.parse(identity.integration_at) : Number.NaN;
+  const fallbackWindowStart = Number.isNaN(integrationAt)
+    ? null
+    : new Date(integrationAt + (params.week - 1) * 7 * 86_400_000).toISOString();
+  const fallbackWindowEnd = Number.isNaN(integrationAt)
+    ? null
+    : new Date(integrationAt + params.week * 7 * 86_400_000).toISOString();
+  const windowStart = grouped[0]?.window_start ?? fallbackWindowStart;
+  const windowEnd = grouped[0]?.window_end ?? fallbackWindowEnd;
 
   return {
     company_id: params.company_id,
