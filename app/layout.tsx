@@ -1,6 +1,23 @@
 import type { Metadata } from "next";
+import { Oxanium } from "next/font/google";
 import "./prototype.css";
-export const metadata: Metadata = { title: "AI Accountant | Product Overview", description: "Product metrics UI foundation" };
+
+const oxanium = Oxanium({
+  subsets: ["latin"],
+  weight: ["200", "300", "400", "500", "600", "700", "800"],
+  variable: "--app-font",
+  display: "swap",
+});
+
+export const metadata: Metadata = {
+  title: "AI Accountant | Product Overview",
+  description: "Product metrics UI foundation",
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="en"><body>{children}</body></html>;
+  return (
+    <html lang="en" className={oxanium.variable}>
+      <body>{children}</body>
+    </html>
+  );
 }
