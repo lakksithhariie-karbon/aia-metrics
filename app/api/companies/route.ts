@@ -5,7 +5,7 @@ import type { ModuleKey, SortDirection, SortKey, UsageFilter } from "../../../li
 const MODULES = ["ap", "ar", "transactions", "gst", "sync"] as const;
 
 function validSort(value: unknown): SortKey {
-  return value === "name" || (MODULES as readonly string[]).includes(String(value))
+  return value === "integration_date" || value === "name" || (MODULES as readonly string[]).includes(String(value))
     ? (value as SortKey)
     : "name";
 }
