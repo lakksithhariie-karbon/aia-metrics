@@ -40,6 +40,7 @@ export async function POST(request: Request) {
         direction: body.direction === "desc" ? ("desc" as SortDirection) : ("asc" as SortDirection),
         from,
         to,
+        signal: controller.signal,
       });
       return NextResponse.json(payload);
     }
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
       module: module as ModuleKey,
       from,
       to,
+      signal: controller.signal,
     });
     return NextResponse.json(payload);
   } catch (error) {

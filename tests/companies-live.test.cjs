@@ -266,20 +266,35 @@ test('15. failed backend request never falls back to fixtures', () => {
   assert(server.includes('SUPABASE_URL'), 'server reads the Supabase URL server-side');
   assert(!server.includes('NEXT_PUBLIC'), 'server leaks no public env');
   assert(!server.includes('localStorage') && !server.includes('window.'), 'server has no browser globals');
-  assert(server.includes('read_companies_context'), 'list path is POST-only via the context aggregate');
-  assert(server.includes('read_companies_snapshot'), 'usage and membership arrive in one snapshot statement');
+  assert(server.includes('read_companies_page_fast'), 'list path uses the pre-aggregated fast page RPC');
+  assert(!server.includes('read_companies_snapshot'), 'pagination never reruns the raw lifetime snapshot');
+  assert(server.includes('read_companies_identity_fast'), 'breakdown labels use the cached identity RPC');
   const component = read('components/companies/companies-dashboard.tsx');
   assert(component.includes('No fixture values are shown'), ' UI states the honest error');
   assert(!component.includes('customerFixtures') && !component.includes('lib/customer'), 'component has no fixture wiring');
   assert(!fs.existsSync(path.join(root, 'lib/customer/fixtures.ts')), 'fixture adapter is gone');
 });
 
-test('16. pagination slices rows without changing totals', () => {
-  const totals = { ap: 5, ar: 1, transactions: 0, gst: 0, sync: 2 };
-  const page = [{ id: 'a', totals }].slice(0, 10);
-  assert.equal(page[0].totals.ap, 5);
+test('16. pagination uses the fast RPC and preserves the last good table while refreshing', () => {
+  const server = read('lib/companies/server.ts');
+  const sql = read('supabase/companies-fast-pagination.sql');
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(source.includes('PAGE_SIZE'), 'page size is centralized');
+  assert(server.includes('read_companies_page_fast'), 'each page is returned directly by the fast RPC');
+  assert(sql.includes('company_month_module_usage'), 'module usage is pre-aggregated by month');
+  assert(sql.includes('companies-fast-cache-hourly'), 'reporting cache refreshes hourly');
+  assert(source.includes('Preserve the last good table'), 'refresh failures do not blank the table');
+  assert(source.includes('aria-busy={loading}'), 'table exposes refresh state without disappearing');
+  assert(source.includes('disabled={loading || visiblePage >= pages}'), 'next is disabled during a pending page load');
+  assert(source.includes('visiblePage = data?.page ?? page'), 'pagination reflects the last successfully loaded page');
+});
+
+test('fast page SQL stays private and restricted to server roles', () => {
+  const sql = read('supabase/companies-fast-pagination.sql');
+  assert(sql.includes('create schema if not exists metrics_private'), 'facts live outside the exposed public schema');
+  assert(sql.includes('revoke all on schema metrics_private from public'), 'private facts are not exposed');
+  assert(sql.includes('revoke all on function public.read_companies_page_fast'), 'fast RPC revokes default PUBLIC execute');
+  assert(sql.includes('grant execute on function public.read_companies_page_fast'), 'fast RPC is explicitly granted to server roles');
+  assert(sql.includes("set statement_timeout = '5s'"), 'page reads have a tight timeout');
 });
 
 test('17. /customer remains the route and /companies is not created', () => {
