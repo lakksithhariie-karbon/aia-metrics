@@ -99,7 +99,7 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
       p_sort: params.sort,
       p_direction: params.direction,
       p_page: 1,
-      p_page_size: 2000,
+      p_page_size: 5000,
     },
     params.signal,
   );
