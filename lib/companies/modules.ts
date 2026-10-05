@@ -11,7 +11,7 @@
  * Counts are EVENT OCCURRENCES, never unique documents. Affected-item volume
  * is carried separately and must never be mixed into event counts.
  */
-import type { ModuleKey, SortDirection, SortKey, Totals } from "./types";
+import type { ModuleKey, SortDirection, Totals } from "./types";
 
 export const UNATTRIBUTED_ID = "__unattributed__";
 export const UNATTRIBUTED_LABEL = "Unattributed activity";
@@ -268,7 +268,7 @@ export function matchesSearch(
 
 export function sortRows<T extends NamedRow>(
   rows: readonly T[],
-  key: SortKey,
+  key: "integration_date" | "name" | ModuleKey,
   direction: SortDirection,
 ): T[] {
   const sign = direction === "asc" ? 1 : -1;
