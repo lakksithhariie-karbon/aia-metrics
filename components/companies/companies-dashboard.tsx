@@ -356,7 +356,7 @@ export default function CompaniesDashboard() {
                     <table className="po-company-subtable companies-user-table" aria-label={`Users for ${company.name}`}><thead><tr><th scope="col">User</th>{MODULES.map(module => <th key={module.key} scope="col">{module.label}</th>)}</tr></thead>
                       <tbody>{company.users.length ? company.users.map(user => <tr key={user.id}><td>{user.email}</td>{cells(company, user, user.totals)}</tr>) : <tr><td colSpan={6}>No attributed module activity in this range.</td></tr>}</tbody></table></td></tr> : null,
                 ];
-              }) : <tr><td colSpan={7}><div className="po-empty"><strong>No companies match this view</strong><span>Try a different search, filter or date range.</span></div></td></tr>}</tbody>
+              }) : <tr><td colSpan={8}><div className="po-empty"><strong>No companies match this view</strong><span>Try a different search, filter or date range.</span></div></td></tr>}</tbody>
             </table>{loading ? <div className="companies-refreshing" role="status">Loading…</div> : null}</>}
         </div>
 
