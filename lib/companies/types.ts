@@ -9,7 +9,7 @@ export const MODULES = [
 export const MONTH_MODULES = [
   { key: "ap", label: "AP" },
   { key: "ar", label: "AR" },
-  { key: "transactions", label: "TXN" },
+  { key: "transactions", label: "Transaction" },
   { key: "gst", label: "GST" },
 ] as const;
 
