@@ -395,7 +395,7 @@ function DatePicker({
           <div className="rd-date-head">
             <div>
               <strong>Date range</strong>
-              <span>Applies to the preview cards and activation cohort</span>
+              <span>Applies to the KPI cards and retention cohorts</span>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close date picker">
               <Icon name="close" />
