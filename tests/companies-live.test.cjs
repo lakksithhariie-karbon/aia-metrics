@@ -395,6 +395,45 @@ test('18. visible navigation label is Companies', () => {
   assert(!dashboard.includes('>Customer<'), 'no visible Customer wording remains');
 });
 
+
+
+test('retention KPI v2 uses integration -> training -> independent core work -> closing sync', () => {
+  const sql = read('supabase/retention-kpis-v2.sql');
+  assert(sql.includes('public.is_successful_integration'), 'cohort starts at successful integration');
+  assert(sql.includes('training_sync_at'), 'first qualifying sync is preserved as training');
+  assert(sql.includes("(e.event_time at time zone 'Asia/Kolkata')::date"), 'training boundary is IST calendar day');
+  assert(sql.includes("> (t.training_sync_at at time zone 'Asia/Kolkata')::date"), 'training-day work is excluded');
+  assert(sql.includes("e.event_name <> 'Accounting Sync'"), 'core job requirement is independent of sync');
+  assert(sql.includes("coalesce(e.properties->>'status', '')") && sql.includes("<> 'failed'"), 'failed core jobs do not qualify');
+  assert(sql.includes('e.event_time > c.post_training_core_at'), 'activation-closing sync follows the core job');
+  assert(sql.includes('activated_at - integration_at'), 'TTV runs from integration to activation');
+});
+
+test('retention KPI v2 is private and cards use the secure app API', () => {
+  const sql = read('supabase/retention-kpis-v2.sql');
+  const route = read('app/api/retention-kpis/route.ts');
+  const server = read('lib/retention/server.ts');
+  const runtime = read('public/prototype/runtime-v2-1.js');
+  assert(sql.includes('revoke all on function public.read_retention_kpis_v2(date,date) from public, anon, authenticated'));
+  assert(sql.includes('grant execute on function public.read_retention_kpis_v2(date,date)'));
+  assert(server.includes('SUPABASE_SERVICE_ROLE_KEY'));
+  assert(!runtime.includes('SUPABASE_') && !runtime.includes('supabase.co'), 'browser gets no Supabase credentials');
+  assert(runtime.includes("fetch('/api/retention-kpis'"), 'cards read through the app boundary');
+  assert(route.includes('retention_kpis_unavailable'), 'API fails closed');
+});
+
+test('retention card copy matches the v2 contract', () => {
+  const markup = read('lib/prototype/markup.ts');
+  const runtime = read('public/prototype/runtime-v2-1.js');
+  assert(markup.includes('246 of 989 integrated companies activated'));
+  assert(markup.includes('Monthly churn'));
+  assert(!markup.includes('metric-label\\">Month-on-month churn'));
+  assert(runtime.includes('integrated companies activated'));
+  assert(runtime.includes('activated companies with measurable TTV'));
+  assert(runtime.includes("<h3>Monthly churn</h3>"));
+  assert(runtime.includes("$('#activation-card').addEventListener('click',()=>openInfo('activation'))"));
+});
+
 test('no raw Supabase or secret keys in the browser bundle', () => {
   for (const relative of ['components/companies/companies-dashboard.tsx', 'lib/companies/types.ts', 'lib/companies/modules.ts']) {
     const source = read(relative);
@@ -410,6 +449,7 @@ test('all shipped TypeScript and JSX transpile without syntax errors', () => {
   for (const relative of [
     'components/companies/companies-dashboard.tsx', 'app/customer/page.tsx',
     'app/api/companies/route.ts', 'lib/companies/types.ts', 'lib/companies/modules.ts',
+    'app/api/retention-kpis/route.ts', 'lib/retention/types.ts', 'lib/retention/server.ts',
     'lib/prototype/customer-navigation.ts',
   ]) {
     const result = ts.transpileModule(read(relative), {
