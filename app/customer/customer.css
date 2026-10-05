@@ -1,27 +1,72 @@
-/* Companies page reuses the v2 modal/table design. Only page layout and column roles differ. */
+/* Companies page reuses the v2 modal/table design with a post-integration W1-W4 matrix. */
 .companies-shell .dashboard-option{text-decoration:none}
-.companies-page .companies-records{height:calc(100dvh - 208px);min-height:450px;max-height:850px;margin-top:24px}
+.companies-page .companies-records{height:calc(100dvh - 168px);min-height:490px;max-height:880px;margin-top:18px}
 .companies-page .po-record-toolbar{padding:0 0 14px}
 .companies-page .po-record-tools{margin-left:auto}
-.companies-page .po-record-scroll{margin:0}
+.companies-page .po-record-scroll{margin:0;position:relative}
 .companies-page .po-record-foot{padding:15px 0}
 .companies-page .po-page-footer{padding-top:8px}
-.companies-table>thead>tr>th:nth-child(2){width:138px}
-.companies-table>thead>tr>th:nth-child(3){width:31%}
-.companies-table>tbody>tr>td:nth-child(3){max-width:360px;overflow:hidden;text-overflow:ellipsis}
-.companies-integration-date{white-space:nowrap;color:#687890;font-variant-numeric:tabular-nums}
-.companies-user-table th:not(:first-child),.companies-user-table td:not(:first-child){text-align:right!important}
-.companies-user-table th:first-child{width:36%!important;text-align:left!important}
-.companies-user-table td:first-child{color:#42546f;text-align:left!important}
+
+.companies-lifecycle-scroll{overflow:auto}
+.companies-lifecycle-table{min-width:1540px;table-layout:fixed}
+.companies-lifecycle-table th,.companies-lifecycle-table td{font-variant-numeric:tabular-nums}
+.companies-lifecycle-table .companies-week-header th{height:34px;background:#f7f8fb;border-bottom:1px solid #e3e8f0}
+.companies-lifecycle-table .companies-module-header th{height:30px;border-bottom:1px solid #dfe5ee;text-align:center;font-size:9px;font-weight:600}
+.companies-lifecycle-table thead th:first-child{width:38px}
+.companies-lifecycle-table thead th:nth-child(2){width:132px}
+.companies-lifecycle-table thead th:nth-child(3){width:270px}
+.companies-lifecycle-table .companies-week-group{text-align:center!important;font-size:10px!important;font-weight:600!important;color:#61738c!important;letter-spacing:.2px;border-left:1px solid #d9e0eb}
+.companies-module-head{width:66px!important}
+.companies-module-ap{background:#edf4fb!important;color:#5d7898!important}
+.companies-module-ar{background:#eef6ea!important;color:#66805e!important}
+.companies-module-transactions{background:#fff8df!important;color:#8b7848!important}
+.companies-module-gst{background:#fff0e7!important;color:#98715c!important}
+.companies-lifecycle-table tbody td:nth-child(4),
+.companies-lifecycle-table tbody td:nth-child(8),
+.companies-lifecycle-table tbody td:nth-child(12),
+.companies-lifecycle-table tbody td:nth-child(16){border-left:1px solid #e1e6ee}
+
+.companies-lifecycle-table thead th:first-child,
+.companies-lifecycle-table tbody td:first-child{position:sticky;left:0;z-index:6;background:#fff}
+.companies-lifecycle-table thead th:nth-child(2),
+.companies-lifecycle-table tbody td:nth-child(2){position:sticky;left:38px;z-index:5;background:#fff}
+.companies-lifecycle-table thead th:nth-child(3),
+.companies-lifecycle-table tbody td:nth-child(3){position:sticky;left:170px;z-index:5;background:#fff;box-shadow:1px 0 #e5e9f0}
+.companies-lifecycle-table thead th:first-child,
+.companies-lifecycle-table thead th:nth-child(2),
+.companies-lifecycle-table thead th:nth-child(3){z-index:9;background:#f7f8fb}
+.companies-lifecycle-table .companies-module-header th{position:sticky;top:34px;z-index:7}
+.companies-lifecycle-table .companies-week-header th{position:sticky;top:0;z-index:8}
+.companies-lifecycle-table .companies-week-header th:first-child,
+.companies-lifecycle-table .companies-week-header th:nth-child(2),
+.companies-lifecycle-table .companies-week-header th:nth-child(3){z-index:10}
+
+.companies-company-row td{height:47px}
+.companies-company-row:hover td{background:#fafbfe}
+.companies-company-row:hover td:nth-child(-n+3){background:#fafbfe}
+.companies-company-cell{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#415673!important}
+.companies-company-name{vertical-align:middle}
+.companies-company-cell .integration-tag,.companies-company-cell .po-status{margin-left:7px;vertical-align:middle}
+.companies-integration-date{white-space:nowrap;color:#687890!important;font-size:10.5px}
+.companies-expander-cell{text-align:center}
+.companies-week-future{color:#b0b8c5!important}
+.companies-week-future span{display:inline-block;min-width:28px;text-align:right}
 .companies-module-button{font:inherit;color:#3156b8;padding:4px 6px;border-radius:3px;min-width:34px;text-align:right}
 .companies-module-button:hover,.companies-module-button:focus-visible{background:#f0f4ff;color:var(--blue)}
 .companies-module-button.is-zero{color:#9aa6b7}
+
+.companies-nested-user-row td{height:40px;background:#fbfcff!important;border-bottom:1px solid #eef1f5}
+.companies-nested-user-row td:first-child,
+.companies-nested-user-row td:nth-child(2),
+.companies-nested-user-row td:nth-child(3){background:#fbfcff!important}
+.companies-user-date{color:transparent!important}
+.companies-user-email{padding-left:24px!important;color:#70819a!important;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.companies-user-email:before{content:"↳";color:#a8b3c3;margin-right:8px}
+
 .companies-source-note{font-size:10px;color:#8b98aa;display:flex;align-items:center;gap:6px}
 .companies-source-note .icon{width:12px;height:12px}
-
 .companies-inline-error{margin:0 0 8px;padding:8px 10px;border:1px solid #eadfdc;background:#fcf7f5;border-radius:4px;color:#8a625b;font-size:10px}
-.companies-page .po-record-scroll{position:relative}
-.companies-refreshing{position:absolute;top:8px;right:8px;padding:5px 8px;border:1px solid #dfe5ee;background:rgba(255,255,255,.94);border-radius:4px;color:#738198;font-size:10px;box-shadow:0 1px 3px rgba(24,40,72,.06)}
+.companies-refreshing{position:absolute;top:8px;right:8px;padding:5px 8px;border:1px solid #dfe5ee;background:rgba(255,255,255,.94);border-radius:4px;color:#738198;font-size:10px;box-shadow:0 1px 3px rgba(24,40,72,.06);z-index:20}
 .companies-table[aria-busy="true"]{opacity:.72}
 
 .companies-loading,.companies-error{min-height:260px;display:grid;place-items:center;text-align:center;color:#7d8ca1;padding:24px}
@@ -41,13 +86,19 @@
 .companies-breakdown-status{display:inline-flex;border:1px solid #e3e8f0;background:#f8f9fc;border-radius:3px;padding:2px 6px;font-size:9px;color:#78869a}
 .companies-breakdown-status.failed{background:#fbf3f1;border-color:#f0dfda;color:#a16559}
 .companies-breakdown-foot{display:flex;justify-content:space-between;align-items:center;padding:13px 24px;color:#8b97a8;font-size:10px}
+
 .companies-shell .date-trigger>.chevron{display:inline-flex;margin-left:auto}
 .companies-shell .date-popover{z-index:400}
 .companies-shell .date-trigger>.chevron>.icon{width:13px;height:13px}
 .companies-shell .date-preset .preset-check{display:inline-flex}
 .companies-shell .date-preset .preset-check .icon{width:13px;height:13px}
+
+@media(max-width:900px){
+  .companies-lifecycle-table{min-width:1450px}
+  .companies-lifecycle-table thead th:nth-child(3){width:235px}
+}
 @media(max-width:600px){
-  .companies-page .companies-records{margin-top:20px;min-height:410px;height:calc(100dvh - 245px)}
+  .companies-page .companies-records{margin-top:15px;min-height:430px;height:calc(100dvh - 205px)}
   .companies-page .po-record-tools{width:100%;margin:0}
   .companies-page .po-record-foot{padding:12px 0}
   .companies-page .po-page-footer{flex-wrap:wrap}
