@@ -408,7 +408,7 @@ async function eventsForSeeds(
   signal?: AbortSignal,
 ): Promise<RawEvent[]> {
   const all: RawEvent[] = [];
-  for (const batch of chunks(seeds, 30)) {
+  for (const batch of chunks(seeds, 100)) {
     const ids = batch.map(seed => seed.id);
     const earliest = [...batch]
       .sort((a, b) => toMillis(a.integration_at) - toMillis(b.integration_at))[0]
@@ -494,7 +494,7 @@ export async function readActivationPreviewList(params: {
   );
 
   const total = cohort.length;
-  const selected = cohort.slice(0, 80);
+  const selected = cohort.slice(0, 500);
   const events = await eventsForSeeds(selected, params.signal);
 
   const rows: ActivationCompanyRow[] = selected.map(seed => {
