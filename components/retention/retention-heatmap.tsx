@@ -165,8 +165,16 @@ export default function RetentionHeatmap({
   const aggregate = pooled(rows, columns);
   const companies = rows.reduce((sum, row) => sum + row.cohort_size, 0);
 
+  const reportHeight = Math.min(
+    600,
+    Math.max(365, 232 + rows.length * 45),
+  );
+
   return (
-    <article className="report-card rd-retention-report">
+    <article
+      className="report-card rd-retention-report"
+      style={{ height: reportHeight }}
+    >
       <header className="report-header">
         <div>
           <h2>Retention</h2>
