@@ -98,12 +98,16 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
       p_integration: params.integration,
       p_sort: params.sort,
       p_direction: params.direction,
-      p_page: Math.max(1, params.page || 1),
-      p_page_size: 10,
+      p_page: 1,
+      p_page_size: 5000,
     },
     params.signal,
   );
-  return scalar(payload);
+  const result = scalar(payload);
+  if (result.rows.length !== result.total) {
+    throw new Error("companies_scroll_cohort_truncated");
+  }
+  return result;
 }
 
 export interface BreakdownParams {

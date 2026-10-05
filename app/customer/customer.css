@@ -1,21 +1,33 @@
-/* Companies page reuses the v2 modal/table design with a post-integration W1-W4 matrix. */
+/* Companies lifecycle grid: one contained analysis surface with sticky headers, identity columns and totals. */
 .companies-shell .dashboard-option{text-decoration:none}
-.companies-page .companies-records{height:calc(100dvh - 168px);min-height:490px;max-height:880px;margin-top:18px}
-.companies-page .po-record-toolbar{padding:0 0 14px}
+.companies-page{height:calc(100dvh - 56px);display:flex;flex-direction:column;overflow:hidden}
+.companies-page .page-heading{flex:0 0 auto}
+.companies-page .companies-records{flex:1;min-height:0;height:auto;max-height:none;margin-top:18px;display:flex;flex-direction:column}
+.companies-page .po-record-toolbar{padding:0 0 12px;flex:0 0 auto}
 .companies-page .po-record-tools{margin-left:auto}
 .companies-page .po-record-scroll{margin:0;position:relative}
-.companies-page .po-record-foot{padding:15px 0}
-.companies-page .po-page-footer{padding-top:8px}
+.companies-page .po-page-footer{padding-top:8px;flex:0 0 auto}
 
-.companies-lifecycle-scroll{overflow:auto}
-.companies-lifecycle-table{min-width:1540px;table-layout:fixed}
+.companies-filter-tray{flex:0 0 auto;display:grid;grid-template-columns:220px 220px minmax(240px,1fr) auto;align-items:end;gap:14px;padding:12px 14px;margin-bottom:10px;border:1px solid #e3e8f0;border-radius:5px;background:#fafbfe}
+.companies-filter-field{display:flex;flex-direction:column;gap:5px}
+.companies-filter-field label{font-size:9px;color:#8b97a8}
+.companies-filter-field select{width:100%;height:34px;background:#fff;color:#536176}
+.companies-filter-copy{align-self:center;font-size:10px;line-height:16px;color:#8a98aa}
+.companies-filter-reset{height:34px;padding:0 10px;border:1px solid #e1e6ee;border-radius:4px;background:#fff;color:#65758a;font-size:10px}
+.companies-filter-reset:hover:not(:disabled){border-color:#bbc7da;color:var(--blue)}
+.companies-filter-reset:disabled{opacity:.45}
+
+.companies-lifecycle-scroll{flex:1;min-height:0;overflow:auto;border-top:1px solid #e2e7ef;border-bottom:1px solid #e2e7ef;overscroll-behavior:contain;scrollbar-width:thin}
+.companies-lifecycle-table{min-width:1540px;table-layout:fixed;border-spacing:0}
 .companies-lifecycle-table th,.companies-lifecycle-table td{font-variant-numeric:tabular-nums}
-.companies-lifecycle-table .companies-week-header th{height:34px;background:#f7f8fb;border-bottom:1px solid #e3e8f0}
+.companies-lifecycle-table .companies-week-header th{height:38px;background:#f7f8fb;border-bottom:1px solid #e3e8f0}
 .companies-lifecycle-table .companies-module-header th{height:30px;border-bottom:1px solid #dfe5ee;text-align:center;font-size:9px;font-weight:600}
 .companies-lifecycle-table thead th:first-child{width:38px}
 .companies-lifecycle-table thead th:nth-child(2){width:132px}
 .companies-lifecycle-table thead th:nth-child(3){width:270px}
-.companies-lifecycle-table .companies-week-group{text-align:center!important;font-size:10px!important;font-weight:600!important;color:#61738c!important;letter-spacing:.2px;border-left:1px solid #d9e0eb}
+.companies-lifecycle-table .companies-week-group{text-align:center!important;font-size:10px!important;font-weight:600!important;color:#61738c!important;letter-spacing:.2px;border-left:1px solid #d9e0eb;padding:4px 0!important}
+.companies-week-group span{display:block;line-height:14px}
+.companies-week-group small{display:block;font-size:8px;line-height:11px;color:#9aa6b6;font-weight:500}
 .companies-module-head{width:66px!important}
 .companies-module-ap{background:#edf4fb!important;color:#5d7898!important}
 .companies-module-ar{background:#eef6ea!important;color:#66805e!important}
@@ -24,22 +36,38 @@
 .companies-lifecycle-table tbody td:nth-child(4),
 .companies-lifecycle-table tbody td:nth-child(8),
 .companies-lifecycle-table tbody td:nth-child(12),
-.companies-lifecycle-table tbody td:nth-child(16){border-left:1px solid #e1e6ee}
+.companies-lifecycle-table tbody td:nth-child(16),
+.companies-lifecycle-table tfoot td:nth-child(4),
+.companies-lifecycle-table tfoot td:nth-child(8),
+.companies-lifecycle-table tfoot td:nth-child(12),
+.companies-lifecycle-table tfoot td:nth-child(16){border-left:1px solid #e1e6ee}
 
-.companies-lifecycle-table thead th:first-child,
-.companies-lifecycle-table tbody td:first-child{position:sticky;left:0;z-index:6;background:#fff}
-.companies-lifecycle-table thead th:nth-child(2),
-.companies-lifecycle-table tbody td:nth-child(2){position:sticky;left:38px;z-index:5;background:#fff}
-.companies-lifecycle-table thead th:nth-child(3),
-.companies-lifecycle-table tbody td:nth-child(3){position:sticky;left:170px;z-index:5;background:#fff;box-shadow:1px 0 #e5e9f0}
-.companies-lifecycle-table thead th:first-child,
-.companies-lifecycle-table thead th:nth-child(2),
-.companies-lifecycle-table thead th:nth-child(3){z-index:9;background:#f7f8fb}
-.companies-lifecycle-table .companies-module-header th{position:sticky;top:34px;z-index:7}
+/* Sticky vertical header. */
 .companies-lifecycle-table .companies-week-header th{position:sticky;top:0;z-index:8}
-.companies-lifecycle-table .companies-week-header th:first-child,
-.companies-lifecycle-table .companies-week-header th:nth-child(2),
-.companies-lifecycle-table .companies-week-header th:nth-child(3){z-index:10}
+.companies-lifecycle-table .companies-module-header th{position:sticky;top:38px;z-index:7}
+
+/* Sticky identity columns. */
+.companies-lifecycle-table thead th:first-child,
+.companies-lifecycle-table tbody td:first-child,
+.companies-lifecycle-table tfoot td:first-child{position:sticky;left:0;z-index:6;background:#fff}
+.companies-lifecycle-table thead th:nth-child(2),
+.companies-lifecycle-table tbody td:nth-child(2),
+.companies-lifecycle-table tfoot td:nth-child(2){position:sticky;left:38px;z-index:5;background:#fff}
+.companies-lifecycle-table thead th:nth-child(3),
+.companies-lifecycle-table tbody td:nth-child(3),
+.companies-lifecycle-table tfoot td:nth-child(3){position:sticky;left:170px;z-index:5;background:#fff;box-shadow:1px 0 #e5e9f0}
+.companies-lifecycle-table thead th:first-child,
+.companies-lifecycle-table thead th:nth-child(2),
+.companies-lifecycle-table thead th:nth-child(3){z-index:10;background:#f7f8fb}
+
+/* Sticky cohort totals. */
+.companies-lifecycle-table tfoot td{position:sticky;bottom:0;z-index:9;height:42px;background:#f3f6fb!important;border-top:1px solid #d8e0eb;color:#536881;font-weight:600;box-shadow:0 -1px 0 #e0e6ef}
+.companies-lifecycle-table tfoot td:first-child,
+.companies-lifecycle-table tfoot td:nth-child(2),
+.companies-lifecycle-table tfoot td:nth-child(3){z-index:12;background:#f3f6fb!important}
+.companies-total-label{font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#657992!important}
+.companies-total-count{font-size:10px;color:#566b86!important}
+.companies-total-row .numeric{text-align:right;padding-right:10px;font-size:10.5px}
 
 .companies-company-row td{height:47px}
 .companies-company-row:hover td{background:#fafbfe}
@@ -93,15 +121,22 @@
 .companies-shell .date-preset .preset-check{display:inline-flex}
 .companies-shell .date-preset .preset-check .icon{width:13px;height:13px}
 
+@media(max-width:1100px){
+  .companies-filter-tray{grid-template-columns:1fr 1fr;align-items:end}
+  .companies-filter-copy{align-self:center}
+  .companies-filter-reset{justify-self:end}
+}
 @media(max-width:900px){
   .companies-lifecycle-table{min-width:1450px}
   .companies-lifecycle-table thead th:nth-child(3){width:235px}
 }
 @media(max-width:600px){
-  .companies-page .companies-records{margin-top:15px;min-height:430px;height:calc(100dvh - 205px)}
+  .companies-page{height:calc(100dvh - 56px)}
+  .companies-page .companies-records{margin-top:14px;min-height:0;height:auto}
   .companies-page .po-record-tools{width:100%;margin:0}
-  .companies-page .po-record-foot{padding:12px 0}
   .companies-page .po-page-footer{flex-wrap:wrap}
+  .companies-filter-tray{grid-template-columns:1fr;padding:10px}
+  .companies-filter-reset{justify-self:start}
   .companies-shell .dashboard-menu{max-width:calc(100vw - 32px)}
   .companies-breakdown{max-width:calc(100vw - 16px);height:calc(100dvh - 20px);max-height:calc(100dvh - 20px)}
   .companies-breakdown-wrap{margin:0 16px}

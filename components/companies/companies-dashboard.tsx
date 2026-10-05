@@ -54,7 +54,6 @@ function Icon({ name }: { name: IconName }) {
 
 const number = new Intl.NumberFormat("en-US");
 const WEEKS: UsageWeek[] = [1, 2, 3, 4];
-const PAGE_SIZE = 10;
 const DATA_START_MONTH = "2026-03";
 
 function moduleLabel(key: WeekModuleKey) {
@@ -182,7 +181,6 @@ export default function CompaniesDashboard() {
   const [year, setYear] = useState(() => Number(istMonthNow().slice(0, 4)));
   const [editing, setEditing] = useState<"start" | "end" | null>(null);
   const [awaitingEnd, setAwaitingEnd] = useState(false);
-  const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [menuOpen, setMenuOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -212,10 +210,6 @@ export default function CompaniesDashboard() {
     const timer = setTimeout(() => setDeferredQuery(query), 250);
     return () => clearTimeout(timer);
   }, [query]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [deferredQuery, integration, usage, range, sort, direction]);
 
   useEffect(() => {
     if (!dateOpen) return;
@@ -251,7 +245,7 @@ export default function CompaniesDashboard() {
     postCompanies<CompanyUsageResponse>(
       {
         action: "list",
-        page,
+        page: 1,
         query: deferredQuery,
         integration,
         usage,
@@ -269,7 +263,6 @@ export default function CompaniesDashboard() {
       .catch(err => {
         if (err.name !== "AbortError") {
           setError(String(err.message || err));
-          if (data && page !== data.page) setPage(data.page);
         }
       })
       .finally(() => {
@@ -277,7 +270,7 @@ export default function CompaniesDashboard() {
       });
     return () => controller.abort();
   }, [
-    page, deferredQuery, integration, usage, sort, direction,
+    deferredQuery, integration, usage, sort, direction,
     bounds.from, bounds.to,
   ]);
 
@@ -376,16 +369,19 @@ export default function CompaniesDashboard() {
     }
   };
 
-  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
-  const visiblePage = data?.page ?? page;
-  const pageItems = useMemo(() => {
-    const set = new Set<number>([
-      1, pages, visiblePage - 1, visiblePage, visiblePage + 1,
-    ]);
-    return [...set]
-      .filter(value => value >= 1 && value <= pages)
-      .sort((a, b) => a - b);
-  }, [visiblePage, pages]);
+  const cohortSummary = useMemo(() => WEEKS.map(week => {
+    const totals = { ap: 0, ar: 0, transactions: 0, gst: 0 };
+    let reached = 0;
+    for (const company of data?.rows ?? []) {
+      const value = weekValue(company.weeks, week);
+      if (!value?.reached) continue;
+      reached += 1;
+      for (const module of WEEK_MODULES) {
+        totals[module.key] += value.totals[module.key] ?? 0;
+      }
+    }
+    return { week, reached, totals };
+  }), [data]);
 
   const matrixCell = (
     company: CompanyUsageRow,
@@ -565,71 +561,62 @@ export default function CompaniesDashboard() {
                 ) : null}
               </div>
 
-              <div className="po-filter-wrap">
-                <button
-                  type="button"
-                  className="ui-control"
-                  aria-expanded={filtersOpen}
-                  onClick={() => setFiltersOpen(open => !open)}
-                >
-                  <Icon name="filter" /><span>Filters · {filterCount}</span>
-                </button>
-                {filtersOpen ? (
-                  <div className="po-filters">
-                    <div className="po-filter-head">
-                      <strong>Filter companies</strong>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setUsage("all");
-                          setIntegration("all");
-                          setPage(1);
-                        }}
-                      >
-                        Reset
-                      </button>
-                    </div>
-                    <label htmlFor="companies-usage-filter">First 4 weeks</label>
-                    <span className="ui-select-host">
-                      <select
-                        id="companies-usage-filter"
-                        className="ui-control ui-select-trigger"
-                        value={usage}
-                        onChange={event => {
-                          setUsage(event.currentTarget.value as UsageFilter);
-                          setPage(1);
-                        }}
-                      >
-                        <option value="all">All integrated companies</option>
-                        <option value="active">With module usage</option>
-                        <option value="inactive">No module usage</option>
-                      </select>
-                    </span>
-                    <label htmlFor="companies-integration-filter">Integration</label>
-                    <span className="ui-select-host">
-                      <select
-                        id="companies-integration-filter"
-                        className="ui-control ui-select-trigger"
-                        value={integration}
-                        onChange={event => {
-                          setIntegration(event.currentTarget.value);
-                          setPage(1);
-                        }}
-                      >
-                        <option value="all">All integrations</option>
-                        <option value="Tally">Tally</option>
-                        <option value="Zoho Books">Zoho Books</option>
-                        <option value="Unknown">Unknown</option>
-                      </select>
-                    </span>
-                    <div className="po-filter-note">
-                      Cohort dates filter first successful integration. W1–W4 stay relative to each company.
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <button
+                type="button"
+                className={`ui-control ${filterCount ? "has-filters" : ""}`}
+                aria-expanded={filtersOpen}
+                onClick={() => setFiltersOpen(open => !open)}
+              >
+                <Icon name="filter" /><span>Filters · {filterCount}</span>
+              </button>
             </div>
           </div>
+
+          {filtersOpen ? (
+            <div className="companies-filter-tray" role="region" aria-label="Company filters">
+              <div className="companies-filter-field">
+                <label htmlFor="companies-usage-filter">First 4 weeks</label>
+                <select
+                  id="companies-usage-filter"
+                  className="ui-control ui-select-trigger"
+                  value={usage}
+                  onChange={event => setUsage(event.currentTarget.value as UsageFilter)}
+                >
+                  <option value="all">All integrated companies</option>
+                  <option value="active">With module usage</option>
+                  <option value="inactive">No module usage</option>
+                </select>
+              </div>
+              <div className="companies-filter-field">
+                <label htmlFor="companies-integration-filter">Integration</label>
+                <select
+                  id="companies-integration-filter"
+                  className="ui-control ui-select-trigger"
+                  value={integration}
+                  onChange={event => setIntegration(event.currentTarget.value)}
+                >
+                  <option value="all">All integrations</option>
+                  <option value="Tally">Tally</option>
+                  <option value="Zoho Books">Zoho Books</option>
+                  <option value="Unknown">Unknown</option>
+                </select>
+              </div>
+              <div className="companies-filter-copy">
+                Cohort dates filter first successful integration. W1–W4 stay relative to each company.
+              </div>
+              <button
+                type="button"
+                className="companies-filter-reset"
+                disabled={filterCount === 0}
+                onClick={() => {
+                  setUsage("all");
+                  setIntegration("all");
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          ) : null}
 
           <div
             className="po-record-scroll companies-lifecycle-scroll"
@@ -680,7 +667,8 @@ export default function CompaniesDashboard() {
                       </th>
                       {WEEKS.map(week => (
                         <th key={week} scope="colgroup" colSpan={4} className="companies-week-group">
-                          W{week}
+                          <span>W{week}</span>
+                          <small>{number.format(cohortSummary.find(item => item.week === week)?.reached ?? 0)} reached</small>
                         </th>
                       ))}
                     </tr>
@@ -772,6 +760,23 @@ export default function CompaniesDashboard() {
                       </tr>
                     )}
                   </tbody>
+                  <tfoot>
+                    <tr className="companies-total-row">
+                      <td />
+                      <td className="companies-total-label">Total</td>
+                      <td className="companies-total-count">{number.format(data?.total ?? 0)} companies</td>
+                      {WEEKS.flatMap(week => {
+                        const summary = cohortSummary.find(item => item.week === week);
+                        return WEEK_MODULES.map(module => (
+                          <td className="numeric" key={`total-${week}-${module.key}`}>
+                            {summary?.reached
+                              ? number.format(summary.totals[module.key])
+                              : "–"}
+                          </td>
+                        ));
+                      })}
+                    </tr>
+                  </tfoot>
                 </table>
 
                 {loading ? (
@@ -781,54 +786,6 @@ export default function CompaniesDashboard() {
             )}
           </div>
 
-          <footer className="po-record-foot">
-            <span role="status">
-              {data
-                ? data.total
-                  ? `${(visiblePage - 1) * PAGE_SIZE + 1}–${Math.min(visiblePage * PAGE_SIZE, data.total)} of ${number.format(data.total)} integrated companies`
-                  : "0 matching companies"
-                : "…"}
-            </span>
-            <nav className="po-pagination" aria-label="Company table pages">
-              <button
-                type="button"
-                disabled={loading || visiblePage <= 1}
-                aria-label="Previous page"
-                onClick={() => setPage(visiblePage - 1)}
-              >
-                <Icon name="left" />
-              </button>
-              {pageItems.flatMap((value, index) => [
-                index > 0 && value - pageItems[index - 1] > 1 ? (
-                  <span
-                    className="page-ellipsis"
-                    key={`gap-${value}`}
-                    aria-hidden="true"
-                  >
-                    …
-                  </span>
-                ) : null,
-                <button
-                  type="button"
-                  key={value}
-                  disabled={loading}
-                  aria-label={`Page ${value}`}
-                  aria-current={visiblePage === value ? "page" : undefined}
-                  onClick={() => setPage(value)}
-                >
-                  {value}
-                </button>,
-              ])}
-              <button
-                type="button"
-                disabled={loading || visiblePage >= pages}
-                aria-label="Next page"
-                onClick={() => setPage(visiblePage + 1)}
-              >
-                <Icon name="right" />
-              </button>
-            </nav>
-          </footer>
         </section>
 
         <footer className="po-page-footer">
@@ -836,7 +793,6 @@ export default function CompaniesDashboard() {
             <Icon name="info" />
             Source freshness: {prettyDateTime(data?.source_watermark_at ?? null)}
           </span>
-          <span>W1 = day 0–6 · W2 = 7–13 · W3 = 14–20 · W4 = 21–27 after first successful integration.</span>
         </footer>
       </main>
 

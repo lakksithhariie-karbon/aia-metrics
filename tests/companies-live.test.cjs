@@ -329,17 +329,43 @@ test('15. failed backend request never falls back to fixtures', () => {
   assert(!fs.existsSync(path.join(root, 'lib/customer/fixtures.ts')), 'fixture adapter is gone');
 });
 
-test('16. pagination uses lifecycle facts and preserves the last good table', () => {
+test('16. Companies uses one scrolling cohort surface with no pagination', () => {
   const server = read('lib/companies/server.ts');
   const sql = read('supabase/companies-lifecycle-weeks.sql');
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(server.includes('read_companies_lifecycle_page'), 'each page is returned directly by the lifecycle RPC');
-  assert(sql.includes('company_lifecycle_week_module_usage'), 'W1-W4 module usage is pre-aggregated');
+  assert(server.includes('read_companies_lifecycle_page'), 'scrolling grid still uses lifecycle facts');
+  assert(server.includes('p_page_size: 5000'), 'server requests the filtered cohort in one response');
+  assert(server.includes('companies_scroll_cohort_truncated'), 'partial cohorts fail closed rather than showing misleading totals');
+  assert(sql.includes('company_lifecycle_week_module_usage'), 'W1-W4 module usage remains pre-aggregated');
   assert(sql.includes('companies-lifecycle-cache-hourly'), 'lifecycle cache refreshes hourly');
-  assert(source.includes('setError(String(err.message || err))'), 'refresh failures are surfaced');
-  assert(source.includes('aria-busy={loading}'), 'table exposes refresh state without disappearing');
-  assert(source.includes('disabled={loading || visiblePage >= pages}'), 'next is disabled during a pending page load');
-  assert(source.includes('visiblePage = data?.page ?? page'), 'pagination reflects the last successfully loaded page');
+  assert(!source.includes('po-pagination'), 'there are no pagination controls');
+  assert(!source.includes('visiblePage'), 'there is no page cursor in the UI');
+  assert(source.includes('companies-lifecycle-scroll'), 'grid owns its scroll surface');
+  assert(source.includes('<tfoot>'), 'cohort totals are rendered inside the grid');
+  assert(source.includes('cohortSummary'), 'footer totals are computed from the whole filtered response');
+});
+
+test('filters are inline and do not overlap the W4 grid', () => {
+  const source = read('components/companies/companies-dashboard.tsx');
+  const css = read('app/customer/customer.css');
+  assert(source.includes('companies-filter-tray'), 'filters render in a dedicated inline tray');
+  assert(!source.includes('className="po-filters"'), 'old absolute filter popover is not used');
+  assert(css.includes('.companies-filter-tray{'), 'inline filter tray has its own layout');
+});
+
+test('headers, identity columns and totals are frozen inside the scroll surface', () => {
+  const css = read('app/customer/customer.css');
+  assert(css.includes('.companies-lifecycle-scroll{flex:1;min-height:0;overflow:auto'), 'matrix owns vertical/horizontal scrolling');
+  assert(css.includes('.companies-week-header th{position:sticky;top:0'), 'week header is sticky');
+  assert(css.includes('.companies-module-header th{position:sticky;top:38px'), 'module header is sticky');
+  assert(css.includes('tbody td:nth-child(3),'), 'company identity column participates in sticky positioning');
+  assert(css.includes('tfoot td{position:sticky;bottom:0'), 'totals footer is sticky');
+});
+
+test('page footer keeps freshness only, not the W1-W4 definition string', () => {
+  const source = read('components/companies/companies-dashboard.tsx');
+  assert(!source.includes('W1 = day 0–6 · W2 = 7–13 · W3 = 14–20 · W4 = 21–27 after first successful integration.'));
+  assert(source.includes('Source freshness:'), 'source freshness remains visible');
 });
 
 test('lifecycle SQL stays private and restricted to server roles', () => {
