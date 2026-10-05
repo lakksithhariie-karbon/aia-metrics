@@ -77,6 +77,24 @@ paged as (
   where r.rn>(x.page_no-1)*x.page_size
     and r.rn<=x.page_no*x.page_size
 ),
+observed_users as (
+  select
+    p.company_id,
+    nullif(btrim(e.distinct_id),'') as user_key,
+    (
+      array_agg(
+        nullif(btrim(e.email),'')
+        order by e.event_time desc,e.insert_id desc
+      )
+      filter (where nullif(btrim(e.email),'') is not null)
+    )[1] as user_email
+  from paged p
+  join public.events e on e.company_id=p.company_id
+  where e.event_time>=p.integration_at
+    and nullif(btrim(e.distinct_id),'') is not null
+    and not metrics_private.is_retention_internal_email_v2(e.email)
+  group by p.company_id,nullif(btrim(e.distinct_id),'')
+),
 window_events as (
   select
     p.company_id,
@@ -119,6 +137,22 @@ user_totals as (
   from mapped
   group by company_id,user_key
 ),
+user_population as (
+  select
+    ou.company_id,
+    ou.user_key,
+    coalesce(ou.user_email,ou.user_key) as user_email
+  from observed_users ou
+
+  union
+
+  select
+    ut.company_id,
+    '__unattributed__'::text,
+    'Unattributed activity'::text
+  from user_totals ut
+  where ut.user_key='__unattributed__'
+),
 rows_json as (
   select
     p.rn,
@@ -143,21 +177,24 @@ rows_json as (
       'users',coalesce((
         select jsonb_agg(
           jsonb_build_object(
-            'id',ut.user_key,
-            'email',case
-              when ut.user_key='__unattributed__' then 'Unattributed activity'
-              else coalesce(mu.user_email,ut.user_key)
-            end,
+            'id',up.user_key,
+            'email',up.user_email,
             'totals',jsonb_build_object(
-              'ap',ut.ap,'ar',ut.ar,'transactions',ut.transactions,'gst',ut.gst
+              'ap',coalesce(ut.ap,0),
+              'ar',coalesce(ut.ar,0),
+              'transactions',coalesce(ut.transactions,0),
+              'gst',coalesce(ut.gst,0)
             )
           )
-          order by (ut.user_key='__unattributed__'),lower(coalesce(mu.user_email,ut.user_key))
+          order by
+            (up.user_key='__unattributed__'),
+            lower(up.user_email),
+            up.user_key
         )
-        from user_totals ut
-        left join metrics_private.company_monthly_user mu
-          on mu.company_id=ut.company_id and mu.user_key=ut.user_key
-        where ut.company_id=p.company_id
+        from user_population up
+        left join user_totals ut
+          on ut.company_id=up.company_id and ut.user_key=up.user_key
+        where up.company_id=p.company_id
       ),'[]'::jsonb)
     ) as row
   from paged p
