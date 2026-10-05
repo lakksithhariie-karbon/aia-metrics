@@ -29,6 +29,10 @@ create table if not exists metrics_private.retention_kpi_meta_v2 (
   refreshed_at timestamptz not null
 );
 
+create index if not exists events_qualifying_sync_idx
+  on public.events (company_id, event_time)
+  where public.is_qualifying_sync(event_name, properties);
+
 create index if not exists retention_activation_v2_integration_idx
   on metrics_private.retention_activation_v2 (integration_at, company_id);
 create index if not exists retention_activation_v2_activated_idx
@@ -94,7 +98,7 @@ begin
     where t.training_sync_at is not null
       and (e.event_time at time zone 'Asia/Kolkata')::date
           > (t.training_sync_at at time zone 'Asia/Kolkata')::date
-      and public.core_activity_kind(e.event_name, e.properties) is not null
+      and public.is_core_activity(e.event_name, e.properties)
       and e.event_name <> 'Accounting Sync'
       and lower(btrim(coalesce(e.properties->>'status', ''))) <> 'failed'
     group by t.company_id
