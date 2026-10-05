@@ -103,7 +103,11 @@ export async function listCompanies(params: ListParams): Promise<CompanyUsageRes
     },
     params.signal,
   );
-  return scalar(payload);
+  const result = scalar(payload);
+  if (result.rows.length !== result.total) {
+    throw new Error("companies_scroll_cohort_truncated");
+  }
+  return result;
 }
 
 export interface BreakdownParams {
