@@ -49,7 +49,7 @@ function scalar<T>(value: T | T[]): T {
   return value;
 }
 
-export async function readActivationPreviewList(params: {
+export async function readActivationList(params: {
   from: string | null;
   to: string | null;
   query: string;
