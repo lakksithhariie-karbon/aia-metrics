@@ -185,11 +185,11 @@ test('4. multiple users under one company keep their own totals', () => {
   assert.equal(rows[0].totals.ar, 2);
 });
 
-test('5. reached zero is clickable while future lifecycle weeks render a dash', () => {
+test('5. integrated zero is clickable while pre-integration months render a dash', () => {
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(source.includes('if (!usageWeek?.reached)'), 'future weeks have an explicit reached gate');
-  assert(source.includes('companies-week-future'), 'future weeks render the dash state');
-  assert(source.includes('value === 0 ? "is-zero"'), 'reached zero remains a real numeric cell');
+  assert(source.includes('if (!usageMonth?.available)'), 'pre-integration months have an explicit availability gate');
+  assert(source.includes('companies-month-future'), 'pre-integration months render the dash state');
+  assert(source.includes('value === 0 ? "is-zero"'), 'available zero remains a real numeric cell');
   assert(source.includes('No events in this module'), 'zero-cell drilldown explains the real zero');
 });
 
@@ -236,32 +236,32 @@ test('8. sorting works for every module and the name column', () => {
   assert.equal(JSON.stringify(rows.map(row => row.id)), JSON.stringify(['c', 'a', 'b']), 'input is not mutated');
 });
 
-test('integration date is first, uses first successful integration, and defaults newest first', () => {
+test('integration month is first, uses first successful integration, and defaults newest first', () => {
   const types = read('lib/companies/types.ts');
   const dashboard = read('components/companies/companies-dashboard.tsx');
-  const sql = read('supabase/companies-lifecycle-weeks.sql');
-  assert(types.includes('SortKey = "integration_date" | "name"'), 'only integration date and company are sortable');
-  assert(types.includes('integration_at: string;'), 'integrated rows carry their anchor timestamp');
-  assert(dashboard.includes('useState<SortKey>("integration_date")'), 'default sort is integration date');
+  const sql = read('supabase/companies-monthly-cohorts.sql');
+  assert(types.includes('SortKey = "integration_month" | "name"'), 'only integration month and company are sortable');
+  assert(types.includes('integration_month: string;'), 'rows carry their cohort month');
+  assert(dashboard.includes('useState<SortKey>("integration_month")'), 'default sort is integration month');
   assert(dashboard.includes('useState<SortDirection>("desc")'), 'default direction is newest first');
-  assert(dashboard.indexOf('Integration date') < dashboard.indexOf('Company'), 'integration date precedes company');
-  assert(dashboard.includes('prettyDate(company.integration_at)'), 'integration date is rendered');
+  assert(dashboard.indexOf('Integration month') < dashboard.indexOf('Company'), 'integration month precedes company');
+  assert(dashboard.includes('shortMonth(company.integration_month)'), 'integration month is rendered');
   assert(sql.includes("order by e.company_id, e.event_time asc, e.insert_id asc"), 'anchor is the first successful integration');
-  assert(sql.includes("sort_key='integration_date'"), 'lifecycle RPC sorts integration date');
+  assert(sql.includes("sort_key='integration_month'"), 'monthly RPC sorts integration month');
 });
 
-test('post-integration matrix is exactly W1-W4 x AP/AR/TXN/GST', () => {
+test('monthly matrix is calendar months x AP/AR/TXN/GST', () => {
   const types = read('lib/companies/types.ts');
   const dashboard = read('components/companies/companies-dashboard.tsx');
-  const sql = read('supabase/companies-lifecycle-weeks.sql');
-  assert(types.includes('export const WEEK_MODULES'), 'matrix has its own four-module contract');
+  const sql = read('supabase/companies-monthly-cohorts.sql');
+  assert(types.includes('export const MONTH_MODULES'), 'matrix has its own four-module month contract');
   assert(types.includes('{ key: "ap", label: "AP" }'));
   assert(types.includes('{ key: "ar", label: "AR" }'));
   assert(types.includes('{ key: "transactions", label: "TXN" }'));
   assert(types.includes('{ key: "gst", label: "GST" }'));
-  assert(dashboard.includes('const WEEKS: UsageWeek[] = [1, 2, 3, 4]'));
-  assert(sql.includes("interval '28 days'"), 'cache only spans the first 28 days');
-  assert(sql.includes('604800'), 'weeks are exact seven-day windows');
+  assert(dashboard.includes('(data?.months ?? []).map(month =>'), 'month groups are driven by the selected range');
+  assert(sql.includes("date_trunc('month',e.event_time at time zone 'Asia/Kolkata')"), 'usage is bucketed by IST calendar month');
+  assert(sql.includes("e.event_time>=i.integration_at"), 'integration-month usage never includes pre-integration activity');
   assert(sql.includes("module in ('ap','ar','transactions','gst')"), 'Sync is not a matrix column');
 });
 
@@ -287,24 +287,23 @@ test('9. date filtering uses Asia/Kolkata calendar boundaries', () => {
   assert(modules.inRangeIST('2026-09-10T10:00:00+00:00', null, null));
 });
 
-test('10. module modal is scoped to company + lifecycle week + module', () => {
+test('10. module modal is scoped to company + calendar month + module', () => {
   const source = read('components/companies/companies-dashboard.tsx');
   const route = read('app/api/companies/route.ts');
   assert(source.includes('user_id: target.user?.id ?? null'), 'company scope sends null user');
-  assert(source.includes('week: target.week'), 'clicked lifecycle week is sent');
+  assert(source.includes('month: target.month.slice(0, 7) + "-01"'), 'clicked calendar month is sent');
   assert(source.includes('Company total'), 'company scope is labeled');
-  assert(route.includes('p_usage_week') === false, 'route passes a typed week to the server rather than raw SQL params');
-  assert(route.includes('!validWeek(week)'), 'invalid lifecycle weeks are rejected');
+  assert(route.includes('!validMonth(month)'), 'invalid calendar months are rejected');
 });
 
-test('11. nested user cells open the same week/module breakdown at user scope', () => {
+test('11. nested user cells open the same month/module breakdown at user scope', () => {
   const source = read('components/companies/companies-dashboard.tsx');
   const server = read('lib/companies/server.ts');
-  assert(source.includes('matrixCells(company, user)'), 'nested users use the same W1-W4 grid');
-  assert(source.includes('openBreakdown(company, user, week, module'), 'user cell carries company, week and module');
+  assert(source.includes('matrixCells(company, user)'), 'nested users use the same month grid');
+  assert(source.includes('openBreakdown('), 'user cells open the shared breakdown flow');
   assert(source.includes('User scope'), 'modal labels user scope');
   assert(server.includes('params.user_id === UNATTRIBUTED_ID'), 'unattributed activity is preserved');
-  assert(server.includes('read_companies_lifecycle_breakdown'), 'user/company modal uses lifecycle breakdown RPC');
+  assert(server.includes('read_companies_monthly_breakdown'), 'user/company modal uses monthly breakdown RPC');
 });
 
 test('15. failed backend request never falls back to fixtures', () => {
@@ -320,61 +319,62 @@ test('15. failed backend request never falls back to fixtures', () => {
   assert(server.includes('SUPABASE_URL'), 'server reads the Supabase URL server-side');
   assert(!server.includes('NEXT_PUBLIC'), 'server leaks no public env');
   assert(!server.includes('localStorage') && !server.includes('window.'), 'server has no browser globals');
-  assert(server.includes('read_companies_lifecycle_page'), 'list path uses the pre-aggregated lifecycle RPC');
-  assert(!server.includes('read_companies_snapshot'), 'pagination never reruns the raw lifetime snapshot');
-  assert(server.includes('read_companies_lifecycle_identity'), 'breakdown labels use the lifecycle identity cache');
+  assert(server.includes('read_companies_monthly_grid'), 'list path uses the pre-aggregated monthly RPC');
+  assert(!server.includes('read_companies_snapshot'), 'scrolling view never reruns the raw lifetime snapshot');
+  assert(server.includes('read_companies_monthly_identity'), 'breakdown labels use the monthly identity cache');
   const component = read('components/companies/companies-dashboard.tsx');
   assert(component.includes('No fixture values are shown'), ' UI states the honest error');
   assert(!component.includes('customerFixtures') && !component.includes('lib/customer'), 'component has no fixture wiring');
   assert(!fs.existsSync(path.join(root, 'lib/customer/fixtures.ts')), 'fixture adapter is gone');
 });
 
-test('16. Companies uses one scrolling cohort surface with no pagination', () => {
+test('16. Companies uses one scrolling monthly cohort surface with no pagination', () => {
   const server = read('lib/companies/server.ts');
-  const sql = read('supabase/companies-lifecycle-weeks.sql');
+  const sql = read('supabase/companies-monthly-cohorts.sql');
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(server.includes('read_companies_lifecycle_page'), 'scrolling grid still uses lifecycle facts');
+  assert(server.includes('read_companies_monthly_grid'), 'scrolling grid uses monthly facts');
   assert(server.includes('p_page_size: 5000'), 'server requests the filtered cohort in one response');
   assert(server.includes('companies_scroll_cohort_truncated'), 'partial cohorts fail closed rather than showing misleading totals');
-  assert(sql.includes('company_lifecycle_week_module_usage'), 'W1-W4 module usage remains pre-aggregated');
-  assert(sql.includes('companies-lifecycle-cache-hourly'), 'lifecycle cache refreshes hourly');
+  assert(sql.includes('company_calendar_month_module_usage'), 'month usage is pre-aggregated');
+  assert(sql.includes('companies-monthly-cache-hourly'), 'monthly cache refreshes hourly');
   assert(!source.includes('po-pagination'), 'there are no pagination controls');
-  assert(!source.includes('visiblePage'), 'there is no page cursor in the UI');
-  assert(source.includes('companies-lifecycle-scroll'), 'grid owns its scroll surface');
+  assert(source.includes('companies-monthly-scroll'), 'grid owns its scroll surface');
   assert(source.includes('<tfoot>'), 'cohort totals are rendered inside the grid');
   assert(source.includes('cohortSummary'), 'footer totals are computed from the whole filtered response');
 });
 
-test('filters are inline and do not overlap the W4 grid', () => {
+test('filters use the compact old-style surface without covering the grid', () => {
   const source = read('components/companies/companies-dashboard.tsx');
   const css = read('app/customer/customer.css');
-  assert(source.includes('companies-filter-tray'), 'filters render in a dedicated inline tray');
-  assert(!source.includes('className="po-filters"'), 'old absolute filter popover is not used');
-  assert(css.includes('.companies-filter-tray{'), 'inline filter tray has its own layout');
+  assert(source.includes('companies-filter-popover po-filters'), 'filter uses the familiar compact surface');
+  assert(source.includes('ui-select-host'), 'filter dropdowns reuse the styled select components');
+  assert(css.includes('.companies-filter-popover.po-filters{position:static'), 'filter remains in layout and cannot cover month columns');
 });
 
-test('headers, identity columns and totals are frozen inside the scroll surface', () => {
+test('month headers, identity columns and totals are frozen without header overlap', () => {
+  const source = read('components/companies/companies-dashboard.tsx');
   const css = read('app/customer/customer.css');
-  assert(css.includes('.companies-lifecycle-scroll{flex:1;min-height:0;overflow:auto'), 'matrix owns vertical/horizontal scrolling');
-  assert(css.includes('.companies-week-header th{position:sticky;top:0'), 'week header is sticky');
+  assert(css.includes('.companies-monthly-scroll{flex:1;min-height:0;overflow:auto'), 'matrix owns vertical/horizontal scrolling');
+  assert(css.includes('.companies-month-header th{position:sticky;top:0'), 'month header is sticky');
   assert(css.includes('.companies-module-header th{position:sticky;top:38px'), 'module header is sticky');
-  assert(css.includes('tbody td:nth-child(3),'), 'company identity column participates in sticky positioning');
+  assert(source.includes('companies-frozen-header-spacer'), 'second header row has opaque frozen identity cells');
+  assert(css.includes('.companies-module-header .companies-frozen-header-spacer:nth-child(3)'), 'company header spacer stays above scrolling modules');
   assert(css.includes('tfoot td{position:sticky;bottom:0'), 'totals footer is sticky');
 });
 
-test('page footer keeps freshness only, not the W1-W4 definition string', () => {
+test('page footer keeps freshness only', () => {
   const source = read('components/companies/companies-dashboard.tsx');
-  assert(!source.includes('W1 = day 0–6 · W2 = 7–13 · W3 = 14–20 · W4 = 21–27 after first successful integration.'));
+  assert(!source.includes('W1 = day 0–6'));
   assert(source.includes('Source freshness:'), 'source freshness remains visible');
 });
 
-test('lifecycle SQL stays private and restricted to server roles', () => {
-  const sql = read('supabase/companies-lifecycle-weeks.sql');
-  assert(sql.includes('metrics_private.company_lifecycle_week_module_usage'), 'facts live in the private metrics schema');
-  assert(sql.includes('revoke all on metrics_private.company_lifecycle_week_module_usage from public, anon, authenticated'), 'private facts are not exposed');
-  assert(sql.includes('revoke all on function public.read_companies_lifecycle_page'), 'lifecycle RPC revokes default/public execution');
-  assert(sql.includes('grant execute on function public.read_companies_lifecycle_page'), 'lifecycle RPC is explicitly granted to server roles');
-  assert(sql.includes("set statement_timeout = '5s'"), 'page reads have a tight timeout');
+test('monthly SQL stays private and restricted to server roles', () => {
+  const sql = read('supabase/companies-monthly-cohorts.sql');
+  assert(sql.includes('metrics_private.company_calendar_month_module_usage'), 'facts live in the private metrics schema');
+  assert(sql.includes('revoke all on metrics_private.company_calendar_month_module_usage from public, anon, authenticated'), 'private facts are not exposed');
+  assert(sql.includes('revoke all on function public.read_companies_monthly_grid'), 'monthly RPC revokes default/public execution');
+  assert(sql.includes('grant execute on function public.read_companies_monthly_grid'), 'monthly RPC is explicitly granted to server roles');
+  assert(sql.includes("set statement_timeout = '8s'"), 'grid reads have a tight timeout');
 });
 
 test('17. /customer remains the route and /companies is not created', () => {

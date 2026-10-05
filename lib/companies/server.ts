@@ -1,18 +1,16 @@
 /**
- * Server-only Companies lifecycle data plane.
+ * Server-only Companies calendar-month cohort data plane.
  *
- * The main table reads a private, pre-aggregated post-integration cache.
- * W1-W4 are anchored to each company's FIRST successful integration.
- * Browser code never receives Supabase credentials or raw event access.
+ * Population is anchored to each company's FIRST successful integration month.
+ * Usage is AP/AR/TXN/GST by Asia/Kolkata calendar month, never before integration.
  */
 import {
   type CompanyUsageResponse,
   type ModuleBreakdownResponse,
+  type MonthModuleKey,
   type SortDirection,
   type SortKey,
   type UsageFilter,
-  type UsageWeek,
-  type WeekModuleKey,
 } from "./types";
 
 const UNATTRIBUTED_ID = "__unattributed__";
@@ -77,7 +75,6 @@ function scalar<T>(value: T | T[]): T {
 
 export interface ListParams {
   signal?: AbortSignal;
-  page: number;
   query: string;
   integration: string;
   usage: UsageFilter;
@@ -89,7 +86,7 @@ export interface ListParams {
 
 export async function listCompanies(params: ListParams): Promise<CompanyUsageResponse> {
   const payload = await rpc<CompanyUsageResponse | CompanyUsageResponse[]>(
-    "read_companies_lifecycle_page",
+    "read_companies_monthly_grid",
     {
       p_from: params.from,
       p_to: params.to,
@@ -114,8 +111,14 @@ export interface BreakdownParams {
   signal?: AbortSignal;
   company_id: string;
   user_id: string | null;
-  module: WeekModuleKey;
-  week: UsageWeek;
+  module: MonthModuleKey;
+  month: string;
+}
+
+function nextMonth(month: string): string {
+  const [year, value] = month.slice(0, 7).split("-").map(Number);
+  const date = new Date(Date.UTC(year, value, 1));
+  return date.toISOString().slice(0, 7) + "-01";
 }
 
 export async function companyBreakdown(
@@ -142,12 +145,12 @@ export async function companyBreakdown(
         window_end: string | null;
       }>
     >(
-      "read_companies_lifecycle_breakdown",
+      "read_companies_monthly_breakdown",
       {
         p_company_id: params.company_id,
         p_module: params.module,
         p_user_key: userKey,
-        p_usage_week: params.week,
+        p_usage_month: params.month,
       },
       params.signal,
     ),
@@ -155,15 +158,17 @@ export async function companyBreakdown(
       | {
           company_name: string | null;
           integration_at: string | null;
+          integration_month: string | null;
           user_label: string | null;
         }
       | Array<{
           company_name: string | null;
           integration_at: string | null;
+          integration_month: string | null;
           user_label: string | null;
         }>
     >(
-      "read_companies_lifecycle_identity",
+      "read_companies_monthly_identity",
       {
         p_company_id: params.company_id,
         p_user_key:
@@ -187,15 +192,23 @@ export async function companyBreakdown(
 
   const total = rows.reduce((sum, row) => sum + row.count, 0);
   const instrumented = rows.filter(row => row.items != null);
-  const integrationAt = identity.integration_at ? Date.parse(identity.integration_at) : Number.NaN;
-  const fallbackWindowStart = Number.isNaN(integrationAt)
+
+  const monthStartMs = Date.parse(`${params.month.slice(0, 7)}-01T00:00:00+05:30`);
+  const integrationMs = identity.integration_at
+    ? Date.parse(identity.integration_at)
+    : Number.NaN;
+  const fallbackStartMs = Number.isNaN(integrationMs)
+    ? monthStartMs
+    : Math.max(monthStartMs, integrationMs);
+  const fallbackWindowStart = Number.isNaN(fallbackStartMs)
     ? null
-    : new Date(integrationAt + (params.week - 1) * 7 * 86_400_000).toISOString();
-  const fallbackWindowEnd = Number.isNaN(integrationAt)
+    : new Date(fallbackStartMs).toISOString();
+  const fallbackWindowEndMs = Date.parse(
+    `${nextMonth(params.month)}T00:00:00+05:30`,
+  );
+  const fallbackWindowEnd = Number.isNaN(fallbackWindowEndMs)
     ? null
-    : new Date(integrationAt + params.week * 7 * 86_400_000).toISOString();
-  const windowStart = grouped[0]?.window_start ?? fallbackWindowStart;
-  const windowEnd = grouped[0]?.window_end ?? fallbackWindowEnd;
+    : new Date(fallbackWindowEndMs).toISOString();
 
   return {
     company_id: params.company_id,
@@ -208,9 +221,9 @@ export async function companyBreakdown(
           ? UNATTRIBUTED_LABEL
           : text(identity.user_label) || params.user_id,
     module: params.module,
-    week: params.week,
-    window_start: windowStart,
-    window_end: windowEnd,
+    month: params.month.slice(0, 10),
+    window_start: grouped[0]?.window_start ?? fallbackWindowStart,
+    window_end: grouped[0]?.window_end ?? fallbackWindowEnd,
     total,
     item_total: instrumented.length
       ? instrumented.reduce((sum, row) => sum + (row.items ?? 0), 0)

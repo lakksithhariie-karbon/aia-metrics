@@ -1,21 +1,20 @@
 import { NextResponse } from "next/server";
 import { companyBreakdown, listCompanies } from "../../../lib/companies/server";
 import type {
+  MonthModuleKey,
   SortDirection,
   SortKey,
   UsageFilter,
-  UsageWeek,
-  WeekModuleKey,
 } from "../../../lib/companies/types";
 
 const MODULES = ["ap", "ar", "transactions", "gst"] as const;
 
 function validSort(value: unknown): SortKey {
-  return value === "name" ? "name" : "integration_date";
+  return value === "name" ? "name" : "integration_month";
 }
 
-function validWeek(value: unknown): value is UsageWeek {
-  return value === 1 || value === 2 || value === 3 || value === 4;
+function validMonth(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-01$/.test(value);
 }
 
 export async function POST(request: Request) {
@@ -25,22 +24,28 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "invalid_json" }, { status: 400 });
   }
+
   if (body.action !== "list" && body.action !== "breakdown") {
     return NextResponse.json({ error: "invalid_action" }, { status: 400 });
   }
 
-  const from = typeof body.from === "string" && body.from ? body.from : null;
-  const to = typeof body.to === "string" && body.to ? body.to : null;
+  const from =
+    typeof body.from === "string" && body.from ? body.from : null;
+  const to =
+    typeof body.to === "string" && body.to ? body.to : null;
+
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
+  const timeout = setTimeout(() => controller.abort(), 12_000);
 
   try {
     if (body.action === "list") {
       const payload = await listCompanies({
-        page: Math.max(1, Number(body.page) || 1),
         query: typeof body.query === "string" ? body.query : "",
-        integration: typeof body.integration === "string" ? body.integration : "all",
-        usage: (["all", "active", "inactive"] as const).includes(body.usage as UsageFilter)
+        integration:
+          typeof body.integration === "string" ? body.integration : "all",
+        usage: (["all", "active", "inactive"] as const).includes(
+          body.usage as UsageFilter,
+        )
           ? (body.usage as UsageFilter)
           : "all",
         sort: validSort(body.sort),
@@ -55,22 +60,28 @@ export async function POST(request: Request) {
       return NextResponse.json(payload);
     }
 
-    const module = typeof body.module === "string" ? body.module : "";
-    const week = Number(body.week);
+    const module =
+      typeof body.module === "string" ? body.module : "";
+    const month = body.month;
+
     if (
       typeof body.company_id !== "string" ||
       !body.company_id ||
-      !MODULES.includes(module as WeekModuleKey) ||
-      !validWeek(week)
+      !MODULES.includes(module as MonthModuleKey) ||
+      !validMonth(month)
     ) {
-      return NextResponse.json({ error: "invalid_parameters" }, { status: 400 });
+      return NextResponse.json(
+        { error: "invalid_parameters" },
+        { status: 400 },
+      );
     }
 
     const payload = await companyBreakdown({
       company_id: body.company_id,
-      user_id: body.user_id == null ? null : String(body.user_id),
-      module: module as WeekModuleKey,
-      week,
+      user_id:
+        body.user_id == null ? null : String(body.user_id),
+      module: module as MonthModuleKey,
+      month,
       signal: controller.signal,
     });
     return NextResponse.json(payload);
@@ -78,7 +89,10 @@ export async function POST(request: Request) {
     const signal = error instanceof Error ? error.message : String(error);
     console.error("companies-api", body.action, signal.slice(0, 200));
     if (signal === "supabase_unavailable") {
-      return NextResponse.json({ error: "bridge_unavailable" }, { status: 503 });
+      return NextResponse.json(
+        { error: "bridge_unavailable" },
+        { status: 503 },
+      );
     }
     return NextResponse.json(
       { error: "companies_data_unavailable" },
