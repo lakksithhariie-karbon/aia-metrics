@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={oxanium.variable}>
-      <body>{children}</body>
+      <body className={oxanium.className}>{children}</body>
     </html>
   );
 }
