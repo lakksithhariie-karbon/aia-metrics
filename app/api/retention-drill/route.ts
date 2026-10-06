@@ -124,7 +124,10 @@ export async function POST(request: Request) {
       }
 
       const segment =
-        body.segment === "active" || body.segment === "churned"
+        body.segment === "active" ||
+        body.segment === "churned" ||
+        body.segment === "entered" ||
+        body.segment === "reactivated"
           ? body.segment
           : "all";
       const page =
