@@ -1567,6 +1567,15 @@ export default function RetentionDashboard({
               Click any completed month in the trend to inspect active and
               churned companies, then expand observed users for that month.
             </p>
+            <p>
+              Eligible means the company activated before the month began.
+              Entered churn means the company is churned this month and was
+              either newly eligible or active in the previous month.
+              Reactivated means the company was churned in the previous month
+              and is active again this month. The vs prev column is the
+              percentage-point change in churn rate from the previous completed
+              month.
+            </p>
           </section>
         </div>
       </dialog>
