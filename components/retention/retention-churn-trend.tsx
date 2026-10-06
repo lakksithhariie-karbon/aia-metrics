@@ -5,6 +5,7 @@ import type {
   RetentionChurnSeries,
   RetentionChurnSeriesRow,
 } from "../../lib/retention/types";
+import type { RetentionChurnSegment } from "../../lib/retention/drill-types";
 
 const nf = new Intl.NumberFormat("en-US");
 
@@ -41,7 +42,10 @@ export default function RetentionChurnTrend({
 }: {
   series: RetentionChurnSeries;
   loading?: boolean;
-  onMonthClick: (row: RetentionChurnSeriesRow) => void;
+  onMonthClick: (
+    row: RetentionChurnSeriesRow,
+    segment?: RetentionChurnSegment,
+  ) => void;
 }) {
   const rows = series.rows;
   const latest = rows.at(-1) ?? null;
@@ -70,21 +74,24 @@ export default function RetentionChurnTrend({
           className="rd-churn-summary-strip"
           aria-label="Latest churn summary"
         >
-          <div>
+          <button type="button" onClick={() => onMonthClick(latest, "all")}>
             <span>Latest rate</span>
             <strong>{latest.rate_pct?.toFixed(1) ?? "—"}%</strong>
             <small>{monthLabel(latest.month)}</small>
-          </div>
-          <div>
+          </button>
+          <button type="button" onClick={() => onMonthClick(latest, "entered")}>
             <span>Entered churn</span>
             <strong>{nf.format(latest.entered)}</strong>
             <small>during {monthLabel(latest.month).split(" ")[0]}</small>
-          </div>
-          <div>
+          </button>
+          <button
+            type="button"
+            onClick={() => onMonthClick(latest, "reactivated")}
+          >
             <span>Reactivated</span>
             <strong>{nf.format(latest.reactivated)}</strong>
             <small>during {monthLabel(latest.month).split(" ")[0]}</small>
-          </div>
+          </button>
         </section>
       ) : null}
 
@@ -133,11 +140,11 @@ export default function RetentionChurnTrend({
                       rate.toFixed(1) +
                       "% churn. View company drill."
                     }
-                    onClick={() => onMonthClick(row)}
+                    onClick={() => onMonthClick(row, "all")}
                     onKeyDown={event => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        onMonthClick(row);
+                        onMonthClick(row, "all");
                       }
                     }}
                   >
@@ -177,7 +184,7 @@ export default function RetentionChurnTrend({
                         className="rd-churn-inline-link"
                         onClick={event => {
                           event.stopPropagation();
-                          onMonthClick(row);
+                          onMonthClick(row, "all");
                         }}
                         aria-label={
                           "Inspect entered churn for " + monthLabel(row.month)
@@ -192,7 +199,7 @@ export default function RetentionChurnTrend({
                         className="rd-churn-inline-link"
                         onClick={event => {
                           event.stopPropagation();
-                          onMonthClick(row);
+                          onMonthClick(row, "all");
                         }}
                         aria-label={
                           "Inspect reactivated companies for " +
