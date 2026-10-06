@@ -4,6 +4,8 @@ import type {
   ActivationStatus,
   RetentionCellDrillResponse,
   RetentionCellSegment,
+  RetentionChurnDrillResponse,
+  RetentionChurnSegment,
 } from "./drill-types";
 
 function credentials(): { url: string; key: string } {
@@ -111,6 +113,30 @@ export async function readRetentionCellDrill(params: {
       p_rel_period: params.relativePeriod,
       p_from: params.from,
       p_to: params.to,
+      p_segment: params.segment,
+      p_query: params.query,
+      p_page: params.page,
+      p_page_size: params.pageSize,
+    },
+    params.signal,
+  );
+  return scalar(payload);
+}
+
+export async function readRetentionChurnMonthDrill(params: {
+  month: string;
+  segment: RetentionChurnSegment;
+  query: string;
+  page: number;
+  pageSize: number;
+  signal?: AbortSignal;
+}): Promise<RetentionChurnDrillResponse> {
+  const payload = await rpc<
+    RetentionChurnDrillResponse | RetentionChurnDrillResponse[]
+  >(
+    "read_retention_churn_month_drill_preview_v1",
+    {
+      p_month: params.month + "-01",
       p_segment: params.segment,
       p_query: params.query,
       p_page: params.page,
