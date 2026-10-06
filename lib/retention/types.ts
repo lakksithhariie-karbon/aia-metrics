@@ -42,3 +42,9 @@ export interface RetentionHeatmapResponse {
   source_watermark_at: string | null;
   refreshed_at: string | null;
 }
+
+export interface RetentionDashboardResponse {
+  kpis: RetentionKpiResponse;
+  weekly: RetentionHeatmapResponse;
+  monthly: RetentionHeatmapResponse;
+}
