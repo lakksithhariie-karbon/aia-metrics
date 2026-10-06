@@ -482,7 +482,7 @@ test('native Retention restores the live cohort heatmap', () => {
   assert(sql.includes('revoke all on function public.read_retention_heatmap_v2(text,date,date)'));
 });
 
-test('retention heatmap preview uses one coherent watermark-aware snapshot', () => {
+test('retention dashboard uses one coherent watermark-aware snapshot', () => {
   const sql = read('supabase/retention-dashboard-v3.sql');
   const page = read('app/retention/page.tsx');
   const dashboard = read('components/retention/retention-dashboard.tsx');
@@ -494,7 +494,7 @@ test('retention heatmap preview uses one coherent watermark-aware snapshot', () 
   assert(sql.includes("lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed'"));
   assert(sql.includes("'*/5 * * * *'"), 'preview data watcher checks every five minutes');
   assert(
-    page.includes('readRetentionDashboardPreviewV4') ||
+    page.includes('readRetentionDashboardV4') ||
     page.includes('readRetentionDashboardV3'),
     'first paint is server-loaded',
   );
@@ -525,14 +525,14 @@ test('every eligible retention cell opens a nested company/user drill', () => {
 });
 
 test('monthly churn trend and drill use completed-month v3 semantics', () => {
-  const sql = read('supabase/retention-churn-preview-v1.sql');
+  const sql = read('supabase/retention-churn-v1.sql');
   const trend = read('components/retention/retention-churn-trend.tsx');
   const modal = read('components/retention/retention-churn-modal.tsx');
   const dashboard = read('components/retention/retention-dashboard.tsx');
   const route = read('app/api/retention-drill/route.ts');
 
-  assert(sql.includes('read_retention_dashboard_preview_v4'));
-  assert(sql.includes('read_retention_churn_month_drill_preview_v1'));
+  assert(sql.includes('read_retention_dashboard_v4'));
+  assert(sql.includes('read_retention_churn_month_drill_v1'));
   assert(sql.includes("'entered'"));
   assert(sql.includes("'reactivated'"));
   assert(sql.includes('prev_eligible'));
@@ -564,6 +564,11 @@ test('monthly churn trend and drill use completed-month v3 semantics', () => {
   assert(dashboard.includes('<RetentionChurnModal'));
   assert(dashboard.includes('initialSegment={churnMonth.segment}'));
   assert(dashboard.includes('churnContext={churnCompany.context}'));
+  assert(!trend.includes('Eligible = activated before the month began'));
+  assert(!trend.includes('Entered = newly churned'));
+  assert(dashboard.includes('Eligible means the company activated before the month began.'));
+  assert(dashboard.includes('Entered churn means the company is churned this month'));
+  assert(dashboard.includes('Reactivated means the company was churned in the previous month'));
 });
 
 test('retention interval picker is custom and heat cells use product tooltips', () => {
