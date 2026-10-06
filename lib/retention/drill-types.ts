@@ -157,3 +157,76 @@ export interface RetentionPeriodContext {
     sync: number;
   };
 }
+
+export type RetentionChurnSegment = "all" | "active" | "churned";
+
+export interface RetentionChurnUserRow {
+  id: string;
+  email: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  active: boolean;
+  core_events: number;
+  totals: {
+    ap: number;
+    ar: number;
+    transactions: number;
+    gst: number;
+    sync: number;
+  };
+}
+
+export interface RetentionChurnCompanyRow {
+  id: string;
+  name: string;
+  is_test: boolean;
+  integration: string;
+  integration_at: string;
+  activated_at: string;
+  active: boolean;
+  month_start: string;
+  month_end: string;
+  core_events: number;
+  active_users: number;
+  observed_users: number;
+  totals: {
+    ap: number;
+    ar: number;
+    transactions: number;
+    gst: number;
+    sync: number;
+  };
+  users: RetentionChurnUserRow[];
+}
+
+export interface RetentionChurnCounts {
+  all: number;
+  active: number;
+  churned: number;
+}
+
+export interface RetentionChurnDrillResponse {
+  month: string;
+  counts: RetentionChurnCounts;
+  rows: RetentionChurnCompanyRow[];
+  total: number;
+  page: number;
+  page_size: number;
+  source_watermark_at: string | null;
+}
+
+export interface ChurnMonthContext {
+  month_start: string;
+  month_end: string;
+  active: boolean;
+  core_events: number;
+  active_users: number;
+  observed_users: number;
+  totals: {
+    ap: number;
+    ar: number;
+    transactions: number;
+    gst: number;
+    sync: number;
+  };
+}
