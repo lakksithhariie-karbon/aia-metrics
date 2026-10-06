@@ -184,7 +184,7 @@ export default function RetentionChurnTrend({
                         className="rd-churn-inline-link"
                         onClick={event => {
                           event.stopPropagation();
-                          onMonthClick(row, "all");
+                          onMonthClick(row, "entered");
                         }}
                         aria-label={
                           "Inspect entered churn for " + monthLabel(row.month)
@@ -199,7 +199,7 @@ export default function RetentionChurnTrend({
                         className="rd-churn-inline-link"
                         onClick={event => {
                           event.stopPropagation();
-                          onMonthClick(row, "all");
+                          onMonthClick(row, "reactivated");
                         }}
                         aria-label={
                           "Inspect reactivated companies for " +
