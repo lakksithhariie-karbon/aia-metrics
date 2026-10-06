@@ -975,10 +975,22 @@ function CompanyDetailModal({
                     <span
                       className={
                         "rd-status " +
-                        (churnContext.active ? "activated" : "no_training")
+                        (churnContext.reactivated
+                          ? "reactivated"
+                          : churnContext.entered
+                            ? "entered"
+                            : churnContext.active
+                              ? "activated"
+                              : "no_training")
                       }
                     >
-                      {churnContext.active ? "Active" : "Churned"}
+                      {churnContext.reactivated
+                        ? "Reactivated"
+                        : churnContext.entered
+                          ? "Entered churn"
+                          : churnContext.active
+                            ? "Active"
+                            : "Churned"}
                     </span>
                   </div>
                   <div className="rd-churn-context-stats">
