@@ -1,4 +1,4 @@
-import type { RetentionDashboardPreviewResponse, RetentionDashboardResponse, RetentionHeatmapInterval, RetentionHeatmapResponse, RetentionKpiResponse } from "./types";
+import type { RetentionDashboardV4Response, RetentionDashboardResponse, RetentionHeatmapInterval, RetentionHeatmapResponse, RetentionKpiResponse } from "./types";
 
 function credentials(): { url: string; key: string } {
   const url = process.env.SUPABASE_URL;
@@ -99,15 +99,15 @@ export async function readRetentionDashboardV3(params: {
   return scalar(payload);
 }
 
-export async function readRetentionDashboardPreviewV4(params: {
+export async function readRetentionDashboardV4(params: {
   from: string | null;
   to: string | null;
   signal?: AbortSignal;
-}): Promise<RetentionDashboardPreviewResponse> {
+}): Promise<RetentionDashboardV4Response> {
   const payload = await rpc<
-    RetentionDashboardPreviewResponse | RetentionDashboardPreviewResponse[]
+    RetentionDashboardV4Response | RetentionDashboardV4Response[]
   >(
-    "read_retention_dashboard_preview_v4",
+    "read_retention_dashboard_v4",
     {
       p_from: params.from,
       p_to: params.to,
