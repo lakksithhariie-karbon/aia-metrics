@@ -520,6 +520,25 @@ test('every eligible retention cell opens a nested company/user drill', () => {
   assert(sql.includes('observed_users'));
 });
 
+test('retention interval picker is custom and heat cells use product tooltips', () => {
+  const heatmap = read('components/retention/retention-heatmap.tsx');
+  const select = read('components/ui/compact-menu-select.tsx');
+  const css = read('app/retention/retention.css');
+
+  assert(heatmap.includes('CompactMenuSelect'));
+  assert(!heatmap.includes('<select'), 'Retention heatmap has no native select');
+  assert(select.includes('className="ui-control compact-menu-select-trigger"'));
+  assert(select.includes('className="ui-menu-surface compact-menu-select-menu"'));
+  assert(select.includes('role="listbox"'));
+  assert(select.includes('role="option"'));
+
+  assert(heatmap.includes('createPortal'));
+  assert(heatmap.includes('rd-heat-tooltip'));
+  assert(heatmap.includes('Click to inspect companies & users'));
+  assert(!heatmap.includes('title={`${label}'), 'eligible heat cells do not rely on native browser tooltips');
+  assert(css.includes('.compact-menu-select-menu{'));
+  assert(css.includes('.rd-heat-tooltip{'));
+});
 test('the app uses Oxanium as its only runtime font family', () => {
   const layout = read('app/layout.tsx');
   assert(layout.includes('variable: "--font-oxanium"'), 'Oxanium owns the app font variable');
@@ -571,6 +590,7 @@ test('all shipped TypeScript and JSX transpile without syntax errors', () => {
     'components/retention/retention-dashboard.tsx',
     'components/retention/retention-heatmap.tsx',
     'components/retention/retention-cell-modal.tsx',
+    'components/ui/compact-menu-select.tsx',
     'lib/retention/types.ts', 'lib/retention/server.ts', 'lib/retention/drill-types.ts', 'lib/retention/drill.ts',
     'lib/prototype/customer-navigation.ts',
   ]) {
