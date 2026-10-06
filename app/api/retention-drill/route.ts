@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   readActivationCompanyDetail,
   readActivationList,
+  readRetentionCellDrill,
 } from "../../../lib/retention/drill";
 
 function validDate(value: unknown): string | null {
@@ -58,6 +59,54 @@ export async function POST(request: Request) {
         to,
         query: typeof body.query === "string" ? body.query : "",
         status,
+        page,
+        pageSize,
+        signal: controller.signal,
+      });
+      return NextResponse.json(payload);
+    }
+
+    if (body.action === "heatmap_cell") {
+      const interval =
+        body.interval === "monthly" ? "monthly" : "weekly";
+      const segment =
+        body.segment === "retained" || body.segment === "churned"
+          ? body.segment
+          : "all";
+      const cohortStart =
+        typeof body.cohort_start === "string" && body.cohort_start
+          ? validDate(body.cohort_start)
+          : null;
+      const from =
+        typeof body.from === "string" && body.from
+          ? validDate(body.from)
+          : null;
+      const to =
+        typeof body.to === "string" && body.to
+          ? validDate(body.to)
+          : null;
+      const relativePeriod =
+        typeof body.relative_period === "number" &&
+        Number.isFinite(body.relative_period)
+          ? Math.max(1, Math.floor(body.relative_period))
+          : 1;
+      const page =
+        typeof body.page === "number" && Number.isFinite(body.page)
+          ? Math.max(1, Math.floor(body.page))
+          : 1;
+      const pageSize =
+        typeof body.page_size === "number" && Number.isFinite(body.page_size)
+          ? Math.min(50, Math.max(1, Math.floor(body.page_size)))
+          : 8;
+
+      const payload = await readRetentionCellDrill({
+        interval,
+        cohortStart,
+        relativePeriod,
+        from,
+        to,
+        segment,
+        query: typeof body.query === "string" ? body.query : "",
         page,
         pageSize,
         signal: controller.signal,

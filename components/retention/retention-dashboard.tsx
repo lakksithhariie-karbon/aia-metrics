@@ -2,14 +2,22 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProductMetricsHeader from "../product-metrics-header";
-import RetentionHeatmap from "./retention-heatmap";
-import type { RetentionKpiResponse } from "../../lib/retention/types";
+import RetentionCellModal from "./retention-cell-modal";
+import RetentionHeatmap, {
+  type RetentionHeatmapTarget,
+} from "./retention-heatmap";
+import type {
+  RetentionDashboardResponse,
+  RetentionKpiResponse,
+} from "../../lib/retention/types";
 import type {
   ActivationCompanyDetail,
   ActivationCompanyRow,
   ActivationListResponse,
   ActivationModuleTotals,
   ActivationStatus,
+  RetentionCellCompanyRow,
+  RetentionPeriodContext,
 } from "../../lib/retention/drill-types";
 
 type IconName =
@@ -170,8 +178,7 @@ interface MonthRange {
   end: string;
 }
 
-function defaultRange(): MonthRange {
-  const month = lastCompleteMonth();
+function defaultRange(month = lastCompleteMonth()): MonthRange {
   return { preset: "last", start: month, end: month };
 }
 
@@ -199,6 +206,29 @@ async function post<T>(url: string, body: Record<string, unknown>, signal?: Abor
 const activationPageCache = new Map<string, ActivationListResponse>();
 const companyDetailCache = new Map<string, ActivationCompanyDetail>();
 const companyDetailPromises = new Map<string, Promise<ActivationCompanyDetail>>();
+const dashboardCache = new Map<string, RetentionDashboardResponse>();
+
+function dashboardKey(from: string | null, to: string | null): string {
+  return `${from ?? "all"}|${to ?? "all"}`;
+}
+
+async function fetchDashboard(
+  from: string | null,
+  to: string | null,
+  signal?: AbortSignal,
+): Promise<RetentionDashboardResponse> {
+  const key = dashboardKey(from, to);
+  const cached = dashboardCache.get(key);
+  if (cached) return cached;
+
+  const result = await post<RetentionDashboardResponse>(
+    "/api/retention-dashboard",
+    { from, to },
+    signal,
+  );
+  dashboardCache.set(key, result);
+  return result;
+}
 
 function activationPageKey(args: {
   from: string | null;
@@ -837,9 +867,13 @@ function ActivationModal({
 function CompanyDetailModal({
   companyId,
   onClose,
+  retentionContext,
+  backLabel = "Activation cohort",
 }: {
   companyId: string;
   onClose: () => void;
+  retentionContext?: RetentionPeriodContext;
+  backLabel?: string;
 }) {
   const initialDetail = companyDetailCache.get(companyId) ?? null;
   const [detail, setDetail] = useState<ActivationCompanyDetail | null>(initialDetail);
@@ -889,7 +923,7 @@ function CompanyDetailModal({
               <div className="rd-company-topline">
                 <button type="button" className="rd-back" onClick={onClose}>
                   <Icon name="left" />
-                  Activation cohort
+                  {backLabel}
                 </button>
                 <button type="button" className="rd-close" onClick={onClose} aria-label="Close company detail">
                   <Icon name="close" />
@@ -897,7 +931,7 @@ function CompanyDetailModal({
               </div>
               <div>
                 <div>
-                  <p>Company activation profile</p>
+                  <p>{retentionContext ? "Company retention profile" : "Company activation profile"}</p>
                   <h2 id="company-preview-title">{detail.name}</h2>
                 </div>
                 <div className="rd-company-tags">
@@ -909,6 +943,64 @@ function CompanyDetailModal({
             </header>
 
             <div className="rd-company-scroll">
+              {retentionContext ? (
+                <section className="rd-retention-context-card">
+                  <div className="rd-retention-context-head">
+                    <div>
+                      <span>
+                        {retentionContext.interval === "weekly" ? "Week" : "Month"}{" "}
+                        {retentionContext.relative_period} retention window
+                      </span>
+                      <strong>
+                        {prettyDate(retentionContext.target_start + "T12:00:00Z")} →{" "}
+                        {prettyDate(
+                          new Date(
+                            Date.parse(retentionContext.target_end + "T12:00:00Z") -
+                              86_400_000,
+                          ).toISOString(),
+                        )}
+                      </strong>
+                    </div>
+                    <span
+                      className={
+                        "rd-status " +
+                        (retentionContext.retained ? "activated" : "no_training")
+                      }
+                    >
+                      {retentionContext.retained ? "Retained" : "Churned"}
+                    </span>
+                  </div>
+                  <div className="rd-retention-context-stats">
+                    <div>
+                      <span>Active users</span>
+                      <strong>
+                        {retentionContext.active_users}/{retentionContext.observed_users}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Core events</span>
+                      <strong>{nf.format(retentionContext.core_events)}</strong>
+                    </div>
+                    <div>
+                      <span>AP</span>
+                      <strong>{nf.format(retentionContext.totals.ap)}</strong>
+                    </div>
+                    <div>
+                      <span>AR</span>
+                      <strong>{nf.format(retentionContext.totals.ar)}</strong>
+                    </div>
+                    <div>
+                      <span>Transaction</span>
+                      <strong>{nf.format(retentionContext.totals.transactions)}</strong>
+                    </div>
+                    <div>
+                      <span>Sync</span>
+                      <strong>{nf.format(retentionContext.totals.sync)}</strong>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
               <section className="rd-lifecycle-card">
                 <div className="rd-section-title">
                   <div>
@@ -1035,7 +1127,15 @@ function CompanyDetailModal({
                     </thead>
                     <tbody>
                       {detail.weeks.map(week => (
-                        <tr key={week.week_start}>
+                        <tr
+                          key={week.week_start}
+                          className={
+                            retentionContext?.interval === "weekly" &&
+                            retentionContext.target_start === week.week_start
+                              ? "is-selected-retention-week"
+                              : ""
+                          }
+                        >
                           <td>
                             <strong>{prettyDate(week.week_start + "T12:00:00Z")}</strong>
                             <span>to {prettyDate(week.week_end + "T12:00:00Z")}</span>
@@ -1059,24 +1159,62 @@ function CompanyDetailModal({
   );
 }
 
-export default function RetentionDashboard() {
-  const [range, setRange] = useState<MonthRange>(() => defaultRange());
-  const [kpis, setKpis] = useState<RetentionKpiResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function RetentionDashboard({
+  initialMonth,
+  initialData,
+}: {
+  initialMonth: string;
+  initialData: RetentionDashboardResponse | null;
+}) {
+  const [range, setRange] = useState<MonthRange>(() =>
+    defaultRange(initialMonth),
+  );
+  const initialBounds = useMemo(
+    () => bounds(defaultRange(initialMonth)),
+    [initialMonth],
+  );
+  const [dashboardData, setDashboardData] =
+    useState<RetentionDashboardResponse | null>(initialData);
+  const [loading, setLoading] = useState(!initialData);
   const [activationOpen, setActivationOpen] = useState(false);
+  const [heatmapTarget, setHeatmapTarget] =
+    useState<RetentionHeatmapTarget | null>(null);
+  const [retentionCompany, setRetentionCompany] = useState<{
+    company: RetentionCellCompanyRow;
+    context: RetentionPeriodContext;
+  } | null>(null);
   const helpRef = useRef<HTMLDialogElement | null>(null);
   const rangeBounds = useMemo(() => bounds(range), [range]);
 
   useEffect(() => {
+    if (initialData) {
+      dashboardCache.set(
+        dashboardKey(initialBounds.from, initialBounds.to),
+        initialData,
+      );
+    }
+  }, [initialData, initialBounds.from, initialBounds.to]);
+
+  useEffect(() => {
     const controller = new AbortController();
+    const key = dashboardKey(rangeBounds.from, rangeBounds.to);
+    const cached = dashboardCache.get(key);
+    if (cached) {
+      setDashboardData(cached);
+      setLoading(false);
+      return () => controller.abort();
+    }
+
     setLoading(true);
-    post<RetentionKpiResponse>(
-      "/api/retention-kpis",
-      rangeBounds,
-      controller.signal,
-    )
-      .then(setKpis)
-      .catch(() => setKpis(null))
+    fetchDashboard(rangeBounds.from, rangeBounds.to, controller.signal)
+      .then(result => {
+        if (!controller.signal.aborted) setDashboardData(result);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted && !dashboardData) {
+          setDashboardData(null);
+        }
+      })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
@@ -1085,19 +1223,51 @@ export default function RetentionDashboard() {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && activationOpen) setActivationOpen(false);
+      if (event.key !== "Escape") return;
+      if (retentionCompany) {
+        setRetentionCompany(null);
+        return;
+      }
+      if (heatmapTarget) {
+        setHeatmapTarget(null);
+        return;
+      }
+      if (activationOpen) setActivationOpen(false);
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [activationOpen]);
+  }, [activationOpen, heatmapTarget, retentionCompany]);
 
+  const kpis = dashboardData?.kpis ?? null;
   const ttv = cardTtv(kpis?.ttv.avg_hours ?? null);
-  const activationRate = kpis?.activation.rate_pct == null
-    ? "—"
-    : Number(kpis.activation.rate_pct).toFixed(1) + "%";
-  const churnRate = kpis?.churn.rate_pct == null
-    ? "—"
-    : Number(kpis.churn.rate_pct).toFixed(1) + "%";
+  const activationRate =
+    kpis?.activation.rate_pct == null
+      ? "—"
+      : Number(kpis.activation.rate_pct).toFixed(1) + "%";
+  const churnRate =
+    kpis?.churn.rate_pct == null
+      ? "—"
+      : Number(kpis.churn.rate_pct).toFixed(1) + "%";
+
+  const openRetentionCompany = (company: RetentionCellCompanyRow) => {
+    if (!heatmapTarget) return;
+    setRetentionCompany({
+      company,
+      context: {
+        interval: heatmapTarget.interval,
+        relative_period: heatmapTarget.relativePeriod,
+        cohort_start: heatmapTarget.cohortStart,
+        target_start: company.target_start,
+        target_end: company.target_end,
+        retained: company.retained,
+        core_events: company.core_events,
+        active_users: company.active_users,
+        observed_users: company.observed_users,
+        totals: company.totals,
+      },
+    });
+    prefetchCompanyDetail(company.id);
+  };
 
   return (
     <div className="rd-shell">
@@ -1119,10 +1289,13 @@ export default function RetentionDashboard() {
           <KpiCard
             label="Activation rate"
             period={rangeLabel(range)}
-            value={loading ? "…" : activationRate}
+            value={loading && !kpis ? "…" : activationRate}
             note={
               kpis
-                ? nf.format(kpis.activation.activated) + " of " + nf.format(kpis.activation.integrated) + " integrated companies activated"
+                ? nf.format(kpis.activation.activated) +
+                  " of " +
+                  nf.format(kpis.activation.integrated) +
+                  " integrated companies activated"
                 : "Live KPI unavailable"
             }
             interactive={Boolean(kpis)}
@@ -1131,30 +1304,46 @@ export default function RetentionDashboard() {
           <KpiCard
             label="Average time to value"
             period={rangeLabel(range)}
-            value={loading ? "…" : ttv.value}
+            value={loading && !kpis ? "…" : ttv.value}
             unit={ttv.unit}
             note={
               kpis
-                ? nf.format(kpis.ttv.companies) + " activated companies with measurable TTV"
+                ? nf.format(kpis.ttv.companies) +
+                  " activated companies with measurable TTV"
                 : "Live KPI unavailable"
             }
           />
           <KpiCard
             label="Monthly churn"
-            period={kpis?.churn.month ? monthLabel(kpis.churn.month) : rangeLabel(range)}
-            value={loading ? "…" : churnRate}
+            period={
+              kpis?.churn.month
+                ? monthLabel(kpis.churn.month)
+                : rangeLabel(range)
+            }
+            value={loading && !kpis ? "…" : churnRate}
             note={
               kpis?.churn.month
-                ? nf.format(kpis.churn.churned) + " of " + nf.format(kpis.churn.eligible) + " eligible companies churned"
+                ? nf.format(kpis.churn.churned) +
+                  " of " +
+                  nf.format(kpis.churn.eligible) +
+                  " eligible companies churned"
                 : "No completed churn month in this range"
             }
           />
         </section>
 
-        <RetentionHeatmap
-          from={rangeBounds.from}
-          to={rangeBounds.to}
-        />
+        {dashboardData ? (
+          <RetentionHeatmap
+            weekly={dashboardData.weekly}
+            monthly={dashboardData.monthly}
+            loading={loading}
+            onCellClick={setHeatmapTarget}
+          />
+        ) : (
+          <article className="report-card rd-retention-report">
+            <div className="heatmap-empty">Loading retention…</div>
+          </article>
+        )}
       </main>
 
       {activationOpen && kpis ? (
@@ -1162,6 +1351,25 @@ export default function RetentionDashboard() {
           range={range}
           kpis={kpis}
           onClose={() => setActivationOpen(false)}
+        />
+      ) : null}
+
+      {heatmapTarget ? (
+        <RetentionCellModal
+          target={heatmapTarget}
+          from={rangeBounds.from}
+          to={rangeBounds.to}
+          onClose={() => setHeatmapTarget(null)}
+          onCompany={openRetentionCompany}
+        />
+      ) : null}
+
+      {retentionCompany ? (
+        <CompanyDetailModal
+          companyId={retentionCompany.company.id}
+          retentionContext={retentionCompany.context}
+          backLabel="Retention cell"
+          onClose={() => setRetentionCompany(null)}
         />
       ) : null}
 
@@ -1204,16 +1412,25 @@ export default function RetentionDashboard() {
             <h3>Retention heatmap</h3>
             <p>
               Companies are grouped by activation cohort. Weekly retention
-              checks for core activity in each subsequent completed IST week.
-              Monthly retention checks each subsequent completed calendar
-              month. A dash means that return window is not complete yet.
+              checks for non-failed core activity in each subsequent completed
+              IST week. Monthly retention checks each subsequent completed
+              calendar month. Eligibility is based on the source data watermark,
+              so an incomplete ingestion window stays as a dash.
+            </p>
+          </section>
+          <section className="definition-block">
+            <h3>Retention drill</h3>
+            <p>
+              Retained and churned are company-level outcomes. Nested users are
+              shown as active or inactive in the selected return window, and
+              only users observed by that window's end are included.
             </p>
           </section>
           <section className="definition-block">
             <h3>Monthly churn</h3>
             <p>
               An activated company is churned for a completed calendar month
-              when it records no core activity during that month.
+              when it records no non-failed core activity during that month.
             </p>
           </section>
         </div>

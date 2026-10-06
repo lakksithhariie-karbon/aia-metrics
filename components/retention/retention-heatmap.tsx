@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import CompactMenuSelect from "../ui/compact-menu-select";
 import type {
   RetentionHeatmapInterval,
   RetentionHeatmapResponse,
@@ -9,27 +11,28 @@ import type {
 
 const nf = new Intl.NumberFormat("en-US");
 
-async function loadHeatmap(
-  interval: RetentionHeatmapInterval,
-  from: string | null,
-  to: string | null,
-  signal?: AbortSignal,
-): Promise<RetentionHeatmapResponse> {
-  const response = await fetch("/api/retention-heatmap", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ interval, from, to }),
-    signal,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      typeof payload?.error === "string"
-        ? payload.error
-        : "retention_heatmap_unavailable",
-    );
-  }
-  return payload as RetentionHeatmapResponse;
+const INTERVAL_OPTIONS = [
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+] as const;
+
+export interface RetentionHeatmapTarget {
+  interval: RetentionHeatmapInterval;
+  cohortStart: string | null;
+  relativePeriod: number;
+  retained: number;
+  denominator: number;
+  label: string;
+  pooled: boolean;
+}
+
+interface TooltipState {
+  rect: DOMRect;
+  label: string;
+  period: string;
+  index: number;
+  retained: number;
+  denominator: number;
 }
 
 function cohortLabel(
@@ -68,25 +71,93 @@ function cellStyle(retained: number, denominator: number): React.CSSProperties {
   };
 }
 
+function HeatmapTooltip({
+  value,
+}: {
+  value: TooltipState | null;
+}) {
+  if (!value || typeof document === "undefined") return null;
+
+  const width = 226;
+  const margin = 12;
+  const left = Math.max(
+    margin,
+    Math.min(
+      value.rect.left + value.rect.width / 2 - width / 2,
+      window.innerWidth - width - margin,
+    ),
+  );
+  const placeAbove = value.rect.top > 150;
+  const top = placeAbove ? value.rect.top - 8 : value.rect.bottom + 8;
+  const churned = value.denominator - value.retained;
+  const percent =
+    value.denominator > 0
+      ? (100 * value.retained) / value.denominator
+      : 0;
+
+  return createPortal(
+    <div
+      className={
+        "rd-heat-tooltip " +
+        (placeAbove ? "is-above" : "is-below")
+      }
+      role="tooltip"
+      style={{ left, top, width }}
+    >
+      <div className="rd-heat-tooltip-eyebrow">
+        {value.label} · {value.period} {value.index}
+      </div>
+      <div className="rd-heat-tooltip-value">
+        {percent.toFixed(1)}%
+        <span>retention</span>
+      </div>
+      <div className="rd-heat-tooltip-stats">
+        <span>
+          <strong>{nf.format(value.retained)}</strong>
+          Retained
+        </span>
+        <span>
+          <strong>{nf.format(churned)}</strong>
+          Churned
+        </span>
+        <span>
+          <strong>{nf.format(value.denominator)}</strong>
+          Eligible
+        </span>
+      </div>
+      <div className="rd-heat-tooltip-hint">
+        Click to inspect companies & users
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function HeatCell({
   retained,
   denominator,
   label,
   period,
   index,
+  onClick,
+  onTooltip,
+  onTooltipHide,
 }: {
   retained: number | null;
   denominator: number;
   label: string;
   period: string;
   index: number;
+  onClick?: () => void;
+  onTooltip: (value: TooltipState) => void;
+  onTooltipHide: () => void;
 }) {
   if (retained == null || denominator === 0) {
     return (
       <td>
         <span
           className="heat-cell unavailable"
-          title="This return window is not yet eligible"
+          aria-label="Not yet eligible"
         >
           -
         </span>
@@ -95,18 +166,34 @@ function HeatCell({
   }
 
   const percent = (100 * retained) / denominator;
+  const show = (element: HTMLElement) =>
+    onTooltip({
+      rect: element.getBoundingClientRect(),
+      label,
+      period,
+      index,
+      retained,
+      denominator,
+    });
+
   return (
     <td>
-      <span
+      <button
+        type="button"
         className="heat-cell"
         style={cellStyle(retained, denominator)}
-        title={`${label} · ${period} ${index} · ${retained} retained · ${denominator - retained} churned · ${percent.toFixed(1)}% retention`}
+        aria-label={`${label}, ${period.toLowerCase()} ${index}: ${retained} retained, ${denominator - retained} churned out of ${denominator}. View companies and users.`}
+        onMouseEnter={event => show(event.currentTarget)}
+        onMouseLeave={onTooltipHide}
+        onFocus={event => show(event.currentTarget)}
+        onBlur={onTooltipHide}
+        onClick={onClick}
       >
         <span className="percentage">{percent.toFixed(1)}%</span>
         <span className="fraction">
           {retained}/{denominator}
         </span>
-      </span>
+      </button>
     </td>
   );
 }
@@ -131,212 +218,244 @@ function pooled(
 }
 
 export default function RetentionHeatmap({
-  from,
-  to,
+  weekly,
+  monthly,
+  loading,
+  onCellClick,
 }: {
-  from: string | null;
-  to: string | null;
+  weekly: RetentionHeatmapResponse;
+  monthly: RetentionHeatmapResponse;
+  loading?: boolean;
+  onCellClick: (target: RetentionHeatmapTarget) => void;
 }) {
   const [interval, setInterval] =
     useState<RetentionHeatmapInterval>("weekly");
   const [order, setOrder] = useState<"oldest" | "newest">("oldest");
-  const [data, setData] = useState<RetentionHeatmapResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
   useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    loadHeatmap(interval, from, to, controller.signal)
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [interval, from, to]);
+    if (!tooltip) return;
+    const hide = () => setTooltip(null);
+    window.addEventListener("resize", hide);
+    window.addEventListener("scroll", hide, true);
+    return () => {
+      window.removeEventListener("resize", hide);
+      window.removeEventListener("scroll", hide, true);
+    };
+  }, [tooltip]);
 
+  const data = interval === "monthly" ? monthly : weekly;
   const rows = useMemo(() => {
-    const source = [...(data?.rows ?? [])];
+    const source = [...data.rows];
     return order === "newest" ? source.reverse() : source;
-  }, [data, order]);
+  }, [data.rows, order]);
 
   const period = interval === "monthly" ? "Month" : "Week";
-  const columns = data?.columns ?? (interval === "monthly" ? 6 : 8);
+  const columns = data.columns;
   const aggregate = pooled(rows, columns);
   const companies = rows.reduce((sum, row) => sum + row.cohort_size, 0);
-
   const reportHeight = Math.min(
     600,
     Math.max(365, 232 + rows.length * 45),
   );
 
+  const toggleSort = () =>
+    setOrder(current => (current === "oldest" ? "newest" : "oldest"));
+
   return (
-    <article
-      className="report-card rd-retention-report"
-      style={{ height: reportHeight }}
-    >
-      <header className="report-header">
-        <div>
-          <h2>Retention</h2>
-          <p className="report-subtitle">
-            {interval === "weekly"
-              ? "Activation cohorts · core activity in subsequent completed weeks"
-              : "Activation cohorts · core activity in subsequent completed months"}
-          </p>
-        </div>
-        <div className="report-actions">
-          <select
-            className="ui-control rd-retention-select"
-            aria-label="Retention interval"
-            value={interval}
-            onChange={event =>
-              setInterval(
-                event.currentTarget.value as RetentionHeatmapInterval,
-              )
-            }
-          >
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-        </div>
-      </header>
-
-      <div className="report-toolbar">
-        <span>
-          <strong>
-            {loading ? "Loading…" : `${rows.length} ${interval} cohorts`}
-          </strong>
-          {!loading && rows.length ? (
-            <>
-              {" "}
-              <span aria-hidden="true">·</span> {nf.format(companies)} companies
-            </>
-          ) : null}
-        </span>
-        <select
-          className="ui-control rd-retention-order"
-          aria-label="Cohort order"
-          value={order}
-          onChange={event =>
-            setOrder(event.currentTarget.value as "oldest" | "newest")
-          }
-        >
-          <option value="oldest">Oldest first</option>
-          <option value="newest">Newest first</option>
-        </select>
-      </div>
-
-      <div
-        className="heatmap-scroll"
-        role="region"
-        tabIndex={0}
-        aria-label={`${interval === "weekly" ? "Weekly" : "Monthly"} retention cohorts`}
+    <>
+      <article
+        className="report-card rd-retention-report"
+        style={{ height: reportHeight }}
       >
-        <table
-          className={
-            "heatmap-table " + (interval === "monthly" ? "is-monthly" : "")
-          }
-          aria-label={`${interval === "weekly" ? "Weekly" : "Monthly"} company retention`}
+        <header className="report-header rd-retention-report-head">
+          <div>
+            <h2>Retention</h2>
+            <p className="report-subtitle">
+              {interval === "weekly"
+                ? "Activation cohorts · core activity in subsequent completed weeks"
+                : "Activation cohorts · core activity in subsequent completed months"}
+            </p>
+          </div>
+          <div className="report-actions rd-retention-controls">
+            <CompactMenuSelect
+              value={interval}
+              options={INTERVAL_OPTIONS}
+              onChange={value => {
+                setTooltip(null);
+                setInterval(value);
+              }}
+              ariaLabel="Retention interval"
+              className="rd-retention-interval-select"
+            />
+            <button
+              type="button"
+              className="ui-control rd-retention-sort"
+              onClick={toggleSort}
+              aria-label={
+                order === "oldest"
+                  ? "Sorted oldest first. Switch to newest first."
+                  : "Sorted newest first. Switch to oldest first."
+              }
+              title="Toggle cohort sort order"
+            >
+              <span aria-hidden="true">{order === "oldest" ? "↑" : "↓"}</span>
+              {order === "oldest" ? "Oldest first" : "Newest first"}
+            </button>
+          </div>
+        </header>
+
+        <div className="report-toolbar rd-retention-summary">
+          <span>
+            <strong>{rows.length} {interval} cohorts</strong>
+            {rows.length ? (
+              <>
+                {" "}
+                <span aria-hidden="true">·</span> {nf.format(companies)} activated companies
+              </>
+            ) : null}
+            {loading ? <em>Updating…</em> : null}
+          </span>
+        </div>
+
+        <div
+          className="heatmap-scroll"
+          role="region"
+          tabIndex={0}
+          aria-label={`${interval === "weekly" ? "Weekly" : "Monthly"} retention cohorts`}
         >
-          <thead>
-            <tr>
-              <th scope="col">Cohort {period.toLowerCase()}</th>
-              <th scope="col" title="Companies in this activation cohort">
-                n
-              </th>
-              {Array.from({ length: columns }, (_, index) => (
-                <th scope="col" key={index}>
-                  {period} {index + 1}
+          <table
+            className={
+              "heatmap-table " + (interval === "monthly" ? "is-monthly" : "")
+            }
+            aria-label={`${interval === "weekly" ? "Weekly" : "Monthly"} company retention`}
+          >
+            <thead>
+              <tr>
+                <th scope="col">Cohort {period.toLowerCase()}</th>
+                <th scope="col" title="Companies in this activation cohort">
+                  n
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={columns + 2}>
-                  <div className="heatmap-empty">Loading retention…</div>
-                </td>
-              </tr>
-            ) : rows.length ? (
-              rows.map(row => {
-                const label = cohortLabel(row.cohort_start, interval);
-                return (
-                  <tr key={row.cohort_start}>
-                    <th scope="row">{label}</th>
-                    <td className="cohort-size">{row.cohort_size}</td>
-                    {row.values.map((value, index) => (
-                      <HeatCell
-                        key={index}
-                        retained={value}
-                        denominator={row.cohort_size}
-                        label={label}
-                        period={period}
-                        index={index + 1}
-                      />
-                    ))}
-                  </tr>
-                );
-              })
-            ) : (
-              <tr>
-                <td colSpan={columns + 2}>
-                  <div className="heatmap-empty">
-                    <strong>No {interval} activation cohorts in this range</strong>
-                    <p>Choose a wider date range to see retention.</p>
-                  </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-          {!loading && rows.length ? (
-            <tfoot>
-              <tr>
-                <th
-                  scope="row"
-                  title="Pooled retained companies divided by all eligible companies"
-                >
-                  Average
-                </th>
-                <td className="cohort-size" />
-                {aggregate.map((cell, index) => (
-                  <HeatCell
-                    key={index}
-                    retained={cell.eligible ? cell.retained : null}
-                    denominator={cell.eligible}
-                    label="All visible eligible cohorts"
-                    period={period}
-                    index={index + 1}
-                  />
+                {Array.from({ length: columns }, (_, index) => (
+                  <th scope="col" key={index}>
+                    {period} {index + 1}
+                  </th>
                 ))}
               </tr>
-            </tfoot>
-          ) : null}
-        </table>
-      </div>
-
-      <footer className="report-footer">
-        <div className="heat-legend">
-          <span>0%</span>
-          <div className="legend-swatches" aria-hidden="true">
-            <span style={{ background: "#eff4ff" }} />
-            <span style={{ background: "#c5d3f7" }} />
-            <span style={{ background: "#96acee" }} />
-            <span style={{ background: "#6687e7" }} />
-            <span style={{ background: "#1d4ed8" }} />
-          </div>
-          <span>100%</span>
+            </thead>
+            <tbody>
+              {rows.length ? (
+                rows.map(row => {
+                  const label = cohortLabel(row.cohort_start, interval);
+                  return (
+                    <tr key={row.cohort_start}>
+                      <th scope="row">{label}</th>
+                      <td className="cohort-size">{row.cohort_size}</td>
+                      {row.values.map((value, index) => (
+                        <HeatCell
+                          key={index}
+                          retained={value}
+                          denominator={row.cohort_size}
+                          label={label}
+                          period={period}
+                          index={index + 1}
+                          onTooltip={setTooltip}
+                          onTooltipHide={() => setTooltip(null)}
+                          onClick={
+                            value == null
+                              ? undefined
+                              : () =>
+                                  onCellClick({
+                                    interval,
+                                    cohortStart: row.cohort_start,
+                                    relativePeriod: index + 1,
+                                    retained: value,
+                                    denominator: row.cohort_size,
+                                    label,
+                                    pooled: false,
+                                  })
+                          }
+                        />
+                      ))}
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={columns + 2}>
+                    <div className="heatmap-empty">
+                      <strong>No {interval} activation cohorts in this range</strong>
+                      <p>Choose a wider date range to see retention.</p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {rows.length ? (
+              <tfoot>
+                <tr>
+                  <th
+                    scope="row"
+                    title="Pooled retained companies divided by all eligible companies"
+                  >
+                    Average
+                  </th>
+                  <td className="cohort-size" />
+                  {aggregate.map((cell, index) => (
+                    <HeatCell
+                      key={index}
+                      retained={cell.eligible ? cell.retained : null}
+                      denominator={cell.eligible}
+                      label="All visible eligible cohorts"
+                      period={period}
+                      index={index + 1}
+                      onTooltip={setTooltip}
+                      onTooltipHide={() => setTooltip(null)}
+                      onClick={
+                        cell.eligible
+                          ? () =>
+                              onCellClick({
+                                interval,
+                                cohortStart: null,
+                                relativePeriod: index + 1,
+                                retained: cell.retained,
+                                denominator: cell.eligible,
+                                label: "All visible eligible cohorts",
+                                pooled: true,
+                              })
+                          : undefined
+                      }
+                    />
+                  ))}
+                </tr>
+              </tfoot>
+            ) : null}
+          </table>
         </div>
-        <span className="legend-empty">
-          <span aria-hidden="true" className="empty-swatch">
-            -
+
+        <footer className="report-footer">
+          <div className="heat-legend">
+            <span>0%</span>
+            <div className="legend-swatches" aria-hidden="true">
+              <span style={{ background: "#eff4ff" }} />
+              <span style={{ background: "#c5d3f7" }} />
+              <span style={{ background: "#96acee" }} />
+              <span style={{ background: "#6687e7" }} />
+              <span style={{ background: "#1d4ed8" }} />
+            </div>
+            <span>100%</span>
+          </div>
+          <span className="legend-empty">
+            <span aria-hidden="true" className="empty-swatch">-</span>
+            Not yet eligible
           </span>
-          Not yet eligible
-        </span>
-        {interval === "monthly" ? (
-          <span className="window-key">Month 1 = next calendar month</span>
-        ) : null}
-      </footer>
-    </article>
+          {interval === "monthly" ? (
+            <span className="window-key">Month 1 = next calendar month</span>
+          ) : null}
+        </footer>
+      </article>
+
+      <HeatmapTooltip value={tooltip} />
+    </>
   );
 }

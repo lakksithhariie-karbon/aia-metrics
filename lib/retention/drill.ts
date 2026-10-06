@@ -2,6 +2,8 @@ import type {
   ActivationCompanyDetail,
   ActivationListResponse,
   ActivationStatus,
+  RetentionCellDrillResponse,
+  RetentionCellSegment,
 } from "./drill-types";
 
 function credentials(): { url: string; key: string } {
@@ -82,6 +84,38 @@ export async function readActivationCompanyDetail(params: {
   >(
     "read_retention_activation_company_detail_v1",
     { p_company_id: params.companyId },
+    params.signal,
+  );
+  return scalar(payload);
+}
+
+export async function readRetentionCellDrill(params: {
+  interval: "weekly" | "monthly";
+  cohortStart: string | null;
+  relativePeriod: number;
+  from: string | null;
+  to: string | null;
+  segment: RetentionCellSegment;
+  query: string;
+  page: number;
+  pageSize: number;
+  signal?: AbortSignal;
+}): Promise<RetentionCellDrillResponse> {
+  const payload = await rpc<
+    RetentionCellDrillResponse | RetentionCellDrillResponse[]
+  >(
+    "read_retention_heatmap_cell_drill_v3",
+    {
+      p_interval: params.interval,
+      p_cohort_start: params.cohortStart,
+      p_rel_period: params.relativePeriod,
+      p_from: params.from,
+      p_to: params.to,
+      p_segment: params.segment,
+      p_query: params.query,
+      p_page: params.page,
+      p_page_size: params.pageSize,
+    },
     params.signal,
   );
   return scalar(payload);
