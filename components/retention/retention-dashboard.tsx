@@ -2,14 +2,22 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProductMetricsHeader from "../product-metrics-header";
-import RetentionHeatmap from "./retention-heatmap";
-import type { RetentionKpiResponse } from "../../lib/retention/types";
+import RetentionCellModal from "./retention-cell-modal";
+import RetentionHeatmap, {
+  type RetentionHeatmapTarget,
+} from "./retention-heatmap";
+import type {
+  RetentionDashboardResponse,
+  RetentionKpiResponse,
+} from "../../lib/retention/types";
 import type {
   ActivationCompanyDetail,
   ActivationCompanyRow,
   ActivationListResponse,
   ActivationModuleTotals,
   ActivationStatus,
+  RetentionCellCompanyRow,
+  RetentionPeriodContext,
 } from "../../lib/retention/drill-types";
 
 type IconName =
@@ -170,8 +178,7 @@ interface MonthRange {
   end: string;
 }
 
-function defaultRange(): MonthRange {
-  const month = lastCompleteMonth();
+function defaultRange(month = lastCompleteMonth()): MonthRange {
   return { preset: "last", start: month, end: month };
 }
 
@@ -199,6 +206,29 @@ async function post<T>(url: string, body: Record<string, unknown>, signal?: Abor
 const activationPageCache = new Map<string, ActivationListResponse>();
 const companyDetailCache = new Map<string, ActivationCompanyDetail>();
 const companyDetailPromises = new Map<string, Promise<ActivationCompanyDetail>>();
+const dashboardCache = new Map<string, RetentionDashboardResponse>();
+
+function dashboardKey(from: string | null, to: string | null): string {
+  return `${from ?? "all"}|${to ?? "all"}`;
+}
+
+async function fetchDashboard(
+  from: string | null,
+  to: string | null,
+  signal?: AbortSignal,
+): Promise<RetentionDashboardResponse> {
+  const key = dashboardKey(from, to);
+  const cached = dashboardCache.get(key);
+  if (cached) return cached;
+
+  const result = await post<RetentionDashboardResponse>(
+    "/api/retention-dashboard",
+    { from, to },
+    signal,
+  );
+  dashboardCache.set(key, result);
+  return result;
+}
 
 function activationPageKey(args: {
   from: string | null;
