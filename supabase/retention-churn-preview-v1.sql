@@ -66,24 +66,51 @@ months as (
     and b.end_month is not null
     and b.start_month<=b.end_month
 ),
-series as (
+monthly_state as (
   select
     m.month_start,
-    count(a.company_id)::bigint as eligible,
-    count(a.company_id) filter(
-      where not exists(
-        select 1
-        from metrics_private.retention_core_day_v3 d
-        where d.company_id=a.company_id
-          and d.activity_date>=m.month_start
-          and d.activity_date<(m.month_start+interval '1 month')::date
-      )
-    )::bigint as churned
+    a.company_id,
+    a.activated_at,
+    exists(
+      select 1
+      from metrics_private.retention_core_day_v3 d
+      where d.company_id=a.company_id
+        and d.activity_date>=m.month_start
+        and d.activity_date<(m.month_start+interval '1 month')::date
+    ) as active,
+    (
+      a.activated_at<
+        ((m.month_start-interval '1 month')::timestamp at time zone 'Asia/Kolkata')
+    ) as prev_eligible,
+    exists(
+      select 1
+      from metrics_private.retention_core_day_v3 d
+      where d.company_id=a.company_id
+        and d.activity_date>=(m.month_start-interval '1 month')::date
+        and d.activity_date<m.month_start
+    ) as prev_active
   from months m
-  left join metrics_private.retention_activation_v3 a
+  join metrics_private.retention_activation_v3 a
     on a.activated_at is not null
    and a.activated_at<(m.month_start::timestamp at time zone 'Asia/Kolkata')
-  group by m.month_start
+),
+series as (
+  select
+    s.month_start,
+    count(*)::bigint as eligible,
+    count(*) filter(where not s.active)::bigint as churned,
+    count(*) filter(where s.active)::bigint as active,
+    count(*) filter(
+      where not s.active
+        and (not s.prev_eligible or s.prev_active)
+    )::bigint as entered,
+    count(*) filter(
+      where s.active
+        and s.prev_eligible
+        and not s.prev_active
+    )::bigint as reactivated
+  from monthly_state s
+  group by s.month_start
 )
 select
   b.dashboard ||
@@ -96,7 +123,9 @@ select
             'month',to_char(s.month_start,'YYYY-MM'),
             'eligible',s.eligible,
             'churned',s.churned,
-            'active',greatest(s.eligible-s.churned,0),
+            'active',s.active,
+            'entered',s.entered,
+            'reactivated',s.reactivated,
             'rate_pct',case
               when s.eligible>0
                 then round(100.0*s.churned::numeric/s.eligible::numeric,1)
@@ -132,8 +161,11 @@ with args as (
   select
     date_trunc('month',p_month::timestamp)::date as month_start,
     (date_trunc('month',p_month::timestamp)+interval '1 month')::date as month_end,
-    case when p_segment in ('active','churned') then p_segment else 'all' end
-      as segment_filter,
+    case
+      when p_segment in ('active','churned','entered','reactivated')
+        then p_segment
+      else 'all'
+    end as segment_filter,
     lower(btrim(coalesce(p_query,''))) as q,
     greatest(coalesce(p_page,1),1) as page_no,
     least(greatest(coalesce(p_page_size,8),1),50) as page_size
@@ -160,7 +192,7 @@ eligible as (
     and a.activated_at<(x.month_start::timestamp at time zone 'Asia/Kolkata')
     and m.watermark_date>=x.month_end
 ),
-classified as (
+classified_base as (
   select
     e.*,
     exists(
@@ -169,8 +201,33 @@ classified as (
       where d.company_id=e.company_id
         and d.activity_date>=e.month_start
         and d.activity_date<e.month_end
-    ) as active
+    ) as active,
+    (
+      e.activated_at<
+        ((e.month_start-interval '1 month')::timestamp at time zone 'Asia/Kolkata')
+    ) as prev_eligible,
+    exists(
+      select 1
+      from metrics_private.retention_core_day_v3 d
+      where d.company_id=e.company_id
+        and d.activity_date>=(e.month_start-interval '1 month')::date
+        and d.activity_date<e.month_start
+    ) as prev_active
   from eligible e
+),
+classified as (
+  select
+    b.*,
+    (
+      not b.active
+      and (not b.prev_eligible or b.prev_active)
+    ) as entered,
+    (
+      b.active
+      and b.prev_eligible
+      and not b.prev_active
+    ) as reactivated
+  from classified_base b
 ),
 identity as (
   select
@@ -189,6 +246,8 @@ with_search as (
     x.segment_filter='all'
     or (x.segment_filter='active' and i.active)
     or (x.segment_filter='churned' and not i.active)
+    or (x.segment_filter='entered' and i.entered)
+    or (x.segment_filter='reactivated' and i.reactivated)
   )
   and (
     x.q=''
@@ -211,7 +270,9 @@ counts as (
   select
     count(*)::bigint as total,
     count(*) filter(where active)::bigint as active,
-    count(*) filter(where not active)::bigint as churned
+    count(*) filter(where not active)::bigint as churned,
+    count(*) filter(where entered)::bigint as entered,
+    count(*) filter(where reactivated)::bigint as reactivated
   from identity
 ),
 ranked as (
@@ -329,6 +390,8 @@ rows_json as (
       'integration_at',p.integration_at,
       'activated_at',p.activated_at,
       'active',p.active,
+      'entered',p.entered,
+      'reactivated',p.reactivated,
       'month_start',p.month_start,
       'month_end',p.month_end,
       'core_events',coalesce(cp.core_events,0),
@@ -391,7 +454,9 @@ select jsonb_build_object(
   'counts',jsonb_build_object(
     'all',(select total from counts),
     'active',(select active from counts),
-    'churned',(select churned from counts)
+    'churned',(select churned from counts),
+    'entered',(select entered from counts),
+    'reactivated',(select reactivated from counts)
   ),
   'rows',coalesce(
     (select jsonb_agg(row order by rn) from rows_json),
