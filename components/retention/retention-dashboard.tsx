@@ -352,7 +352,7 @@ function KpiCard({
           type="button"
           className="rd-card-hit-target"
           onClick={onClick}
-          aria-label={label + ", " + value + ". View activation drill."}
+          aria-label={label + ", " + value + ". View details."}
         />
       ) : null}
       <div className="rd-card-top">
