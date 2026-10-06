@@ -533,6 +533,10 @@ test('monthly churn trend and drill use completed-month v3 semantics', () => {
 
   assert(sql.includes('read_retention_dashboard_preview_v4'));
   assert(sql.includes('read_retention_churn_month_drill_preview_v1'));
+  assert(sql.includes("'entered'"));
+  assert(sql.includes("'reactivated'"));
+  assert(sql.includes('prev_eligible'));
+  assert(sql.includes('prev_active'));
   assert(sql.includes('metrics_private.retention_activation_v3'));
   assert(sql.includes('metrics_private.retention_core_day_v3'));
   assert(sql.includes("lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed'"));
@@ -540,17 +544,25 @@ test('monthly churn trend and drill use completed-month v3 semantics', () => {
   assert(sql.includes("(e.event_time at time zone 'Asia/Kolkata')::date<p.month_end"),
     'observed users are bounded by the selected month end');
 
-  assert(trend.includes('Monthly churn'));
+  assert(trend.includes('Month-on-Month Churn Trend'));
+  assert(trend.includes('Churn rate'));
+  assert(trend.includes('vs prev'));
+  assert(trend.includes('Entered'));
+  assert(trend.includes('Reactivated'));
+  assert(trend.includes('rd-churn-summary-strip'));
+  assert(trend.includes('rd-churn-table'));
   assert(trend.includes('onMonthClick'));
-  assert(trend.includes('Click to inspect companies & users'));
   assert(modal.includes('Churned'));
   assert(modal.includes('Active'));
+  assert(modal.includes('Entered churn'));
+  assert(modal.includes('Reactivated'));
   assert(modal.includes('Search companies or users'));
   assert(modal.includes('user.active ? "Active" : "No activity"'));
   assert(modal.includes('rd-modal rd-activation-modal rd-churn-month-modal'));
   assert(route.includes('body.action === "churn_month"'));
   assert(dashboard.includes('<RetentionChurnTrend'));
   assert(dashboard.includes('<RetentionChurnModal'));
+  assert(dashboard.includes('initialSegment={churnMonth.segment}'));
   assert(dashboard.includes('churnContext={churnCompany.context}'));
 });
 
