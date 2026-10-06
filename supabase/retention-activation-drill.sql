@@ -42,7 +42,7 @@ base as (
       when a.training_sync_at is not null then 'no_core'
       else 'no_training'
     end as status
-  from metrics_private.retention_activation_v2 a
+  from metrics_private.retention_activation_v3 a
   left join metrics_private.company_monthly_identity i using(company_id)
 ),
 filtered as (
@@ -225,7 +225,7 @@ with identity as (
     coalesce(i.is_test,false) as is_test,
     coalesce(i.integration,'Unknown') as integration,
     a.integration_at,a.training_sync_at,a.post_training_core_at,a.activated_at
-  from metrics_private.retention_activation_v2 a
+  from metrics_private.retention_activation_v3 a
   left join metrics_private.company_monthly_identity i using(company_id)
   where a.company_id=p_company_id
 ),
