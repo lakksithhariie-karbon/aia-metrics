@@ -22,6 +22,7 @@ import type {
   ChurnMonthContext,
   RetentionCellCompanyRow,
   RetentionChurnCompanyRow,
+  RetentionChurnSegment,
   RetentionPeriodContext,
 } from "../../lib/retention/drill-types";
 
@@ -1232,8 +1233,10 @@ export default function RetentionDashboard({
     company: RetentionCellCompanyRow;
     context: RetentionPeriodContext;
   } | null>(null);
-  const [churnMonth, setChurnMonth] =
-    useState<RetentionChurnSeriesRow | null>(null);
+  const [churnMonth, setChurnMonth] = useState<{
+    row: RetentionChurnSeriesRow;
+    segment: RetentionChurnSegment;
+  } | null>(null);
   const [churnCompany, setChurnCompany] = useState<{
     company: RetentionChurnCompanyRow;
     context: ChurnMonthContext;
@@ -1339,6 +1342,8 @@ export default function RetentionDashboard({
         month_start: company.month_start,
         month_end: company.month_end,
         active: company.active,
+        entered: company.entered,
+        reactivated: company.reactivated,
         core_events: company.core_events,
         active_users: company.active_users,
         observed_users: company.observed_users,
@@ -1414,7 +1419,7 @@ export default function RetentionDashboard({
               const latest = dashboardData?.churn_series.rows.find(
               row => row.month === kpis?.churn.month,
             ) ?? null;
-              if (latest) setChurnMonth(latest);
+              if (latest) setChurnMonth({ row: latest, segment: "all" });
             }}
           />
         </section>
@@ -1436,7 +1441,9 @@ export default function RetentionDashboard({
           <RetentionChurnTrend
             series={dashboardData.churn_series}
             loading={loading}
-            onMonthClick={setChurnMonth}
+            onMonthClick={(row, segment = "all") =>
+              setChurnMonth({ row, segment })
+            }
           />
         ) : null}
       </main>
@@ -1470,7 +1477,8 @@ export default function RetentionDashboard({
 
       {churnMonth ? (
         <RetentionChurnModal
-          month={churnMonth}
+          month={churnMonth.row}
+          initialSegment={churnMonth.segment}
           onClose={() => setChurnMonth(null)}
           onCompany={openChurnCompany}
           onPrefetchCompany={prefetchCompanyDetail}
