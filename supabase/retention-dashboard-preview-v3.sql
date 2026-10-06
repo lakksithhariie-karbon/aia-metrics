@@ -642,6 +642,7 @@ period_events as (
     e.event_time,
     e.properties,
     public.company_module_for(e.event_name,coalesce(e.properties,'{}'::jsonb)) as module,
+    lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed' as is_nonfailed,
     (
       public.is_core_activity(e.event_name,e.properties)
       and lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed'
@@ -656,10 +657,10 @@ user_period as (
   select
     company_id,user_key,
     count(*) filter(where is_core)::bigint as core_events,
-    count(*) filter(where module='ap')::bigint as ap,
-    count(*) filter(where module='ar')::bigint as ar,
-    count(*) filter(where module='transactions')::bigint as transactions,
-    count(*) filter(where module='sync')::bigint as sync
+    count(*) filter(where is_nonfailed and module='ap')::bigint as ap,
+    count(*) filter(where is_nonfailed and module='ar')::bigint as ar,
+    count(*) filter(where is_nonfailed and module='transactions')::bigint as transactions,
+    count(*) filter(where is_nonfailed and module='sync')::bigint as sync
   from period_events
   group by company_id,user_key
 ),
