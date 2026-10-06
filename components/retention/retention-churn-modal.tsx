@@ -51,14 +51,15 @@ function prefetch(args:{month:string;segment:RetentionChurnSegment;query:string;
 }
 
 export default function RetentionChurnModal({
-  month,onClose,onCompany,onPrefetchCompany,
+  month,initialSegment="all",onClose,onCompany,onPrefetchCompany,
 }:{
   month:RetentionChurnSeriesRow;
+  initialSegment?:RetentionChurnSegment;
   onClose:()=>void;
   onCompany:(company:RetentionChurnCompanyRow)=>void;
   onPrefetchCompany?:(id:string)=>void;
 }){
-  const [segment,setSegment]=useState<RetentionChurnSegment>("all");
+  const [segment,setSegment]=useState<RetentionChurnSegment>(initialSegment);
   const [query,setQuery]=useState("");
   const [deferredQuery,setDeferredQuery]=useState("");
   const [page,setPage]=useState(1);
@@ -67,7 +68,12 @@ export default function RetentionChurnModal({
   const [loading,setLoading]=useState(true);
 
   useEffect(()=>{const t=setTimeout(()=>setDeferredQuery(query),250);return()=>clearTimeout(t)},[query]);
-  useEffect(()=>{setPage(1);setExpanded(new Set())},[segment,deferredQuery,month.month]);
+  useEffect(()=>{
+    setSegment(initialSegment);
+    setPage(1);
+    setExpanded(new Set());
+  },[initialSegment,month.month]);
+  useEffect(()=>{setPage(1);setExpanded(new Set())},[segment,deferredQuery]);
   useEffect(()=>{
     const controller=new AbortController();
     const args={month:month.month,segment,query:deferredQuery,page};
