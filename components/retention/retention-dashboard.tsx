@@ -10,7 +10,7 @@ import RetentionHeatmap, {
 } from "./retention-heatmap";
 import type {
   RetentionChurnSeriesRow,
-  RetentionDashboardPreviewResponse,
+  RetentionDashboardV4Response,
   RetentionKpiResponse,
 } from "../../lib/retention/types";
 import type {
@@ -212,7 +212,7 @@ async function post<T>(url: string, body: Record<string, unknown>, signal?: Abor
 const activationPageCache = new Map<string, ActivationListResponse>();
 const companyDetailCache = new Map<string, ActivationCompanyDetail>();
 const companyDetailPromises = new Map<string, Promise<ActivationCompanyDetail>>();
-const dashboardCache = new Map<string, RetentionDashboardPreviewResponse>();
+const dashboardCache = new Map<string, RetentionDashboardV4Response>();
 
 function dashboardKey(from: string | null, to: string | null): string {
   return `${from ?? "all"}|${to ?? "all"}`;
@@ -222,12 +222,12 @@ async function fetchDashboard(
   from: string | null,
   to: string | null,
   signal?: AbortSignal,
-): Promise<RetentionDashboardPreviewResponse> {
+): Promise<RetentionDashboardV4Response> {
   const key = dashboardKey(from, to);
   const cached = dashboardCache.get(key);
   if (cached) return cached;
 
-  const result = await post<RetentionDashboardPreviewResponse>(
+  const result = await post<RetentionDashboardV4Response>(
     "/api/retention-dashboard",
     { from, to },
     signal,
@@ -1226,7 +1226,7 @@ export default function RetentionDashboard({
   initialData,
 }: {
   initialMonth: string;
-  initialData: RetentionDashboardPreviewResponse | null;
+  initialData: RetentionDashboardV4Response | null;
 }) {
   const [range, setRange] = useState<MonthRange>(() =>
     defaultRange(initialMonth),
@@ -1236,7 +1236,7 @@ export default function RetentionDashboard({
     [initialMonth],
   );
   const [dashboardData, setDashboardData] =
-    useState<RetentionDashboardPreviewResponse | null>(initialData);
+    useState<RetentionDashboardV4Response | null>(initialData);
   const [loading, setLoading] = useState(!initialData);
   const [activationOpen, setActivationOpen] = useState(false);
   const [heatmapTarget, setHeatmapTarget] =
