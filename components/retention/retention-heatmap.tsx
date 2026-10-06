@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import type {
   RetentionHeatmapInterval,
   RetentionHeatmapResponse,
@@ -9,27 +9,14 @@ import type {
 
 const nf = new Intl.NumberFormat("en-US");
 
-async function loadHeatmap(
-  interval: RetentionHeatmapInterval,
-  from: string | null,
-  to: string | null,
-  signal?: AbortSignal,
-): Promise<RetentionHeatmapResponse> {
-  const response = await fetch("/api/retention-heatmap", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ interval, from, to }),
-    signal,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      typeof payload?.error === "string"
-        ? payload.error
-        : "retention_heatmap_unavailable",
-    );
-  }
-  return payload as RetentionHeatmapResponse;
+export interface RetentionHeatmapTarget {
+  interval: RetentionHeatmapInterval;
+  cohortStart: string | null;
+  relativePeriod: number;
+  retained: number;
+  denominator: number;
+  label: string;
+  pooled: boolean;
 }
 
 function cohortLabel(
@@ -74,12 +61,14 @@ function HeatCell({
   label,
   period,
   index,
+  onClick,
 }: {
   retained: number | null;
   denominator: number;
   label: string;
   period: string;
   index: number;
+  onClick?: () => void;
 }) {
   if (retained == null || denominator === 0) {
     return (
@@ -87,6 +76,7 @@ function HeatCell({
         <span
           className="heat-cell unavailable"
           title="This return window is not yet eligible"
+          aria-label="Not yet eligible"
         >
           -
         </span>
@@ -97,16 +87,19 @@ function HeatCell({
   const percent = (100 * retained) / denominator;
   return (
     <td>
-      <span
+      <button
+        type="button"
         className="heat-cell"
         style={cellStyle(retained, denominator)}
         title={`${label} · ${period} ${index} · ${retained} retained · ${denominator - retained} churned · ${percent.toFixed(1)}% retention`}
+        aria-label={`${label}, ${period.toLowerCase()} ${index}: ${retained} retained, ${denominator - retained} churned out of ${denominator}. View companies and users.`}
+        onClick={onClick}
       >
         <span className="percentage">{percent.toFixed(1)}%</span>
         <span className="fraction">
           {retained}/{denominator}
         </span>
-      </span>
+      </button>
     </td>
   );
 }
@@ -131,51 +124,44 @@ function pooled(
 }
 
 export default function RetentionHeatmap({
-  from,
-  to,
+  weekly,
+  monthly,
+  loading,
+  onCellClick,
 }: {
-  from: string | null;
-  to: string | null;
+  weekly: RetentionHeatmapResponse;
+  monthly: RetentionHeatmapResponse;
+  loading?: boolean;
+  onCellClick: (target: RetentionHeatmapTarget) => void;
 }) {
   const [interval, setInterval] =
     useState<RetentionHeatmapInterval>("weekly");
   const [order, setOrder] = useState<"oldest" | "newest">("oldest");
-  const [data, setData] = useState<RetentionHeatmapResponse | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    loadHeatmap(interval, from, to, controller.signal)
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [interval, from, to]);
-
+  const data = interval === "monthly" ? monthly : weekly;
   const rows = useMemo(() => {
-    const source = [...(data?.rows ?? [])];
+    const source = [...data.rows];
     return order === "newest" ? source.reverse() : source;
-  }, [data, order]);
+  }, [data.rows, order]);
 
   const period = interval === "monthly" ? "Month" : "Week";
-  const columns = data?.columns ?? (interval === "monthly" ? 6 : 8);
+  const columns = data.columns;
   const aggregate = pooled(rows, columns);
   const companies = rows.reduce((sum, row) => sum + row.cohort_size, 0);
-
   const reportHeight = Math.min(
     600,
     Math.max(365, 232 + rows.length * 45),
   );
+
+  const toggleSort = () =>
+    setOrder(current => (current === "oldest" ? "newest" : "oldest"));
 
   return (
     <article
       className="report-card rd-retention-report"
       style={{ height: reportHeight }}
     >
-      <header className="report-header">
+      <header className="report-header rd-retention-report-head">
         <div>
           <h2>Retention</h2>
           <p className="report-subtitle">
@@ -184,7 +170,7 @@ export default function RetentionHeatmap({
               : "Activation cohorts · core activity in subsequent completed months"}
           </p>
         </div>
-        <div className="report-actions">
+        <div className="report-actions rd-retention-controls">
           <select
             className="ui-control rd-retention-select"
             aria-label="Retention interval"
@@ -198,32 +184,34 @@ export default function RetentionHeatmap({
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
           </select>
+          <button
+            type="button"
+            className="ui-control rd-retention-sort"
+            onClick={toggleSort}
+            aria-label={
+              order === "oldest"
+                ? "Sorted oldest first. Switch to newest first."
+                : "Sorted newest first. Switch to oldest first."
+            }
+            title="Toggle cohort sort order"
+          >
+            <span aria-hidden="true">{order === "oldest" ? "↑" : "↓"}</span>
+            {order === "oldest" ? "Oldest first" : "Newest first"}
+          </button>
         </div>
       </header>
 
-      <div className="report-toolbar">
+      <div className="report-toolbar rd-retention-summary">
         <span>
-          <strong>
-            {loading ? "Loading…" : `${rows.length} ${interval} cohorts`}
-          </strong>
-          {!loading && rows.length ? (
+          <strong>{rows.length} {interval} cohorts</strong>
+          {rows.length ? (
             <>
               {" "}
-              <span aria-hidden="true">·</span> {nf.format(companies)} companies
+              <span aria-hidden="true">·</span> {nf.format(companies)} activated companies
             </>
           ) : null}
+          {loading ? <em>Updating…</em> : null}
         </span>
-        <select
-          className="ui-control rd-retention-order"
-          aria-label="Cohort order"
-          value={order}
-          onChange={event =>
-            setOrder(event.currentTarget.value as "oldest" | "newest")
-          }
-        >
-          <option value="oldest">Oldest first</option>
-          <option value="newest">Newest first</option>
-        </select>
       </div>
 
       <div
@@ -252,13 +240,7 @@ export default function RetentionHeatmap({
             </tr>
           </thead>
           <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={columns + 2}>
-                  <div className="heatmap-empty">Loading retention…</div>
-                </td>
-              </tr>
-            ) : rows.length ? (
+            {rows.length ? (
               rows.map(row => {
                 const label = cohortLabel(row.cohort_start, interval);
                 return (
@@ -273,6 +255,20 @@ export default function RetentionHeatmap({
                         label={label}
                         period={period}
                         index={index + 1}
+                        onClick={
+                          value == null
+                            ? undefined
+                            : () =>
+                                onCellClick({
+                                  interval,
+                                  cohortStart: row.cohort_start,
+                                  relativePeriod: index + 1,
+                                  retained: value,
+                                  denominator: row.cohort_size,
+                                  label,
+                                  pooled: false,
+                                })
+                        }
                       />
                     ))}
                   </tr>
@@ -289,7 +285,7 @@ export default function RetentionHeatmap({
               </tr>
             )}
           </tbody>
-          {!loading && rows.length ? (
+          {rows.length ? (
             <tfoot>
               <tr>
                 <th
@@ -307,6 +303,20 @@ export default function RetentionHeatmap({
                     label="All visible eligible cohorts"
                     period={period}
                     index={index + 1}
+                    onClick={
+                      cell.eligible
+                        ? () =>
+                            onCellClick({
+                              interval,
+                              cohortStart: null,
+                              relativePeriod: index + 1,
+                              retained: cell.retained,
+                              denominator: cell.eligible,
+                              label: "All visible eligible cohorts",
+                              pooled: true,
+                            })
+                        : undefined
+                    }
                   />
                 ))}
               </tr>
@@ -328,9 +338,7 @@ export default function RetentionHeatmap({
           <span>100%</span>
         </div>
         <span className="legend-empty">
-          <span aria-hidden="true" className="empty-swatch">
-            -
-          </span>
+          <span aria-hidden="true" className="empty-swatch">-</span>
           Not yet eligible
         </span>
         {interval === "monthly" ? (
