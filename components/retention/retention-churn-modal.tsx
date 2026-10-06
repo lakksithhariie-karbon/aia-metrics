@@ -83,7 +83,13 @@ export default function RetentionChurnModal({
     return()=>controller.abort();
   },[month.month,segment,deferredQuery,page]);
 
-  const counts=data?.counts??{all:month.eligible,active:month.active,churned:month.churned};
+  const counts=data?.counts??{
+    all:month.eligible,
+    active:month.active,
+    churned:month.churned,
+    entered:month.entered,
+    reactivated:month.reactivated,
+  };
   const pageCount=Math.max(1,Math.ceil((data?.total??0)/(data?.page_size??8)));
   const safePage=data?.page??page;
   const toggle=(id:string)=>setExpanded(current=>current.has(id)?new Set():new Set([id]));
@@ -101,7 +107,13 @@ export default function RetentionChurnModal({
 
       <div className="rd-drill-toolbar">
         <div className="rd-status-tabs" role="tablist" aria-label="Monthly churn segment">
-          {([["all","All",counts.all],["churned","Churned",counts.churned],["active","Active",counts.active]] as const).map(([k,label,count])=>
+          {([
+            ["all","All",counts.all],
+            ["churned","Churned",counts.churned],
+            ["active","Active",counts.active],
+            ["entered","Entered churn",counts.entered],
+            ["reactivated","Reactivated",counts.reactivated],
+          ] as const).map(([k,label,count])=>
             <button type="button" key={k} aria-pressed={segment===k} onClick={()=>setSegment(k)}>{label}<span>{nf.format(count)}</span></button>
           )}
         </div>
@@ -117,7 +129,28 @@ export default function RetentionChurnModal({
             const parent=<tr key={company.id} className={open?"is-expanded":""}>
               <td><button type="button" className="rd-expander" onClick={()=>toggle(company.id)} aria-label={(open?"Collapse ":"Expand ")+company.name}><Icon name={open?"down":"right"}/></button></td>
               <td><button type="button" className="rd-company-link" onMouseEnter={()=>onPrefetchCompany?.(company.id)} onFocus={()=>onPrefetchCompany?.(company.id)} onClick={()=>onCompany(company)}><strong>{company.name}</strong><span>{company.integration}{company.is_test?" · Test":""}</span></button></td>
-              <td><span className={"rd-status "+(company.active?"activated":"no_training")}>{company.active?"Active":"Churned"}</span></td>
+              <td>
+                <span
+                  className={
+                    "rd-status " +
+                    (company.reactivated
+                      ? "reactivated"
+                      : company.entered
+                        ? "entered"
+                        : company.active
+                          ? "activated"
+                          : "no_training")
+                  }
+                >
+                  {company.reactivated
+                    ? "Reactivated"
+                    : company.entered
+                      ? "Entered churn"
+                      : company.active
+                        ? "Active"
+                        : "Churned"}
+                </span>
+              </td>
               <td>{company.active_users}/{company.observed_users}</td>
               <td className={company.core_events?"has-value":""}>{nf.format(company.core_events)}</td>
               <td className={company.totals.ap?"has-value":""}>{nf.format(company.totals.ap)}</td>
@@ -140,7 +173,13 @@ export default function RetentionChurnModal({
       </div>
 
       <footer className="rd-modal-foot rd-modal-foot-paginated">
-        <div className="rd-table-summary"><span>User rows are active/inactive in this calendar month. Churn remains a company-level outcome.</span><small>{data?nf.format(data.total)+" matching companies":""}</small></div>
+        <div className="rd-table-summary">
+          <span>
+            Company slices are All / Churned / Active / Entered churn / Reactivated.
+            User rows remain active or inactive within the selected month.
+          </span>
+          <small>{data?nf.format(data.total)+" matching companies":""}</small>
+        </div>
         {data&&data.total?<nav className="rd-pagination" aria-label="Monthly churn pages">
           <button type="button" disabled={safePage===1} onClick={()=>setPage(v=>Math.max(1,v-1))} aria-label="Previous page"><Icon name="left"/></button>
           {paginationItems(safePage,pageCount).map((item,index)=>item==="ellipsis"?<span className="rd-page-ellipsis" key={"e-"+index}>…</span>:<button type="button" key={item} aria-current={safePage===item?"page":undefined} onClick={()=>setPage(item)}>{item}</button>)}
