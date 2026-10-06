@@ -482,6 +482,44 @@ test('native Retention restores the live cohort heatmap', () => {
   assert(sql.includes('revoke all on function public.read_retention_heatmap_v2(text,date,date)'));
 });
 
+test('retention heatmap preview uses one coherent watermark-aware snapshot', () => {
+  const sql = read('supabase/retention-dashboard-preview-v3.sql');
+  const page = read('app/retention/page.tsx');
+  const dashboard = read('components/retention/retention-dashboard.tsx');
+  const heatmap = read('components/retention/retention-heatmap.tsx');
+
+  assert(sql.includes('metrics_private.retention_activation_v3'));
+  assert(sql.includes('metrics_private.retention_core_day_v3'));
+  assert(sql.includes('source_watermark_at'));
+  assert(sql.includes("lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed'"));
+  assert(sql.includes("'*/5 * * * *'"), 'preview data watcher checks every five minutes');
+  assert(page.includes('readRetentionDashboardV3'), 'first paint is server-loaded');
+  assert(dashboard.includes('"/api/retention-dashboard"'), 'range changes use one combined request');
+  assert(heatmap.includes('Oldest first'));
+  assert(heatmap.includes('Newest first'));
+  assert(!heatmap.includes('rd-retention-order'), 'sort is not a dropdown');
+});
+
+test('every eligible retention cell opens a nested company/user drill', () => {
+  const heatmap = read('components/retention/retention-heatmap.tsx');
+  const modal = read('components/retention/retention-cell-modal.tsx');
+  const route = read('app/api/retention-drill/route.ts');
+  const sql = read('supabase/retention-dashboard-preview-v3.sql');
+
+  assert(heatmap.includes('onCellClick'));
+  assert(heatmap.includes('All visible eligible cohorts'), 'pooled average cells are drillable');
+  assert(modal.includes('Retained'));
+  assert(modal.includes('Churned'));
+  assert(modal.includes('Search companies or users'));
+  assert(modal.includes('user.active ? "Active" : "No activity"'));
+  assert(route.includes('body.action === "heatmap_cell"'));
+  assert(sql.includes('read_retention_heatmap_cell_drill_v3'));
+  assert(sql.includes("(e.event_time at time zone 'Asia/Kolkata')::date<p.target_end"),
+    'user membership is bounded by the selected return window');
+  assert(sql.includes('active_users'));
+  assert(sql.includes('observed_users'));
+});
+
 test('the app uses Oxanium as its only runtime font family', () => {
   const layout = read('app/layout.tsx');
   assert(layout.includes('variable: "--font-oxanium"'), 'Oxanium owns the app font variable');
@@ -528,9 +566,11 @@ test('all shipped TypeScript and JSX transpile without syntax errors', () => {
     'components/companies/companies-dashboard.tsx', 'app/customer/page.tsx',
     'app/api/companies/route.ts', 'lib/companies/types.ts', 'lib/companies/modules.ts',
     'app/api/retention-kpis/route.ts', 'app/api/retention-drill/route.ts',
-    'app/api/retention-heatmap/route.ts', 'app/retention/page.tsx',
-    'components/product-metrics-header.tsx',
-    'components/retention/retention-dashboard.tsx', 'components/retention/retention-heatmap.tsx',
+    'app/api/retention-heatmap/route.ts', 'app/api/retention-dashboard/route.ts',
+    'app/retention/page.tsx', 'components/product-metrics-header.tsx',
+    'components/retention/retention-dashboard.tsx',
+    'components/retention/retention-heatmap.tsx',
+    'components/retention/retention-cell-modal.tsx',
     'lib/retention/types.ts', 'lib/retention/server.ts', 'lib/retention/drill-types.ts', 'lib/retention/drill.ts',
     'lib/prototype/customer-navigation.ts',
   ]) {
