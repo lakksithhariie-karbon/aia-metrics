@@ -222,12 +222,6 @@ export default function RetentionChurnTrend({
         </div>
       )}
 
-      <footer className="report-footer rd-churn-trend-footer">
-        <span>Eligible = activated before the month began</span>
-        <span>
-          Entered = newly churned · Reactivated = churned last month, active now
-        </span>
-      </footer>
     </article>
   );
 }
