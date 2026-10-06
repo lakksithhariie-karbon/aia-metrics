@@ -3,11 +3,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProductMetricsHeader from "../product-metrics-header";
 import RetentionCellModal from "./retention-cell-modal";
+import RetentionChurnModal from "./retention-churn-modal";
+import RetentionChurnTrend from "./retention-churn-trend";
 import RetentionHeatmap, {
   type RetentionHeatmapTarget,
 } from "./retention-heatmap";
 import type {
-  RetentionDashboardResponse,
+  RetentionChurnSeriesRow,
+  RetentionDashboardPreviewResponse,
   RetentionKpiResponse,
 } from "../../lib/retention/types";
 import type {
@@ -16,7 +19,9 @@ import type {
   ActivationListResponse,
   ActivationModuleTotals,
   ActivationStatus,
+  ChurnMonthContext,
   RetentionCellCompanyRow,
+  RetentionChurnCompanyRow,
   RetentionPeriodContext,
 } from "../../lib/retention/drill-types";
 
@@ -206,7 +211,7 @@ async function post<T>(url: string, body: Record<string, unknown>, signal?: Abor
 const activationPageCache = new Map<string, ActivationListResponse>();
 const companyDetailCache = new Map<string, ActivationCompanyDetail>();
 const companyDetailPromises = new Map<string, Promise<ActivationCompanyDetail>>();
-const dashboardCache = new Map<string, RetentionDashboardResponse>();
+const dashboardCache = new Map<string, RetentionDashboardPreviewResponse>();
 
 function dashboardKey(from: string | null, to: string | null): string {
   return `${from ?? "all"}|${to ?? "all"}`;
@@ -216,12 +221,12 @@ async function fetchDashboard(
   from: string | null,
   to: string | null,
   signal?: AbortSignal,
-): Promise<RetentionDashboardResponse> {
+): Promise<RetentionDashboardPreviewResponse> {
   const key = dashboardKey(from, to);
   const cached = dashboardCache.get(key);
   if (cached) return cached;
 
-  const result = await post<RetentionDashboardResponse>(
+  const result = await post<RetentionDashboardPreviewResponse>(
     "/api/retention-dashboard",
     { from, to },
     signal,
@@ -868,11 +873,13 @@ function CompanyDetailModal({
   companyId,
   onClose,
   retentionContext,
+  churnContext,
   backLabel = "Activation cohort",
 }: {
   companyId: string;
   onClose: () => void;
   retentionContext?: RetentionPeriodContext;
+  churnContext?: ChurnMonthContext;
   backLabel?: string;
 }) {
   const initialDetail = companyDetailCache.get(companyId) ?? null;
@@ -931,7 +938,13 @@ function CompanyDetailModal({
               </div>
               <div>
                 <div>
-                  <p>{retentionContext ? "Company retention profile" : "Company activation profile"}</p>
+                  <p>{
+                    churnContext
+                      ? "Company churn profile"
+                      : retentionContext
+                        ? "Company retention profile"
+                        : "Company activation profile"
+                  }</p>
                   <h2 id="company-preview-title">{detail.name}</h2>
                 </div>
                 <div className="rd-company-tags">
@@ -943,6 +956,42 @@ function CompanyDetailModal({
             </header>
 
             <div className="rd-company-scroll">
+              {churnContext ? (
+                <section className="rd-retention-context-card rd-churn-context-card">
+                  <div className="rd-retention-context-head">
+                    <div>
+                      <span>{monthLabel(churnContext.month_start.slice(0, 7))} churn context</span>
+                      <strong>
+                        {prettyDate(churnContext.month_start + "T12:00:00Z")} →{" "}
+                        {prettyDate(
+                          new Date(
+                            Date.parse(churnContext.month_end + "T12:00:00Z") -
+                              86_400_000,
+                          ).toISOString(),
+                        )}
+                      </strong>
+                    </div>
+                    <span
+                      className={
+                        "rd-status " +
+                        (churnContext.active ? "activated" : "no_training")
+                      }
+                    >
+                      {churnContext.active ? "Active" : "Churned"}
+                    </span>
+                  </div>
+                  <div className="rd-churn-context-stats">
+                    <div><span>Active users</span><strong>{churnContext.active_users}/{churnContext.observed_users}</strong></div>
+                    <div><span>Core events</span><strong>{nf.format(churnContext.core_events)}</strong></div>
+                    <div><span>AP</span><strong>{nf.format(churnContext.totals.ap)}</strong></div>
+                    <div><span>AR</span><strong>{nf.format(churnContext.totals.ar)}</strong></div>
+                    <div><span>Transaction</span><strong>{nf.format(churnContext.totals.transactions)}</strong></div>
+                    <div><span>GST</span><strong>{nf.format(churnContext.totals.gst)}</strong></div>
+                    <div><span>Sync</span><strong>{nf.format(churnContext.totals.sync)}</strong></div>
+                  </div>
+                </section>
+              ) : null}
+
               {retentionContext ? (
                 <section className="rd-retention-context-card">
                   <div className="rd-retention-context-head">
@@ -1164,7 +1213,7 @@ export default function RetentionDashboard({
   initialData,
 }: {
   initialMonth: string;
-  initialData: RetentionDashboardResponse | null;
+  initialData: RetentionDashboardPreviewResponse | null;
 }) {
   const [range, setRange] = useState<MonthRange>(() =>
     defaultRange(initialMonth),
@@ -1174,7 +1223,7 @@ export default function RetentionDashboard({
     [initialMonth],
   );
   const [dashboardData, setDashboardData] =
-    useState<RetentionDashboardResponse | null>(initialData);
+    useState<RetentionDashboardPreviewResponse | null>(initialData);
   const [loading, setLoading] = useState(!initialData);
   const [activationOpen, setActivationOpen] = useState(false);
   const [heatmapTarget, setHeatmapTarget] =
@@ -1182,6 +1231,12 @@ export default function RetentionDashboard({
   const [retentionCompany, setRetentionCompany] = useState<{
     company: RetentionCellCompanyRow;
     context: RetentionPeriodContext;
+  } | null>(null);
+  const [churnMonth, setChurnMonth] =
+    useState<RetentionChurnSeriesRow | null>(null);
+  const [churnCompany, setChurnCompany] = useState<{
+    company: RetentionChurnCompanyRow;
+    context: ChurnMonthContext;
   } | null>(null);
   const helpRef = useRef<HTMLDialogElement | null>(null);
   const rangeBounds = useMemo(() => bounds(range), [range]);
@@ -1224,8 +1279,16 @@ export default function RetentionDashboard({
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
+      if (churnCompany) {
+        setChurnCompany(null);
+        return;
+      }
       if (retentionCompany) {
         setRetentionCompany(null);
+        return;
+      }
+      if (churnMonth) {
+        setChurnMonth(null);
         return;
       }
       if (heatmapTarget) {
@@ -1236,7 +1299,7 @@ export default function RetentionDashboard({
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
-  }, [activationOpen, heatmapTarget, retentionCompany]);
+  }, [activationOpen, churnCompany, churnMonth, heatmapTarget, retentionCompany]);
 
   const kpis = dashboardData?.kpis ?? null;
   const ttv = cardTtv(kpis?.ttv.avg_hours ?? null);
@@ -1268,6 +1331,23 @@ export default function RetentionDashboard({
     });
     prefetchCompanyDetail(company.id);
   };
+
+  const openChurnCompany = (company: RetentionChurnCompanyRow) => {
+    setChurnCompany({
+      company,
+      context: {
+        month_start: company.month_start,
+        month_end: company.month_end,
+        active: company.active,
+        core_events: company.core_events,
+        active_users: company.active_users,
+        observed_users: company.observed_users,
+        totals: company.totals,
+      },
+    });
+    prefetchCompanyDetail(company.id);
+  };
+
 
   return (
     <div className="rd-shell">
@@ -1329,6 +1409,13 @@ export default function RetentionDashboard({
                   " eligible companies churned"
                 : "No completed churn month in this range"
             }
+            interactive={Boolean(kpis?.churn.month)}
+            onClick={() => {
+              const latest = dashboardData?.churn_series.rows.find(
+              row => row.month === kpis?.churn.month,
+            ) ?? null;
+              if (latest) setChurnMonth(latest);
+            }}
           />
         </section>
 
@@ -1344,6 +1431,14 @@ export default function RetentionDashboard({
             <div className="heatmap-empty">Loading retention…</div>
           </article>
         )}
+
+        {dashboardData ? (
+          <RetentionChurnTrend
+            series={dashboardData.churn_series}
+            loading={loading}
+            onMonthClick={setChurnMonth}
+          />
+        ) : null}
       </main>
 
       {activationOpen && kpis ? (
@@ -1370,6 +1465,24 @@ export default function RetentionDashboard({
           retentionContext={retentionCompany.context}
           backLabel="Retention cell"
           onClose={() => setRetentionCompany(null)}
+        />
+      ) : null}
+
+      {churnMonth ? (
+        <RetentionChurnModal
+          month={churnMonth}
+          onClose={() => setChurnMonth(null)}
+          onCompany={openChurnCompany}
+          onPrefetchCompany={prefetchCompanyDetail}
+        />
+      ) : null}
+
+      {churnCompany ? (
+        <CompanyDetailModal
+          companyId={churnCompany.company.id}
+          churnContext={churnCompany.context}
+          backLabel="Monthly churn"
+          onClose={() => setChurnCompany(null)}
         />
       ) : null}
 
@@ -1431,6 +1544,8 @@ export default function RetentionDashboard({
             <p>
               An activated company is churned for a completed calendar month
               when it records no non-failed core activity during that month.
+              Click any completed month in the trend to inspect active and
+              churned companies, then expand observed users for that month.
             </p>
           </section>
         </div>
