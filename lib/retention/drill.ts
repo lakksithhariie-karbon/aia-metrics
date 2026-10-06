@@ -134,7 +134,7 @@ export async function readRetentionChurnMonthDrill(params: {
   const payload = await rpc<
     RetentionChurnDrillResponse | RetentionChurnDrillResponse[]
   >(
-    "read_retention_churn_month_drill_preview_v1",
+    "read_retention_churn_month_drill_v1",
     {
       p_month: params.month + "-01",
       p_segment: params.segment,
