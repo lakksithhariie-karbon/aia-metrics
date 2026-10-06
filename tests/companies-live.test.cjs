@@ -483,7 +483,7 @@ test('native Retention restores the live cohort heatmap', () => {
 });
 
 test('retention heatmap preview uses one coherent watermark-aware snapshot', () => {
-  const sql = read('supabase/retention-dashboard-preview-v3.sql');
+  const sql = read('supabase/retention-dashboard-v3.sql');
   const page = read('app/retention/page.tsx');
   const dashboard = read('components/retention/retention-dashboard.tsx');
   const heatmap = read('components/retention/retention-heatmap.tsx');
@@ -504,7 +504,7 @@ test('every eligible retention cell opens a nested company/user drill', () => {
   const heatmap = read('components/retention/retention-heatmap.tsx');
   const modal = read('components/retention/retention-cell-modal.tsx');
   const route = read('app/api/retention-drill/route.ts');
-  const sql = read('supabase/retention-dashboard-preview-v3.sql');
+  const sql = read('supabase/retention-dashboard-v3.sql');
 
   assert(heatmap.includes('onCellClick'));
   assert(heatmap.includes('All visible eligible cohorts'), 'pooled average cells are drillable');
