@@ -1,6 +1,6 @@
 import RetentionDashboard from "../../components/retention/retention-dashboard";
-import { readRetentionDashboardV3 } from "../../lib/retention/server";
-import type { RetentionDashboardResponse } from "../../lib/retention/types";
+import { readRetentionDashboardV4 } from "../../lib/retention/server";
+import type { RetentionDashboardV4Response } from "../../lib/retention/types";
 import "./retention.css";
 
 export const dynamic = "force-dynamic";
@@ -31,10 +31,10 @@ function lastDayOfMonth(month: string): string {
 
 export default async function RetentionPage() {
   const initialMonth = shiftMonth(currentMonthIST(), -1);
-  let initialData: RetentionDashboardResponse | null = null;
+  let initialData: RetentionDashboardV4Response | null = null;
 
   try {
-    initialData = await readRetentionDashboardV3({
+    initialData = await readRetentionDashboardV4({
       from: initialMonth + "-01",
       to: lastDayOfMonth(initialMonth),
     });

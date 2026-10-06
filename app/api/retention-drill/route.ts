@@ -3,6 +3,7 @@ import {
   readActivationCompanyDetail,
   readActivationList,
   readRetentionCellDrill,
+  readRetentionChurnMonthDrill,
 } from "../../../lib/retention/drill";
 
 function validDate(value: unknown): string | null {
@@ -105,6 +106,41 @@ export async function POST(request: Request) {
         relativePeriod,
         from,
         to,
+        segment,
+        query: typeof body.query === "string" ? body.query : "",
+        page,
+        pageSize,
+        signal: controller.signal,
+      });
+      return NextResponse.json(payload);
+    }
+
+    if (body.action === "churn_month") {
+      if (typeof body.month !== "string" || !/^\d{4}-\d{2}$/.test(body.month)) {
+        return NextResponse.json(
+          { error: "invalid_parameters" },
+          { status: 400 },
+        );
+      }
+
+      const segment =
+        body.segment === "active" ||
+        body.segment === "churned" ||
+        body.segment === "entered" ||
+        body.segment === "reactivated"
+          ? body.segment
+          : "all";
+      const page =
+        typeof body.page === "number" && Number.isFinite(body.page)
+          ? Math.max(1, Math.floor(body.page))
+          : 1;
+      const pageSize =
+        typeof body.page_size === "number" && Number.isFinite(body.page_size)
+          ? Math.min(50, Math.max(1, Math.floor(body.page_size)))
+          : 8;
+
+      const payload = await readRetentionChurnMonthDrill({
+        month: body.month,
         segment,
         query: typeof body.query === "string" ? body.query : "",
         page,

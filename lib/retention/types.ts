@@ -48,3 +48,23 @@ export interface RetentionDashboardResponse {
   weekly: RetentionHeatmapResponse;
   monthly: RetentionHeatmapResponse;
 }
+
+export interface RetentionChurnSeriesRow {
+  month: string;
+  eligible: number;
+  churned: number;
+  active: number;
+  entered: number;
+  reactivated: number;
+  rate_pct: number | null;
+}
+
+export interface RetentionChurnSeries {
+  rows: RetentionChurnSeriesRow[];
+  source_watermark_at: string | null;
+}
+
+export interface RetentionDashboardV4Response
+  extends RetentionDashboardResponse {
+  churn_series: RetentionChurnSeries;
+}
