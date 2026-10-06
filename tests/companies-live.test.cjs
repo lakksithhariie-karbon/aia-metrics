@@ -493,7 +493,11 @@ test('retention heatmap preview uses one coherent watermark-aware snapshot', () 
   assert(sql.includes('source_watermark_at'));
   assert(sql.includes("lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed'"));
   assert(sql.includes("'*/5 * * * *'"), 'preview data watcher checks every five minutes');
-  assert(page.includes('readRetentionDashboardV3'), 'first paint is server-loaded');
+  assert(
+    page.includes('readRetentionDashboardPreviewV4') ||
+    page.includes('readRetentionDashboardV3'),
+    'first paint is server-loaded',
+  );
   assert(dashboard.includes('"/api/retention-dashboard"'), 'range changes use one combined request');
   assert(heatmap.includes('Oldest first'));
   assert(heatmap.includes('Newest first'));
@@ -518,6 +522,36 @@ test('every eligible retention cell opens a nested company/user drill', () => {
     'user membership is bounded by the selected return window');
   assert(sql.includes('active_users'));
   assert(sql.includes('observed_users'));
+});
+
+test('monthly churn trend and drill use completed-month v3 semantics', () => {
+  const sql = read('supabase/retention-churn-preview-v1.sql');
+  const trend = read('components/retention/retention-churn-trend.tsx');
+  const modal = read('components/retention/retention-churn-modal.tsx');
+  const dashboard = read('components/retention/retention-dashboard.tsx');
+  const route = read('app/api/retention-drill/route.ts');
+
+  assert(sql.includes('read_retention_dashboard_preview_v4'));
+  assert(sql.includes('read_retention_churn_month_drill_preview_v1'));
+  assert(sql.includes('metrics_private.retention_activation_v3'));
+  assert(sql.includes('metrics_private.retention_core_day_v3'));
+  assert(sql.includes("lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed'"));
+  assert(sql.includes('m.watermark_date>=x.month_end'), 'drill only exposes completed source-watermark months');
+  assert(sql.includes("(e.event_time at time zone 'Asia/Kolkata')::date<p.month_end"),
+    'observed users are bounded by the selected month end');
+
+  assert(trend.includes('Monthly churn'));
+  assert(trend.includes('onMonthClick'));
+  assert(trend.includes('Click to inspect companies & users'));
+  assert(modal.includes('Churned'));
+  assert(modal.includes('Active'));
+  assert(modal.includes('Search companies or users'));
+  assert(modal.includes('user.active ? "Active" : "No activity"'));
+  assert(modal.includes('rd-modal rd-activation-modal rd-churn-month-modal'));
+  assert(route.includes('body.action === "churn_month"'));
+  assert(dashboard.includes('<RetentionChurnTrend'));
+  assert(dashboard.includes('<RetentionChurnModal'));
+  assert(dashboard.includes('churnContext={churnCompany.context}'));
 });
 
 test('retention interval picker is custom and heat cells use product tooltips', () => {
@@ -570,7 +604,14 @@ test('the app uses Oxanium as its only runtime font family', () => {
 });
 
 test('no raw Supabase or secret keys in the browser bundle', () => {
-  for (const relative of ['components/companies/companies-dashboard.tsx', 'components/retention/retention-dashboard.tsx', 'lib/companies/types.ts', 'lib/companies/modules.ts']) {
+  for (const relative of [
+    'components/companies/companies-dashboard.tsx',
+    'components/retention/retention-dashboard.tsx',
+    'components/retention/retention-churn-trend.tsx',
+    'components/retention/retention-churn-modal.tsx',
+    'lib/companies/types.ts',
+    'lib/companies/modules.ts',
+  ]) {
     const source = read(relative);
     assert(!source.includes('service_role'), `${relative} has no service_role`);
     assert(!source.includes('SUPABASE_'), `${relative} reads no Supabase env`);
@@ -590,6 +631,8 @@ test('all shipped TypeScript and JSX transpile without syntax errors', () => {
     'components/retention/retention-dashboard.tsx',
     'components/retention/retention-heatmap.tsx',
     'components/retention/retention-cell-modal.tsx',
+    'components/retention/retention-churn-trend.tsx',
+    'components/retention/retention-churn-modal.tsx',
     'components/ui/compact-menu-select.tsx',
     'lib/retention/types.ts', 'lib/retention/server.ts', 'lib/retention/drill-types.ts', 'lib/retention/drill.ts',
     'lib/prototype/customer-navigation.ts',
