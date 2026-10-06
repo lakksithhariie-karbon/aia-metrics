@@ -1,4 +1,4 @@
-import type { RetentionHeatmapInterval, RetentionHeatmapResponse, RetentionKpiResponse } from "./types";
+import type { RetentionDashboardResponse, RetentionHeatmapInterval, RetentionHeatmapResponse, RetentionKpiResponse } from "./types";
 
 function credentials(): { url: string; key: string } {
   const url = process.env.SUPABASE_URL;
@@ -73,6 +73,24 @@ export async function readRetentionHeatmap(params: {
     "read_retention_heatmap_v2",
     {
       p_interval: params.interval,
+      p_from: params.from,
+      p_to: params.to,
+    },
+    params.signal,
+  );
+  return scalar(payload);
+}
+
+export async function readRetentionDashboardV3(params: {
+  from: string | null;
+  to: string | null;
+  signal?: AbortSignal;
+}): Promise<RetentionDashboardResponse> {
+  const payload = await rpc<
+    RetentionDashboardResponse | RetentionDashboardResponse[]
+  >(
+    "read_retention_dashboard_v3",
+    {
       p_from: params.from,
       p_to: params.to,
     },
