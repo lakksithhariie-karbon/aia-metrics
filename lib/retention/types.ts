@@ -64,7 +64,7 @@ export interface RetentionChurnSeries {
   source_watermark_at: string | null;
 }
 
-export interface RetentionDashboardPreviewResponse
+export interface RetentionDashboardV4Response
   extends RetentionDashboardResponse {
   churn_series: RetentionChurnSeries;
 }
