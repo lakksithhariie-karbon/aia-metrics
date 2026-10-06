@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readRetentionDashboardV3 } from "../../../lib/retention/server";
+import { readRetentionDashboardPreviewV4 } from "../../../lib/retention/server";
 
 function validDate(value: unknown): string | null {
   if (value == null || value === "") return null;
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   const timeout = setTimeout(() => controller.abort(), 8_000);
 
   try {
-    const payload = await readRetentionDashboardV3({
+    const payload = await readRetentionDashboardPreviewV4({
       from,
       to,
       signal: controller.signal,
