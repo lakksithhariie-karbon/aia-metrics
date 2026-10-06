@@ -54,6 +54,8 @@ export interface RetentionChurnSeriesRow {
   eligible: number;
   churned: number;
   active: number;
+  entered: number;
+  reactivated: number;
   rate_pct: number | null;
 }
 
