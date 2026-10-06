@@ -230,6 +230,8 @@ export interface ChurnMonthContext {
   month_start: string;
   month_end: string;
   active: boolean;
+  entered: boolean;
+  reactivated: boolean;
   core_events: number;
   active_users: number;
   observed_users: number;
