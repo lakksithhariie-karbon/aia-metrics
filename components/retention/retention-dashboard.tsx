@@ -867,9 +867,13 @@ function ActivationModal({
 function CompanyDetailModal({
   companyId,
   onClose,
+  retentionContext,
+  backLabel = "Activation cohort",
 }: {
   companyId: string;
   onClose: () => void;
+  retentionContext?: RetentionPeriodContext;
+  backLabel?: string;
 }) {
   const initialDetail = companyDetailCache.get(companyId) ?? null;
   const [detail, setDetail] = useState<ActivationCompanyDetail | null>(initialDetail);
@@ -919,7 +923,7 @@ function CompanyDetailModal({
               <div className="rd-company-topline">
                 <button type="button" className="rd-back" onClick={onClose}>
                   <Icon name="left" />
-                  Activation cohort
+                  {backLabel}
                 </button>
                 <button type="button" className="rd-close" onClick={onClose} aria-label="Close company detail">
                   <Icon name="close" />
@@ -927,7 +931,7 @@ function CompanyDetailModal({
               </div>
               <div>
                 <div>
-                  <p>Company activation profile</p>
+                  <p>{retentionContext ? "Company retention profile" : "Company activation profile"}</p>
                   <h2 id="company-preview-title">{detail.name}</h2>
                 </div>
                 <div className="rd-company-tags">
@@ -939,6 +943,64 @@ function CompanyDetailModal({
             </header>
 
             <div className="rd-company-scroll">
+              {retentionContext ? (
+                <section className="rd-retention-context-card">
+                  <div className="rd-retention-context-head">
+                    <div>
+                      <span>
+                        {retentionContext.interval === "weekly" ? "Week" : "Month"}{" "}
+                        {retentionContext.relative_period} retention window
+                      </span>
+                      <strong>
+                        {prettyDate(retentionContext.target_start + "T12:00:00Z")} →{" "}
+                        {prettyDate(
+                          new Date(
+                            Date.parse(retentionContext.target_end + "T12:00:00Z") -
+                              86_400_000,
+                          ).toISOString(),
+                        )}
+                      </strong>
+                    </div>
+                    <span
+                      className={
+                        "rd-status " +
+                        (retentionContext.retained ? "activated" : "no_training")
+                      }
+                    >
+                      {retentionContext.retained ? "Retained" : "Churned"}
+                    </span>
+                  </div>
+                  <div className="rd-retention-context-stats">
+                    <div>
+                      <span>Active users</span>
+                      <strong>
+                        {retentionContext.active_users}/{retentionContext.observed_users}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>Core events</span>
+                      <strong>{nf.format(retentionContext.core_events)}</strong>
+                    </div>
+                    <div>
+                      <span>AP</span>
+                      <strong>{nf.format(retentionContext.totals.ap)}</strong>
+                    </div>
+                    <div>
+                      <span>AR</span>
+                      <strong>{nf.format(retentionContext.totals.ar)}</strong>
+                    </div>
+                    <div>
+                      <span>Transaction</span>
+                      <strong>{nf.format(retentionContext.totals.transactions)}</strong>
+                    </div>
+                    <div>
+                      <span>Sync</span>
+                      <strong>{nf.format(retentionContext.totals.sync)}</strong>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
               <section className="rd-lifecycle-card">
                 <div className="rd-section-title">
                   <div>
@@ -1065,7 +1127,15 @@ function CompanyDetailModal({
                     </thead>
                     <tbody>
                       {detail.weeks.map(week => (
-                        <tr key={week.week_start}>
+                        <tr
+                          key={week.week_start}
+                          className={
+                            retentionContext?.interval === "weekly" &&
+                            retentionContext.target_start === week.week_start
+                              ? "is-selected-retention-week"
+                              : ""
+                          }
+                        >
                           <td>
                             <strong>{prettyDate(week.week_start + "T12:00:00Z")}</strong>
                             <span>to {prettyDate(week.week_end + "T12:00:00Z")}</span>
