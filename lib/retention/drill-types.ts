@@ -90,6 +90,8 @@ export interface RetentionCellUserRow {
   first_seen_at: string;
   last_seen_at: string;
   active: boolean;
+  entered?: boolean;
+  reactivated?: boolean;
   core_events: number;
   totals: {
     ap: number;
@@ -158,7 +160,12 @@ export interface RetentionPeriodContext {
   };
 }
 
-export type RetentionChurnSegment = "all" | "active" | "churned";
+export type RetentionChurnSegment =
+  | "all"
+  | "active"
+  | "churned"
+  | "entered"
+  | "reactivated";
 
 export interface RetentionChurnUserRow {
   id: string;
@@ -184,6 +191,8 @@ export interface RetentionChurnCompanyRow {
   integration_at: string;
   activated_at: string;
   active: boolean;
+  entered: boolean;
+  reactivated: boolean;
   month_start: string;
   month_end: string;
   core_events: number;
@@ -203,6 +212,8 @@ export interface RetentionChurnCounts {
   all: number;
   active: number;
   churned: number;
+  entered: number;
+  reactivated: number;
 }
 
 export interface RetentionChurnDrillResponse {
