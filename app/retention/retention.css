@@ -898,6 +898,8 @@
   min-height:0;
   height:auto;
   overflow:hidden;
+  /* Match the table's side gutters so the final row clears the card edge. */
+  padding-bottom:18px;
 }
 .rd-churn-trend-head{
   min-height:68px;
