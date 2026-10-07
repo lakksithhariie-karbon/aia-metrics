@@ -621,7 +621,8 @@
 .rd-churn-trend-report{
   width:100%;
   max-width:none;
-  min-height:350px;
+  min-height:0;
+  height:auto;
   margin:0 0 24px;
 }
 .rd-churn-trend-head{
@@ -1103,4 +1104,10 @@
     border-left:0;
     border-top:1px solid #e7ebf1;
   }
+}
+
+/* Churn report is content-sized; never inherit the shared 520px report height. */
+.rd-shell .report-card.rd-churn-trend-report{
+  height:auto!important;
+  min-height:0!important;
 }
