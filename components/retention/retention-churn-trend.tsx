@@ -56,7 +56,7 @@ export default function RetentionChurnTrend({
   );
 
   return (
-    <article className="report-card rd-churn-trend-report">
+    <article className="report-card rd-churn-trend-report" style={{ height: "auto", minHeight: 0 }}>
       <header className="report-header rd-churn-trend-head">
         <div>
           <h2>Month-on-Month Churn Trend</h2>
