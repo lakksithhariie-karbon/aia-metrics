@@ -1111,3 +1111,13 @@
   height:auto!important;
   min-height:0!important;
 }
+
+
+/* MoM churn report is content-sized, never inherits the generic report-card height. */
+.rd-page .report-card.rd-churn-trend-report{
+  height:max-content!important;
+  min-height:0!important;
+  max-height:none!important;
+  flex:none!important;
+  align-self:start;
+}
