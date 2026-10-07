@@ -571,6 +571,15 @@ test('monthly churn trend and drill use completed-month v3 semantics', () => {
   assert(dashboard.includes('Reactivated means the company was churned in the previous month'));
 });
 
+test('monthly churn report is content-sized and cannot inherit the shared report height', () => {
+  const trend = read('components/retention/retention-churn-trend.tsx');
+  const css = read('app/retention/retention.css');
+  assert(trend.includes('style={{ height: "auto", minHeight: 0 }}'));
+  assert(css.includes('.rd-shell .report-card.rd-churn-trend-report{'));
+  assert(css.includes('height:auto!important'));
+  assert(css.includes('min-height:0!important'));
+});
+
 test('retention interval picker is custom and heat cells use product tooltips', () => {
   const heatmap = read('components/retention/retention-heatmap.tsx');
   const select = read('components/ui/compact-menu-select.tsx');
