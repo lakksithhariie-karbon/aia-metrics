@@ -31,7 +31,8 @@ SET search_path TO 'public', 'metrics_private', 'pg_temp'
 SET statement_timeout TO '35s'
 AS $function$
 WITH published AS MATERIALIZED (
-  SELECT s.id, s.source_watermark_at, s.as_of_at
+  SELECT s.id, s.source_watermark_at,
+    (s.payload #>> '{value,active_users,as_of}')::timestamptz AS as_of_at
   FROM public.product_snapshot_current c
   JOIN public.product_snapshot s ON s.id=c.snapshot_id
   WHERE c.kind='overview' AND c.scope_key=''
