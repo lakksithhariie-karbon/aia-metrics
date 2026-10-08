@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect,useRef,useState,type RefObject } from "react";
+import { useEffect,useRef,useState,type RefObject,type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { OverviewUsageSnapshot } from "../../lib/overview/kpis";
 import type {
@@ -74,7 +74,12 @@ function ModuleTrend({
  expanded?:boolean;
 }){
  const ref=useRef<HTMLDivElement>(null);
+ const plotRef=useRef<HTMLDivElement>(null);
+ const [hovered,setHovered]=useState<{
+  week:string;left:number;top:number;pointer:number;below:boolean;
+ }|null>(null);
  const width=useWidth(ref);
+ useEffect(()=>setHovered(null),[view,selected,expanded]);
  if(!data||!ready)return <Unavailable/>;
  const rows=data.weekly;
  const h=expanded?450:235,left=31,right=10,top=22,bottom=28;
@@ -85,6 +90,23 @@ function ModuleTrend({
  const step=plotW/Math.max(1,rows.length-1);
  const xx=(i:number)=>left+i*step;
  const yy=(n:number)=>top+plotH-n/max*plotH;
+ const hoveredRow=hovered?rows.find(row=>row.week_start===hovered.week):null;
+ function showTooltip(row:WorkflowWeek,node:SVGGElement){
+  const plot=plotRef.current;
+  const marker=node.querySelector<SVGCircleElement>(".po-workflow-point-marker");
+  if(!plot||!marker)return;
+  const plotRect=plot.getBoundingClientRect();
+  const pointRect=marker.getBoundingClientRect();
+  const x=pointRect.left+pointRect.width/2-plotRect.left;
+  const y=pointRect.top+pointRect.height/2-plotRect.top;
+  const cardWidth=Math.min(205,plotRect.width-16);
+  const left=Math.min(plotRect.width-cardWidth-8,Math.max(8,x-cardWidth/2));
+  setHovered({
+   week:row.week_start,left,top:y,
+   pointer:Math.min(cardWidth-15,Math.max(15,x-left)),
+   below:y<86,
+  });
+ }
  function open(row:WorkflowWeek,key:WorkflowModule,node:HTMLElement|SVGElement){
   onPoint({week:row.week_start,module:key,count:row[key]},node);
  }
@@ -116,6 +138,7 @@ function ModuleTrend({
      </tr>)}</tbody>
     </table>
    </div>:
+   <div className="po-workflow-plot" ref={plotRef} onMouseLeave={()=>setHovered(null)}>
    <svg className="po-chart po-workflow-line-svg"
     viewBox={"0 0 "+width+" "+h} role="group"
     aria-label="Weekly distinct core-active users by AP, AR and Transaction modules">
@@ -146,15 +169,36 @@ function ModuleTrend({
       onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){
        e.preventDefault();open(r,s.key,e.currentTarget);
       }}}
+      onMouseEnter={e=>showTooltip(r,e.currentTarget)}
+      onFocus={e=>showTooltip(r,e.currentTarget)}
+      onMouseLeave={()=>setHovered(null)}
+      onBlur={()=>setHovered(null)}
       className="po-workflow-plot-point">
-      <title>{day(r.week_start)} · {s.label}: {nf.format(r[s.key])} users
-       {r.limited_tracking?" · Tracking incomplete":""}</title>
-      <circle className="po-workflow-halo" cx={xx(i)} cy={yy(r[s.key])} r={expanded?14:12}/>
-      <circle cx={xx(i)} cy={yy(r[s.key])} r={expanded?5:3.5}
+      <circle className="po-workflow-halo" cx={xx(i)} cy={yy(r[s.key])} r={expanded?19:16}/>
+      <circle className="po-workflow-point-marker" cx={xx(i)} cy={yy(r[s.key])} r={expanded?5:3.5}
        fill="white" stroke={s.color} strokeWidth={2}/>
      </g>)}
     </g>)}
-   </svg>}
+   </svg>
+   {hovered&&hoveredRow?<div role="tooltip"
+    className={"po-workflow-tooltip"+(hovered.below?" is-below":"")}
+    style={{
+     left:hovered.left,
+     top:hovered.top,
+     "--po-workflow-tooltip-pointer":hovered.pointer+"px",
+    } as CSSProperties}>
+    <strong className="po-workflow-tooltip-heading">{day(hoveredRow.week_start)}</strong>
+    <div className="po-workflow-tooltip-rows">
+     {MODULES.map(m=><div className="po-workflow-tooltip-row" key={m.key}>
+      <span className="po-workflow-tooltip-label">
+       <i style={{background:m.color}}/>{m.label}
+      </span>
+      <strong>{nf.format(hoveredRow[m.key])}</strong>
+     </div>)}
+    </div>
+    {hoveredRow.limited_tracking?<small>Tracking incomplete for this week</small>:null}
+   </div>:null}
+   </div>}
  </div>;
 }
 
@@ -407,6 +451,10 @@ export default function OverviewWorkflow({
   const b=document.querySelector<HTMLButtonElement>('#po-mix-report [data-po-chart-view="mix"]');
   if(a)a.textContent=trendView==="chart"?"View table":"View chart";
   if(b)b.textContent=mixView==="chart"?"View comparison table":"View chart";
+  const mixFooterNote=document.querySelector<HTMLElement>(
+   '#po-mix-report .po-chart-footer > span'
+  );
+  if(mixFooterNote)mixFooterNote.hidden=mixView!=="table";
  },[trendView,mixView]);
  function point(v:{week:string;module:WorkflowModule;count:number},t:HTMLElement|SVGElement){
   if(!ready)return;
