@@ -261,7 +261,8 @@ function JourneyExpanded({
  },[]);
  useEffect(()=>{
   const escape=(e:KeyboardEvent)=>{
-   if(e.key==="Escape"&&!drillOpen){
+   if(e.key==="Escape"&&!drillOpen&&
+      !document.querySelector(".po-overview-info-dialog[open]")){
     e.preventDefault();e.stopImmediatePropagation();onClose();
    }
   };
@@ -274,10 +275,17 @@ function JourneyExpanded({
    role="dialog" aria-modal="true" aria-labelledby="po-adoption-expanded-title">
    <div className="report-modal-chrome">
     <span id="po-adoption-expanded-title">Integration journey · Expanded view</span>
-    <button ref={closeButton} type="button" className="close-button"
-     onClick={onClose} aria-label="Close expanded journey">
-     <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
-    </button>
+    <div className="po-expanded-head-actions">
+     <button type="button" className="icon-button"
+      data-po-help="journey" aria-label="How integration journey is counted"
+      title="How it's counted">
+      <svg className="icon" aria-hidden="true"><use href="#i-info"/></svg>
+     </button>
+     <button ref={closeButton} type="button" className="close-button"
+      onClick={onClose} aria-label="Close expanded journey">
+      <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
+     </button>
+    </div>
    </div>
    <div className="po-expanded-mount">
     <article className="po-report po-full po-journey-funnel-report">
