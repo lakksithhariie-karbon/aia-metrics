@@ -293,43 +293,6 @@ function JourneyExpanded({
   </section>
  </div>;
 }
-function JourneyInfo({onClose}:{onClose:()=>void}){
- useEffect(()=>{
-  const close=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();onClose()}};
-  window.addEventListener("keydown",close);
-  return ()=>window.removeEventListener("keydown",close);
- },[onClose]);
- return <div className="rd-overlay" role="presentation">
-  <section className="rd-modal rd-activation-modal po-adoption-info-modal"
-   role="dialog" aria-modal="true" aria-labelledby="po-adoption-info-title">
-   <header className="rd-modal-head"><div>
-    <p>Measurement definition</p>
-    <h2 id="po-adoption-info-title">Adoption &amp; integration</h2>
-    <span>One mature integration cohort · consistent source watermark</span>
-   </div><button type="button" className="rd-close" onClick={onClose}
-    aria-label="Close definitions"><svg className="rd-icon"><use href="#i-close"/></svg></button></header>
-   <div className="po-adoption-info-body">
-    <h3>Eligible companies</h3>
-    <p>Client companies with recorded successful Tally or Zoho integration,
-     observed for a full 28 days. Each company counts once.</p>
-    <h3>Funnel stages</h3>
-    <p>Successful integration → independent accounting work within 7 days →
-     qualifying accounting sync after that work within 28 days.
-     Stage conversion divides by the previous stage; cumulative conversion
-     divides by all eligible integrations.</p>
-    <h3>Independent outcome cards</h3>
-    <p>7-day core adoption is the first independent work milestone. Value conversion
-     requires a training sync, independent core work on a later IST calendar day,
-     and a closing sync within 28 days. Sustained adoption requires core work in
-     at least two of the first four seven-day periods.</p>
-    <p>Automated/unclassified Accounting Sync never qualifies as independent
-     work. Failed events, internal staff and non-client companies are excluded.
-     Adoption outcomes are not assumed to be sequential steps of the funnel.</p>
-   </div>
-  </section>
- </div>;
-}
-
 export default function OverviewAdoption({
  summary,usageSnapshot,stripTarget,funnelTarget,
 }:{
@@ -339,7 +302,6 @@ export default function OverviewAdoption({
  const [asOfDate,setAsOfDate]=useState(usageSnapshot?.asOfDate??"");
  const [target,setTarget]=useState<AdoptionDrillTarget|null>(null);
  const [expanded,setExpanded]=useState(false);
- const [showInfo,setShowInfo]=useState(false);
  const trigger=useRef<HTMLElement|null>(null);
  const expandTrigger=useRef<HTMLButtonElement|null>(null);
  useEffect(()=>{
@@ -364,20 +326,14 @@ export default function OverviewAdoption({
  useEffect(()=>{
   const expandButton=document.querySelector<HTMLButtonElement>(
    '#po-journey-report [data-po-expand="po-journey-report"]');
-  const infoButton=document.getElementById("po-live-journey-info");
-  if(!expandButton||!infoButton)return;
+  if(!expandButton)return;
   const expand=(event:Event)=>{
    event.preventDefault();event.stopImmediatePropagation();
    expandTrigger.current=expandButton;setExpanded(true);
   };
-  const info=(event:Event)=>{
-   event.preventDefault();event.stopImmediatePropagation();setShowInfo(true);
-  };
   expandButton.addEventListener("click",expand,true);
-  infoButton.addEventListener("click",info,true);
   return ()=>{
    expandButton.removeEventListener("click",expand,true);
-   infoButton.removeEventListener("click",info,true);
   };
  },[funnelTarget]);
  function openDrill(next:AdoptionDrillTarget,element:HTMLElement){
@@ -406,7 +362,5 @@ export default function OverviewAdoption({
     key={target.title+":"+target.initial}
     summary={summary} target={target} onClose={closeDrill}/>,
     document.body):null}
-  {showInfo&&typeof document!=="undefined"?
-   createPortal(<JourneyInfo onClose={()=>setShowInfo(false)}/>,document.body):null}
  </>;
 }
