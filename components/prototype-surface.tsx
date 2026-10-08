@@ -6,23 +6,31 @@ import { createPortal } from "react-dom";
 import { prototypeMarkup } from "../lib/prototype/markup";
 import { installCustomerNavigation, withCustomerNavigation } from "../lib/prototype/customer-navigation";
 import type { OverviewUsageSnapshot } from "../lib/overview/kpis";
+import type { OverviewActiveCharts } from "../lib/overview/active-charts";
 import OverviewKpiStrip from "./overview/overview-kpi-strip";
+import OverviewActiveUsage from "./overview/overview-active-usage";
 
 const markup = withCustomerNavigation(prototypeMarkup);
 
 /**
- * The approved prototype retains ownership of report/chart fixtures.
- * Only the Product Overview KPI strip is migrated into native React.
- * The legacy runtime must never write into #po-kpis.
+ * Compatibility boundary for the remaining approved prototype surfaces.
+ * Native React owns the three KPIs plus two Active Usage chart interiors;
+ * the legacy runtime is not allowed to write into those DOM targets.
  */
 export function PrototypeSurface({
   overviewKpis,
+  overviewCharts,
 }: {
   overviewKpis: OverviewUsageSnapshot | null;
+  overviewCharts: OverviewActiveCharts | null;
 }) {
   const [baseReady, setBaseReady] = useState(false);
   const [overviewReady, setOverviewReady] = useState(false);
   const [kpiTarget, setKpiTarget] = useState<HTMLElement | null>(null);
+  const [chartTargets, setChartTargets] = useState<{
+    weekly: HTMLElement;
+    frequency: HTMLElement;
+  } | null>(null);
 
   useEffect(() => {
     setKpiTarget(document.getElementById("po-kpis"));
@@ -30,6 +38,23 @@ export function PrototypeSurface({
 
   useEffect(() => {
     if (overviewReady) return installCustomerNavigation();
+  }, [overviewReady]);
+
+  useEffect(() => {
+    if (!overviewReady) return;
+    const weekly = document.getElementById("po-weekly-chart-view");
+    const frequency = document.getElementById("po-frequency-content");
+    if (!weekly || !frequency) return;
+
+    // These two report bodies are now React-controlled. Remove only their
+    // static prototype children, not their approved card/header/footer shells.
+    weekly.replaceChildren();
+    frequency.replaceChildren();
+    const oldTable = document.getElementById("po-weekly-data");
+    oldTable?.replaceChildren();
+    oldTable?.setAttribute("hidden", "");
+    document.querySelector("#po-weekly-report .po-sample")?.remove();
+    setChartTargets({ weekly, frequency });
   }, [overviewReady]);
 
   return (
@@ -43,6 +68,14 @@ export function PrototypeSurface({
       {kpiTarget
         ? createPortal(<OverviewKpiStrip snapshot={overviewKpis} />, kpiTarget)
         : null}
+      {chartTargets ? (
+        <OverviewActiveUsage
+          snapshot={overviewKpis}
+          charts={overviewCharts}
+          weeklyTarget={chartTargets.weekly}
+          frequencyTarget={chartTargets.frequency}
+        />
+      ) : null}
       <Script
         id="prototype-v2-base"
         src="/prototype/runtime-v2-1.js"
