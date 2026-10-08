@@ -6,6 +6,58 @@
 .po-workflow-legend-button:hover,.po-workflow-legend-button:focus-visible{background:#eef3ff;color:#3659b4}
 .po-workflow-legend-button .po-dot{width:9px;height:9px;border-radius:2px;display:inline-block}
 .po-workflow-line-svg{width:100%;display:block}
+.po-workflow-plot{position:relative;min-width:0}
+.po-workflow-tooltip{
+ position:absolute;z-index:8;
+ width:min(205px,calc(100% - 16px));
+ padding:11px 13px 12px;
+ transform:translateY(calc(-100% - 12px));
+ border:1px solid #dce4ef;
+ border-radius:7px;
+ background:#fff;
+ box-shadow:0 8px 24px rgba(30,47,74,.13);
+ pointer-events:none;
+ color:#536781;
+ font-size:10px;
+ font-variant-numeric:tabular-nums;
+ white-space:nowrap;
+}
+.po-workflow-tooltip::after{
+ content:"";position:absolute;
+ width:10px;height:10px;
+ left:var(--po-workflow-tooltip-pointer,50%);
+ bottom:-6px;
+ background:#fff;
+ border-right:1px solid #dce4ef;
+ border-bottom:1px solid #dce4ef;
+ transform:translateX(-50%) rotate(45deg);
+}
+.po-workflow-tooltip.is-below{transform:translateY(12px)}
+.po-workflow-tooltip.is-below::after{
+ top:-6px;bottom:auto;
+ transform:translateX(-50%) rotate(225deg);
+}
+.po-workflow-tooltip-heading{
+ display:block;
+ padding-bottom:8px;margin-bottom:9px;
+ border-bottom:1px solid #e7ecf3;
+ color:#303a4c;font-size:12px;font-weight:650;
+}
+.po-workflow-tooltip-rows{display:grid;gap:8px}
+.po-workflow-tooltip-row{
+ display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.po-workflow-tooltip-label{display:inline-flex;align-items:center;gap:8px}
+.po-workflow-tooltip-label i{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.po-workflow-tooltip-row>strong{
+ min-width:27px;text-align:right;
+ color:#3b5275;font-weight:650;
+}
+.po-workflow-tooltip>small{
+ display:block;margin-top:9px;
+ color:#ad8053;font-size:9px;
+}
+.po-mix-report-note[hidden]{display:none!important}
 .po-workflow-plot-point{cursor:pointer;outline:0}
 .po-workflow-halo{fill:transparent;stroke:transparent;stroke-width:0}
 .po-workflow-plot-point:hover .po-workflow-halo,
