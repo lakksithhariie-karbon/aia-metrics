@@ -119,7 +119,13 @@
 .po-adoption-expanded .po-journey-row{min-height:83px}
 .po-adoption-expanded .po-journey-heading{padding-top:10px}
 .po-adoption-expanded .po-journey-module-step{min-height:47px}
-.po-adoption-drill-modal{min-height:0;height:min(770px,calc(100dvh - 38px))}
+/* Company-list drills should wrap the visible rows. A viewport cap still
+   lets expanded company rows scroll within the table on short screens. */
+.po-adoption-drill-modal{
+ min-height:0;
+ height:fit-content;
+ max-height:calc(100dvh - 38px);
+}
 .po-adoption-drill-summary{
  margin:12px 20px 0;background:#fbfcfe;border:1px solid #e4e9f1;
  border-radius:7px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:0 0 auto;
@@ -130,7 +136,11 @@
 .po-adoption-drill-summary strong{font-size:17px;color:#435875;display:block;margin-top:3px}
 .po-adoption-drill-toolbar{flex-wrap:wrap}
 .po-adoption-drill-toolbar .rd-status-tabs{flex-wrap:wrap}
-.po-adoption-table-wrap{flex:1 1 auto;min-height:0;overflow:auto}
+.po-adoption-table-wrap{
+ flex:0 1 auto;
+ min-height:0;
+ overflow:auto;
+}
 .po-adoption-table{min-width:950px}
 .po-adoption-table th:first-child{width:37px}
 .po-adoption-table th:nth-child(2){width:240px}
