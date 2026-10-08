@@ -7,6 +7,7 @@ import type {
  AdoptionSummary,AdoptionOutcome,AdoptionStage,AdoptionModule,AdoptionStep,AdoptionSegment,
 } from "../../lib/overview/adoption";
 import AdoptionDrillModal,{type AdoptionDrillTarget} from "./overview-adoption-modals";
+import { OverviewInfoButton } from "./overview-info";
 
 const nf=new Intl.NumberFormat("en-US");
 function rate(n:number,d:number){
@@ -131,7 +132,8 @@ function OutcomeCards({
   {outcomeMeta.map(meta=>{
    const count=ready&&summary?summary.outcomes[meta.key]:null;
    const pct=count!==null&&summary?rate(count,summary.total):"—";
-   return <button key={meta.key} className="metric-card" type="button"
+   return <div className="po-kpi-info-wrap" key={meta.key}>
+    <button className="metric-card" type="button"
     aria-haspopup="dialog"
     aria-label={meta.title+": "+pct+". Open company drill-down"}
     onClick={e=>{
@@ -145,7 +147,9 @@ function OutcomeCards({
       nf.format(count)+" of "+nf.format(summary.total)+" integrated companies":
       "Published data unavailable"}</span>
     <span className="po-change">{meta.note}</span>
-   </button>;
+   </button>
+    <OverviewInfoButton infoKey={meta.key}/>
+   </div>;
   })}
  </>;
 }
