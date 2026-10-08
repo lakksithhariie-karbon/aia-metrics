@@ -5,6 +5,7 @@ import "./overview-active-usage.css";
 import "./overview-adoption.css";
 import "./overview-workflow.css";
 import "./overview-friction.css";
+import "./overview-info.css";
 import { readPublishedOverviewUsage } from "../../lib/overview/kpis";
 import { readPublishedOverviewActiveCharts } from "../../lib/overview/active-charts";
 import { readPublishedAdoptionSummary } from "../../lib/overview/adoption";
