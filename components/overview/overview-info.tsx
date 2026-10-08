@@ -113,12 +113,13 @@ export default function OverviewMetricInfo() {
     const onClick = (event: MouseEvent) => {
       if (!(event.target instanceof Element)) return;
       const button = event.target.closest<HTMLButtonElement>("button[data-po-help]");
-      if (!button || !validKey(button.dataset.poHelp)) return;
+      const key = button?.dataset.poHelp;
+      if (!button || !validKey(key)) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
       opener.current = button;
-      setActive(button.dataset.poHelp);
+      setActive(key);
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
