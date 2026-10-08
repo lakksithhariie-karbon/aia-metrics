@@ -94,3 +94,67 @@
   .po-native-expanded-report .po-expanded-mount .po-native-weekly-chart .po-chart{height:min(52vh,450px)}
   .po-native-expanded-report .po-expanded-mount .po-native-frequency-chart .po-frequency{gap:23px;margin-top:18px}
 }
+
+
+/* Balanced frequency layout, within the existing widget dimensions.
+   Let the four interactive rows use the available vertical area instead
+   of leaving a large blank space beneath the chart. */
+#po-frequency-report .po-body,
+.po-native-expanded-report .po-body:has(> .po-native-frequency-chart){
+  display:flex;
+  flex-direction:column;
+}
+#po-frequency-report .po-native-frequency-chart,
+.po-native-expanded-report .po-native-frequency-chart{
+  display:flex;
+  flex-direction:column;
+  flex:1 1 auto;
+  min-height:0;
+}
+#po-frequency-report .po-native-frequency-chart .po-insight,
+.po-native-expanded-report .po-native-frequency-chart .po-insight{
+  flex:0 0 auto;
+  margin-bottom:10px;
+}
+#po-frequency-report .po-native-frequency-chart .po-frequency,
+.po-native-expanded-report .po-native-frequency-chart .po-frequency{
+  flex:1 1 auto;
+  min-height:0;
+  display:grid;
+  grid-template-rows:repeat(4,minmax(30px,1fr));
+  row-gap:6px;
+  margin-top:0;
+  padding:4px 0 8px;
+}
+#po-frequency-report .po-native-frequency-chart .po-live-frequency-row,
+.po-native-expanded-report .po-native-frequency-chart .po-live-frequency-row{
+  height:100%;
+  min-height:30px;
+  align-self:stretch;
+}
+#po-frequency-report .po-native-frequency-chart .po-bar-track,
+.po-native-expanded-report .po-native-frequency-chart .po-bar-track{
+  height:13px;
+  border-radius:3px;
+}
+#po-frequency-report .po-native-frequency-chart .po-bar-track i,
+.po-native-expanded-report .po-native-frequency-chart .po-bar-track i{
+  border-radius:3px;
+}
+#po-frequency-report .po-native-frequency-chart .po-active-chart-note,
+.po-native-expanded-report .po-native-frequency-chart .po-active-chart-note{
+  flex:0 0 auto;
+  margin-top:5px;
+  padding-bottom:14px;
+}
+@media(max-width:720px){
+  #po-frequency-report .po-native-frequency-chart .po-frequency,
+  .po-native-expanded-report .po-native-frequency-chart .po-frequency{
+    grid-template-rows:repeat(4,minmax(26px,1fr));
+    row-gap:4px;
+  }
+  #po-frequency-report .po-native-frequency-chart .po-bar-track,
+  .po-native-expanded-report .po-native-frequency-chart .po-bar-track{
+    height:11px;
+  }
+}
