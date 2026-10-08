@@ -9,16 +9,18 @@ import type { OverviewUsageSnapshot } from "../lib/overview/kpis";
 import type { OverviewActiveCharts } from "../lib/overview/active-charts";
 import type { AdoptionSummary } from "../lib/overview/adoption";
 import type { WorkflowSummary } from "../lib/overview/workflow";
+import type { FrictionSummary } from "../lib/overview/friction";
 import OverviewKpiStrip from "./overview/overview-kpi-strip";
 import OverviewActiveUsage from "./overview/overview-active-usage";
 import OverviewAdoption from "./overview/overview-adoption";
 import OverviewWorkflow from "./overview/overview-workflow";
+import OverviewFriction from "./overview/overview-friction";
 
 const markup = withCustomerNavigation(prototypeMarkup);
 
 /**
  * Compatibility boundary for the remaining approved prototype surfaces.
- * Native React owns the KPIs, Active Usage, Adoption & Value, and Workflow Usage;
+ * Native React owns the KPIs, Active Usage, Adoption & Value, Workflow Usage and Friction;
  * the legacy runtime is not allowed to write into those DOM targets.
  */
 export function PrototypeSurface({
@@ -26,13 +28,16 @@ export function PrototypeSurface({
   overviewCharts,
   adoption,
   workflow,
+  friction,
 }: {
   overviewKpis: OverviewUsageSnapshot | null;
   overviewCharts: OverviewActiveCharts | null;
   adoption: AdoptionSummary | null;
   workflow: WorkflowSummary | null;
+  friction: FrictionSummary | null;
 }) {
   const [baseReady, setBaseReady] = useState(false);
+  const [frictionTarget, setFrictionTarget] = useState<HTMLElement | null>(null);
   const [overviewReady, setOverviewReady] = useState(false);
   const [kpiTarget, setKpiTarget] = useState<HTMLElement | null>(null);
   const [workflowTargets, setWorkflowTargets] = useState<{
@@ -94,6 +99,14 @@ export function PrototypeSurface({
     setWorkflowTargets({ trend, mix });
   }, [overviewReady]);
 
+  useEffect(() => {
+    if (!overviewReady) return;
+    const target = document.getElementById("po-friction-content");
+    if (!target) return;
+    target.replaceChildren();
+    setFrictionTarget(target);
+  }, [overviewReady]);
+
   return (
     <>
       <div
@@ -127,6 +140,13 @@ export function PrototypeSurface({
           usageSnapshot={overviewKpis}
           trendTarget={workflowTargets.trend}
           mixTarget={workflowTargets.mix}
+        />
+      ) : null}
+      {frictionTarget ? (
+        <OverviewFriction
+          summary={friction}
+          usageSnapshot={overviewKpis}
+          target={frictionTarget}
         />
       ) : null}
       <Script
