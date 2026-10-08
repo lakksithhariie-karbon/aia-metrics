@@ -18,19 +18,19 @@ const definitions: Record<Metric, { title: string; explanation: string; formula:
   wau: {
     title: "Weekly core-active users",
     explanation:
-      "Distinct users who performed qualifying core accounting activity in the rolling 7 days ending at the reporting timestamp. Each user counts once across all their companies. Failed activity, internal staff, and non-client companies are excluded.",
-    formula: "WAU = distinct qualifying users in the last 7 days",
+      "Distinct users performing independent accounting work in the last 7 rolling days. Qualifying actions include bill/invoice uploads and creation, transaction edits and corrections. Accounting Sync is excluded because its events do not identify manual vs automatic execution. Failed activity, internal staff and non-client companies are excluded. Users count once across companies.",
+    formula: "WAU = unique users with independent core work in [as-of − 7d, as-of)",
   },
   mau: {
     title: "Monthly core-active users",
     explanation:
-      "The same qualifying user and event rules as WAU, applied to the rolling 30 days ending at the same reporting timestamp. Users with activity in several companies still count once.",
-    formula: "MAU = distinct qualifying users in the last 30 days",
+      "Distinct users performing the same independent accounting actions as WAU, measured over the last 30 rolling days. Accounting Sync alone never makes a user active. Each user counts once even across several client companies.",
+    formula: "MAU = unique users with independent core work in [as-of − 30d, as-of)",
   },
   stickiness: {
     title: "Stickiness",
     explanation:
-      "Share of monthly core-active users who also did qualifying core work within the last 7 days. WAU and MAU use the same reporting timestamp and eligibility rules.",
+      "Percentage of 30-day independent core-active users who also performed independent core accounting work in the last 7 days. WAU is a subset of MAU; both use the same source cutoff and eligibility rules.",
     formula: "Stickiness = WAU ÷ MAU × 100",
   },
 };
@@ -180,13 +180,13 @@ export default function OverviewKpiStrip({
             <h3>Reporting window</h3>
             <p>
               {current && snapshot
-                ? "Snapshot as of " +
+                ? "Source-aligned counts through " +
                   new Date(snapshot.asOf).toLocaleString("en-GB", {
                     timeZone: "Asia/Kolkata",
                     dateStyle: "medium",
                     timeStyle: "short",
                   }) +
-                  " IST."
+                  " IST. Period comparisons use the immediately preceding non-overlapping 7- or 30-day window."
                 : "The selected historical reporting date has no published KPI generation. No prototype numbers are substituted."}
             </p>
             {current && snapshot && selected !== "stickiness" ? (
@@ -209,7 +209,7 @@ export default function OverviewKpiStrip({
           {snapshot
             ? "Supabase overview snapshot #" +
               snapshot.snapshotId +
-              " · Source watermark " +
+              " · Only events ingested by " +
               new Date(snapshot.sourceWatermarkAt).toLocaleString("en-GB", {
                 timeZone: "Asia/Kolkata",
                 dateStyle: "medium",
