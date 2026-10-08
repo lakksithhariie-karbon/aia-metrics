@@ -142,3 +142,143 @@
  .po-workflow-expanded .po-workflow-mix-row{flex-basis:30px}
  .po-workflow-data.is-expanded{height:min(50vh,450px)}
 }
+
+
+/* The module-combination view is a shared-scale comparison dot plot.
+   Visualize the change between periods instead of seven proportional bars.
+   The enclosing .po-report card keeps its original sizing unchanged. */
+.po-mix-dumbbell{min-width:0}
+.po-mix-dumbbell-legend{
+ display:flex;align-items:center;gap:12px;min-height:18px;margin:0 0 2px;
+ color:#778aa6;font-size:9px;line-height:14px;
+}
+.po-mix-dumbbell-legend>span{
+ display:inline-flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.po-mix-dumbbell-legend i{
+ width:9px;height:9px;display:inline-block;border-radius:50%;flex:0 0 auto;
+}
+.po-mix-current-dot{background:#315de5}
+.po-mix-prior-dot{background:#fff;border:2px solid #9daec8}
+.po-mix-dumbbell-legend small{
+ margin-left:auto;text-align:right;font-size:8px;color:#9aa7b9;
+}
+.po-mix-dumbbell-head,.po-mix-dumbbell-row{
+ display:grid;
+ grid-template-columns:minmax(105px,124px) minmax(80px,1fr) 49px 43px;
+ column-gap:10px;align-items:center;
+}
+.po-mix-dumbbell-head{
+ min-height:22px;color:#929fb1;font-size:9px;line-height:14px;
+}
+.po-mix-dumbbell-head>span:nth-child(n+3){text-align:right}
+.po-mix-dumbbell-ticks{height:18px;display:block;position:relative}
+.po-mix-dumbbell-ticks>span{
+ position:absolute;top:1px;transform:translateX(-50%);font-size:8px;
+ color:#a1adbe;white-space:nowrap;
+}
+.po-mix-dumbbell-rows{display:grid;grid-template-columns:minmax(0,1fr)}
+.po-mix-dumbbell-row{
+ position:relative;min-height:29px;min-width:0;width:100%;
+ padding:3px 1px;
+ text-align:left;border:0;border-bottom:1px solid #f0f3f8;
+ border-radius:3px;background:transparent;cursor:pointer;
+ color:#586e89;font:inherit;
+}
+.po-mix-dumbbell-row:last-child{border-bottom:0}
+.po-mix-dumbbell-row:hover,
+.po-mix-dumbbell-row:focus-visible{background:#f6f9ff}
+.po-mix-dumbbell-row:focus-visible{outline:2px solid #8ba5e8;outline-offset:0}
+.po-mix-dumbbell-name{
+ font-size:9.7px;line-height:13px;font-weight:550;
+ white-space:normal;min-width:0;
+}
+.po-mix-dumbbell-plot{
+ height:20px;display:block;position:relative;
+ background-image:linear-gradient(to right,#eaf0f7 1px,transparent 1px);
+ background-size:25% 100%;background-position:left center;
+ border-right:1px solid #eaf0f7;
+}
+.po-mix-dumbbell-connector,.po-mix-dumbbell-prior,.po-mix-dumbbell-current{
+ position:absolute;top:50%;transform:translateY(-50%);pointer-events:none;
+}
+.po-mix-dumbbell-connector{
+ height:3px;background:#9eb5e5;min-width:1px;
+ border-radius:5px;opacity:.82;
+}
+.po-mix-dumbbell-prior{
+ width:12px;height:12px;border:2px solid #aab8ce;
+ background:#fff;border-radius:50%;
+ transform:translate(-50%,-50%);z-index:2;
+}
+.po-mix-dumbbell-current{
+ width:9px;height:9px;border:2px solid #fff;
+ background:#315de5;border-radius:50%;
+ box-shadow:0 0 0 1px #315de5;
+ transform:translate(-50%,-50%);z-index:3;
+}
+.po-mix-dumbbell-row:hover .po-mix-dumbbell-current,
+.po-mix-dumbbell-row:focus-visible .po-mix-dumbbell-current{
+ box-shadow:0 0 0 3px #dce7ff,0 0 0 4px #315de5;
+}
+.po-mix-dumbbell-value{
+ color:#385784;font-size:10px;line-height:14px;font-weight:650;
+ text-align:right;font-variant-numeric:tabular-nums;
+}
+.po-mix-dumbbell-delta{
+ text-align:right;font-size:9.4px;line-height:14px;
+ color:#7c8ba1;font-weight:600;font-variant-numeric:tabular-nums;
+}
+.po-mix-dumbbell-row.is-up .po-mix-dumbbell-delta{color:#568d79}
+.po-mix-dumbbell-row.is-down .po-mix-dumbbell-delta{color:#a9716b}
+.po-mix-dumbbell-tooltip{
+ display:none;position:absolute;
+ left:36%;bottom:calc(100% + 2px);z-index:12;
+ width:228px;max-width:calc(100% - 18px);
+ flex-direction:column;gap:5px;
+ padding:10px 12px;background:#fff;border:1px solid #dce5f1;
+ border-radius:6px;box-shadow:0 7px 20px #273e641e;
+ color:#708098;font-size:9px;line-height:13px;pointer-events:none;
+ white-space:normal;
+}
+.po-mix-dumbbell-tooltip>strong{
+ display:block;padding-bottom:5px;margin-bottom:2px;
+ border-bottom:1px solid #e6ebf2;color:#405675;
+ font-size:10px;font-weight:650;
+}
+.po-mix-dumbbell-tooltip>span{
+ display:flex;justify-content:space-between;gap:10px;align-items:center;
+}
+.po-mix-dumbbell-tooltip b{
+ color:#4e6381;font-weight:600;white-space:nowrap;
+}
+.po-mix-dumbbell-row:hover .po-mix-dumbbell-tooltip,
+.po-mix-dumbbell-row:focus-visible .po-mix-dumbbell-tooltip{display:flex}
+.po-workflow-expanded .po-mix-dumbbell{
+ display:flex;flex-direction:column;flex:1;min-height:0;
+}
+.po-workflow-expanded .po-mix-dumbbell-rows{
+ display:flex;flex-direction:column;flex:1;justify-content:space-evenly;
+}
+.po-workflow-expanded .po-mix-dumbbell-row{min-height:42px}
+.po-workflow-expanded .po-mix-dumbbell-name{font-size:11px;line-height:16px}
+.po-workflow-expanded .po-mix-dumbbell-plot{height:27px}
+.po-workflow-expanded .po-mix-dumbbell-value{font-size:11px}
+@media(max-width:1100px){
+ .po-mix-dumbbell-head,.po-mix-dumbbell-row{
+  grid-template-columns:minmax(95px,108px) minmax(55px,1fr) 45px 43px;
+  column-gap:8px;
+ }
+}
+@media(max-width:600px){
+ .po-mix-dumbbell-head,.po-mix-dumbbell-row{
+  grid-template-columns:minmax(79px,91px) minmax(50px,1fr) 40px 37px;
+  column-gap:6px;
+ }
+ .po-mix-dumbbell-name{font-size:9px;line-height:13px}
+ .po-mix-dumbbell-legend{gap:9px;font-size:8px;flex-wrap:wrap}
+ .po-mix-dumbbell-legend small{display:none}
+ .po-mix-dumbbell-value{font-size:9px}
+ .po-mix-dumbbell-delta{font-size:8px}
+ .po-mix-dumbbell-tooltip{left:15%;width:195px}
+}
