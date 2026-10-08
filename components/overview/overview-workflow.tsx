@@ -203,10 +203,9 @@ function ModuleTrend({
 }
 
 function ModuleMix({
- data,ready,view,onView,onMask,expanded=false,
+ data,ready,onMask,expanded=false,
 }:{
  data:WorkflowSummary|null;ready:boolean;
- view:"chart"|"table";onView:()=>void;
  onMask:(mask:WorkflowMask,label:string,trigger:HTMLElement)=>void;
  expanded?:boolean;
 }){
@@ -215,12 +214,11 @@ function ModuleMix({
  const multiPct=percentage(mix.current_multi,mix.current_total);
  const previousPct=percentage(mix.previous_multi,mix.previous_total);
  const delta=multiPct-previousPct;
- const allRanked=COMBINATIONS.map(category=>({
+ const ranked=COMBINATIONS.map(category=>({
   ...category,item:mix.rows.find(row=>row.mask===category.mask)!,
- })).sort((a,b)=>b.item.current-a.item.current
+ })).filter(category=>category.item.current>0||category.item.previous>0)
+  .sort((a,b)=>b.item.current-a.item.current
     ||b.item.previous-a.item.previous);
- const ranked=allRanked.filter(category=>
-  category.item.current>0||category.item.previous>0);
  const maxShare=Math.max(0,...ranked.flatMap(c=>[
   percentage(c.item.current,mix.current_total),
   percentage(c.item.previous,mix.previous_total),
@@ -234,27 +232,6 @@ function ModuleMix({
    <span>use more than one module</span>
    <small>{delta>0?"+":""}{delta.toFixed(1)} pp vs previous 28 days</small>
   </div>
-  {view==="table"?
-   <div className="po-data-view po-workflow-mix-data">
-    <table className="po-data-table"><thead><tr>
-     <th>Combination</th><th>Companies</th>
-     <th>Current share</th><th>Previous share</th><th>Change</th>
-    </tr></thead><tbody>
-     {allRanked.map(category=>{
-      const item=category.item;
-      const now=percentage(item.current,mix.current_total);
-      const prior=percentage(item.previous,mix.previous_total);
-      return <tr key={category.mask}>
-       <td><button type="button" className="po-cell-link"
-        onClick={e=>onMask(category.mask,category.label,e.currentTarget)}>
-        {category.label}</button></td>
-       <td>{nf.format(item.current)}</td>
-       <td>{now.toFixed(1)}%</td><td>{prior.toFixed(1)}%</td>
-       <td>{now-prior>0?"+":""}{(now-prior).toFixed(1)} pp</td>
-      </tr>;
-     })}
-    </tbody></table>
-   </div>:
    <div className="po-mix-dumbbell" role="group"
     aria-label="Current versus previous share of core-active companies, by combination">
     <div className="po-mix-dumbbell-legend" aria-hidden="true">
@@ -309,7 +286,7 @@ function ModuleMix({
       </button>;
      })}
     </div>
-   </div>}
+   </div>
  </div>;
 }
 
@@ -363,14 +340,11 @@ function WorkflowExpanded({
          "Core-active companies · Last 28 days vs previous 28 days"}
        </p>
       </div>
-      {!isTrend?<button type="button" className="po-active-chart-view-toggle"
-       onClick={onView}>{view==="chart"?"View comparison table":"View chart"}</button>:null}
      </header>
      <div className="po-body">
       {isTrend?<ModuleTrend data={data} ready={ready} selected={selected}
        onSelect={onSelect} view={view} onView={onView} onPoint={onPoint} expanded/>
-       :<ModuleMix data={data} ready={ready} view={view} onView={onView}
-        onMask={onMask} expanded/>}
+       :<ModuleMix data={data} ready={ready} onMask={onMask} expanded/>}
      </div>
     </article>
    </div>
@@ -425,7 +399,6 @@ export default function OverviewWorkflow({
  const [asOfDate,setAsOfDate]=useState(usageSnapshot?.asOfDate??"");
  const [selected,setSelected]=useState<WorkflowModule[]>(["ap","ar","transactions"]);
  const [trendView,setTrendView]=useState<"chart"|"table">("chart");
- const [mixView,setMixView]=useState<"chart"|"table">("chart");
  const [expanded,setExpanded]=useState<ExpandedKind|null>(null);
  const [trendDrill,setTrendDrill]=useState<{
   week:string;module:WorkflowModule;count:number;
@@ -454,7 +427,6 @@ export default function OverviewWorkflow({
    :[...old,k]);
  }
  const toggleTrend=()=>setTrendView(v=>v==="chart"?"table":"chart");
- const toggleMix=()=>setMixView(v=>v==="chart"?"table":"chart");
  useEffect(()=>{
   const cap=document.getElementById("po-feature-caption");
   const mix=document.getElementById("po-mix-caption");
@@ -485,20 +457,13 @@ export default function OverviewWorkflow({
    expandOpener.current=e.currentTarget as HTMLButtonElement;setExpanded("mix");
   });
   listen('#po-feature-report [data-po-chart-view="feature"]',toggleTrend);
-  listen('#po-mix-report [data-po-chart-view="mix"]',toggleMix);
   listen('#po-mix-report [data-po-info="mix"]',()=>setShowInfo(true));
   return ()=>handlers.forEach(({el,fn})=>el.removeEventListener("click",fn,true));
  },[trendTarget,mixTarget]);
  useEffect(()=>{
   const a=document.querySelector<HTMLButtonElement>('#po-feature-report [data-po-chart-view="feature"]');
-  const b=document.querySelector<HTMLButtonElement>('#po-mix-report [data-po-chart-view="mix"]');
   if(a)a.textContent=trendView==="chart"?"View table":"View chart";
-  if(b)b.textContent=mixView==="chart"?"View comparison table":"View chart";
-  const mixFooterNote=document.querySelector<HTMLElement>(
-   '#po-mix-report .po-chart-footer > span'
-  );
-  if(mixFooterNote)mixFooterNote.hidden=mixView!=="table";
- },[trendView,mixView]);
+ },[trendView]);
  function point(v:{week:string;module:WorkflowModule;count:number},t:HTMLElement|SVGElement){
   if(!ready)return;
   opener.current=t;setTrendDrill(v);
@@ -520,12 +485,12 @@ export default function OverviewWorkflow({
    selected={selected} onSelect={changeSeries} view={trendView}
    onView={toggleTrend} onPoint={point}/>,trendTarget)}
   {createPortal(<ModuleMix data={summary} ready={ready}
-   view={mixView} onView={toggleMix} onMask={maskClick}/>,mixTarget)}
+   onMask={maskClick}/>,mixTarget)}
   {expanded&&typeof document!=="undefined"?
    createPortal(<WorkflowExpanded kind={expanded} data={summary} ready={ready}
     selected={selected} onSelect={changeSeries}
-    view={expanded==="feature"?trendView:mixView}
-    onView={expanded==="feature"?toggleTrend:toggleMix}
+    view={trendView}
+    onView={toggleTrend}
     onPoint={point} onMask={maskClick} onClose={closeExpanded}
     drillOpen={!!trendDrill||!!mixDrill}/>,document.body):null}
   {trendDrill&&summary&&typeof document!=="undefined"?
