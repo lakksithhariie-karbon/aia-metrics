@@ -57,7 +57,7 @@ export async function readPublishedOverviewActiveCharts(): Promise<OverviewActiv
   const frequency = obj(result?.frequency);
   const weeklyRows = weekly?.rows;
   const frequencyRows = frequency?.rows;
-  if (result?.contract !== "independent_core_active_charts_v1"
+  if (!result || !frequency || result.contract !== "independent_core_active_charts_v1"
     || !natural(result.snapshot_id)
     || typeof result.as_of !== "string" || Number.isNaN(Date.parse(result.as_of))
     || typeof result.source_watermark_at !== "string"
