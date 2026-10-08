@@ -485,7 +485,40 @@
  // Supporting definitions surface unresolved source questions instead of
  // silently inventing production definitions during a UI refactor.
  const definitions={
-  dates:{title:'Report windows',body:()=>`<section><h3>Global date range</h3><p>The selected range is <strong>${esc(rangeLabel(appliedRange))}</strong>. In this prototype, its end sets the reporting date: <strong>${cohortLabel(P.asof)}</strong>. Lifetime uses the current published KPI snapshot. Active Usage and Adoption & Value now use live snapshot-aligned data; only the remaining workflow and friction reports are illustrative.</p><p>WAU always covers the last 7 days ending on that date. MAU always covers the last 30 days. Their previous-period comparisons use the preceding, non-overlapping 7 or 30 days. The start of a month filter does not shorten these rolling windows.</p></section><section><h3>Charts and cohorts</h3><p>Weekly charts show up to 12 completed Monday–Sunday weeks inside the selected range. Frequency always uses the last 4 completed weeks. A current, incomplete week is not plotted as zero.</p><p>Adoption and the integration journey select integration dates and require a full 28-day observation through the reporting date. They remain separate source cohorts.</p><p>Historical module-mix and friction values were not supplied. Those panels display an honest unavailable state outside the reference snapshot, rather than made-up values.</p></section>`},
+  dates:{title:'Report windows',body:()=>`<section>
+<h3>Published reporting date</h3>
+<p>The selected date range is <strong>${esc(rangeLabel(appliedRange))}</strong>.
+Live Overview metrics use the published Supabase snapshot and its ingestion watermark.
+If a historical reporting date has no published generation, the widgets show an
+unavailable state rather than prototype numbers.</p>
+<h3>Rolling usage</h3>
+<p>WAU is distinct users doing independent core accounting work in the last
+7 rolling days. MAU uses 30 rolling days, and Stickiness is WAU divided by MAU.
+Period comparisons use the immediately preceding non-overlapping 7 or 30 days.</p>
+<h3>Completed weeks</h3>
+<p>Weekly core-active users and module usage each show 12 completed Monday–Sunday
+weeks in Asia/Kolkata. Core usage frequency counts which of the last four completed
+weeks each person worked in. The incomplete current week is excluded.
+First observed means first recorded qualifying work, not signup. Tracking was
+incomplete during May–July 2026.</p></section>
+<section>
+<h3>Adoption and integration</h3>
+<p>The three adoption outcomes and integration journey use the same mature
+integration-company cohort with a full 28-day observation window.
+Seven-day adoption requires independent core work in the first 7 days.
+Value conversion requires a training sync, work on a later IST calendar day,
+and a confirming sync within 28 days. Sustained adoption requires work in
+at least two of the first four integration-relative weeks. These outcome
+cards are not assumed to be consecutive funnel stages.</p>
+<h3>Workflow and issues</h3>
+<p>Module combinations classify distinct core-active companies during the last
+rolling 28 days, versus the preceding 28 days. Every company belongs to one
+combination per period. Issues that need attention use these adjacent periods,
+and each issue has its own eligible-company denominator. A later success in the
+same company and workflow is only a follow-up signal, not verified repair.</p>
+<p>Independent core activity excludes Accounting Sync because it does not
+distinguish human from automatic execution, as well as failed actions, internal
+staff and non-client companies.</p></section>`},
   frequency:{title:'Core usage frequency',body:()=>`<h3>How consistently do users return to core work?</h3><p>Count distinct users who performed independent qualifying core accounting work in each of the four most recent completed Monday–Sunday weeks (Asia/Kolkata). Every user belongs in exactly one bucket: active in one, two, three or four of the weeks. The denominator is all users with work in those four completed weeks.</p><div class="po-notice">Automatic or unclassified Accounting Sync events are excluded, as are failed events, internal users and non-client companies. Frequency and rolling 7-day WAU do not use identical windows, so their totals need not match.</div>`},
     adoption:{title:'Adoption outcomes',body:()=>`<h3>Three outcomes, not an assumed funnel</h3><p>The supplied reference has 360 fully observed eligible companies: 232 performed core work within 7 days, 82 reached a qualifying sync within 28 days, and 61 were active in at least 2 of the first 4 weeks.</p><p>These are presented as separate outcomes. A company must not be forced into a sequential funnel without confirming the event and eligibility rules.</p><div class="po-notice">The integration journey starts with 386 companies, not 360. This prototype preserves those distinct populations. Confirm the exclusion rules before wiring production data.</div><p>The adoption outcomes are separate from the three live core-active user KPIs. Filtered cohort values are illustrative and derived from local dated fixtures.</p>`},
   journey:{title:'Integration journey',body:()=>`<h3>One aligned stage table</h3><p>The reference shows 386 successful integrations, 251 companies starting accounting work, and 203 reaching accounting sync, for integrations from 8 June to 6 September 2026.</p><p>Each stage shows its share of the initial cohort and conversion from the immediately prior stage. At the snapshot, these are 65.0% for starting work and 80.9% for progressing from work to sync.</p><div class="po-notice">The previous design showed a 28.6% next-step conversion on the final visible stage. No next stage was supplied, so that unexplained number is not carried into this presentation.</div><p>Stage membership, order and the mature-cohort rule still need verification against production queries. AP, AR and transaction branches overlap; they are not sequential funnel steps.</p>`},
