@@ -352,44 +352,6 @@ function WorkflowExpanded({
  </div>;
 }
 
-function WorkflowInfo({onClose}:{onClose:()=>void}){
- useEffect(()=>{
-  const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();onClose()}};
-  window.addEventListener("keydown",onKey);
-  return ()=>window.removeEventListener("keydown",onKey);
- },[onClose]);
- return <div className="rd-overlay" role="presentation">
-  <section className="rd-modal rd-activation-modal po-workflow-info-dialog"
-   role="dialog" aria-modal="true" aria-labelledby="workflow-def-title">
-   <header className="rd-modal-head"><div>
-    <p>Product Overview · Workflow Usage</p>
-    <h2 id="workflow-def-title">Module combinations</h2>
-    <span>Share of distinct core-active companies in a rolling 28-day window</span>
-   </div>
-    <button type="button" className="rd-close" aria-label="Close definitions"
-     onClick={onClose}><svg className="rd-icon"><use href="#i-close"/></svg></button>
-   </header>
-   <div className="po-workflow-info-body">
-    <h3>Eligible companies</h3>
-    <p>Distinct client companies with at least one qualifying independent core
-     accounting action during the rolling 28-day window.</p>
-    <h3>How combinations work</h3>
-    <p>AP includes bills and vendor correction, AR includes invoices, and
-     Transactions includes statement upload and transaction editing.
-     A company belongs to exactly one exclusive combination based on which
-     modules it used in that period. Activity can span multiple users.</p>
-    <h3>Previous comparison</h3>
-    <p>The previous 28 days immediately precede the current 28 days. Rates use
-     each period's active-company population, not all client companies.
-     Change is measured in percentage points.</p>
-    <p>Failed events, internal users, non-client companies, and automated or
-     unclassified Accounting Sync events are excluded. Each drill is pinned
-     to the published source snapshot.</p>
-   </div>
-  </section>
- </div>;
-}
-
 export default function OverviewWorkflow({
  summary,usageSnapshot,trendTarget,mixTarget,
 }:{
@@ -406,7 +368,6 @@ export default function OverviewWorkflow({
  const [mixDrill,setMixDrill]=useState<{
   mask:WorkflowMask;label:string;
  }|null>(null);
- const [showInfo,setShowInfo]=useState(false);
  const opener=useRef<HTMLElement|SVGElement|null>(null);
  const expandOpener=useRef<HTMLButtonElement|null>(null);
  useEffect(()=>{
@@ -457,7 +418,6 @@ export default function OverviewWorkflow({
    expandOpener.current=e.currentTarget as HTMLButtonElement;setExpanded("mix");
   });
   listen('#po-feature-report [data-po-chart-view="feature"]',toggleTrend);
-  listen('#po-mix-report [data-po-info="mix"]',()=>setShowInfo(true));
   return ()=>handlers.forEach(({el,fn})=>el.removeEventListener("click",fn,true));
  },[trendTarget,mixTarget]);
  useEffect(()=>{
@@ -500,7 +460,5 @@ export default function OverviewWorkflow({
   {mixDrill&&summary&&typeof document!=="undefined"?
    createPortal(<WorkflowMixCompaniesModal key={mixDrill.mask} summary={summary}
     mask={mixDrill.mask} label={mixDrill.label} onClose={closeDrill}/>,document.body):null}
-  {showInfo&&typeof document!=="undefined"?
-   createPortal(<WorkflowInfo onClose={()=>setShowInfo(false)}/>,document.body):null}
  </>;
 }
