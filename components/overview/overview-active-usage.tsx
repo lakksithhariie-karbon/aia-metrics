@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type { OverviewUsageSnapshot } from "../../lib/overview/kpis";
 import type { OverviewActiveCharts, ActiveWeeklyRow } from "../../lib/overview/active-charts";
@@ -21,7 +21,7 @@ function labelDate(value: string) {
     timeZone:"UTC",day:"numeric",month:"short",year:"numeric",
   }).format(new Date(value+"T12:00:00Z"));
 }
-function useChartWidth(ref: React.RefObject<HTMLDivElement | null>) {
+function useChartWidth(ref: RefObject<HTMLDivElement | null>) {
   const [width,setWidth] = useState(560);
   useEffect(()=>{
     const element=ref.current;
@@ -47,7 +47,7 @@ function WeeklyChart({
 }: {
   chart: OverviewActiveCharts|null;
   ready: boolean;
-  onDrill: (target:ChartDrillTarget,button:HTMLElement)=>void;
+  onDrill: (target:ChartDrillTarget,button:HTMLElement|SVGElement)=>void;
 }) {
   const [view,setView]=useState<"chart"|"table">("chart");
   const [hover,setHover]=useState<string|null>(null);
@@ -61,7 +61,7 @@ function WeeklyChart({
   const step=plotW/rows.length;
   const bw=Math.max(7,Math.min(29,step*0.6));
   const last=rows[rows.length-1];
-  function open(row:ActiveWeeklyRow,button:HTMLElement){
+  function open(row:ActiveWeeklyRow,button:HTMLElement|SVGElement){
     onDrill({
       kind:"weekly",key:row.week_start,label:weekLabel(row.week_start)+"–"+weekEnd(row.week_start),
       windowLabel:labelDate(row.week_start)+" to "+weekEnd(row.week_start),
@@ -165,7 +165,7 @@ function FrequencyChart({
 }: {
   chart: OverviewActiveCharts|null;
   ready:boolean;
-  onDrill:(target:ChartDrillTarget,button:HTMLElement)=>void;
+  onDrill:(target:ChartDrillTarget,button:HTMLElement|SVGElement)=>void;
 }) {
   if(!ready||!chart) return <Unavailable reason="No matching published snapshot for the selected reporting date."/>;
   const data=chart.frequency;
@@ -209,7 +209,7 @@ export default function OverviewActiveUsage({
 }) {
   const [asOfDate,setAsOfDate]=useState(snapshot?.asOfDate??"");
   const [drill,setDrill]=useState<ChartDrillTarget|null>(null);
-  const opener=useRef<HTMLElement|null>(null);
+  const opener=useRef<HTMLElement|SVGElement|null>(null);
   useEffect(()=>{
     const onDate=(event:Event)=>{
       const value=(event as CustomEvent<{asOf:string}>).detail?.asOf;
@@ -235,7 +235,7 @@ export default function OverviewActiveUsage({
         " · "+nf.format(charts.frequency.total_users)+" users"
       : "Live data unavailable for this reporting date";
   },[ready,charts]);
-  function open(target:ChartDrillTarget,button:HTMLElement){
+  function open(target:ChartDrillTarget,button:HTMLElement|SVGElement){
     if(!ready)return;
     opener.current=button;
     setDrill(target);
