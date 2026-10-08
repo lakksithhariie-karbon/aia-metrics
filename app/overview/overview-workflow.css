@@ -1,0 +1,92 @@
+/* Native Workflow Usage retains the approved Product Overview line / mix cards. */
+.po-native-workflow-chart,.po-native-module-mix{position:relative;min-width:0}
+.po-workflow-legend-button{display:inline-flex;align-items:center;gap:6px;font-size:10px;
+ color:#6e7e94;padding:2px 5px;border:0;background:transparent;border-radius:4px;cursor:pointer}
+.po-workflow-legend-button[aria-pressed="false"]{opacity:.4}
+.po-workflow-legend-button:hover,.po-workflow-legend-button:focus-visible{background:#eef3ff;color:#3659b4}
+.po-workflow-legend-button .po-dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+.po-workflow-line-svg{width:100%;display:block}
+.po-workflow-plot-point{cursor:pointer;outline:0}
+.po-workflow-halo{fill:transparent;stroke:transparent;stroke-width:0}
+.po-workflow-plot-point:hover .po-workflow-halo,
+.po-workflow-plot-point:focus-visible .po-workflow-halo{fill:#bfd0f338;stroke:#6684cb88;stroke-width:1}
+.po-workflow-data{height:235px;overflow:auto}
+.po-workflow-data.is-expanded{height:450px}
+.po-workflow-data .po-cell-link{font-size:10px;color:#365cc0}
+.po-workflow-data .po-cell-link:hover{text-decoration:underline}
+.po-native-module-mix{width:100%}
+.po-workflow-mix-row{background:transparent;width:100%;border:0;
+ text-align:left;font:inherit;cursor:pointer;min-height:27px}
+.po-workflow-mix-row:focus-visible{outline:2px solid #315de5;outline-offset:3px}
+.po-workflow-mix-row>span:first-child{text-align:left}
+.po-workflow-mix-row .po-bar-track{min-width:0}
+.po-workflow-mix-data{height:auto;max-height:340px;overflow:auto}
+.po-workflow-mix-data .po-cell-link{color:#365cc0;text-align:left}
+.po-workflow-mix-data .po-cell-link:hover{text-decoration:underline}
+.po-workflow-expanded .po-workflow-line-svg{height:450px}
+.po-workflow-expanded .po-native-module-mix{display:flex;flex-direction:column;flex:1;min-height:0}
+.po-workflow-expanded .po-mix-summary{flex:0 0 auto}
+.po-workflow-expanded .po-mix-header{flex:0 0 auto}
+.po-workflow-expanded .po-workflow-mix-row{flex:1 0 37px;min-height:37px}
+.po-workflow-expanded .po-workflow-mix-row .po-bar-track{height:10px}
+.po-workflow-expanded .po-workflow-mix-data{height:auto;max-height:560px}
+.po-workflow-expanded .po-body{display:flex;flex-direction:column}
+.po-workflow-list-modal{height:fit-content;max-height:calc(100dvh - 38px);min-height:0}
+.po-workflow-modal-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ margin:12px 20px 0;background:#fbfcfe;border:1px solid #e4e9f1;border-radius:7px;flex:0 0 auto}
+.po-workflow-modal-summary>div{padding:10px 14px;min-width:0}
+.po-workflow-modal-summary>div+div{border-left:1px solid #e6ebf2}
+.po-workflow-modal-summary span{font-size:9px;color:#8e9bad;display:block}
+.po-workflow-modal-summary strong{font-size:15px;font-weight:650;color:#455a76;
+ display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.po-workflow-drill-toolbar{flex-wrap:wrap}
+.po-workflow-static-tab{padding:6px 11px;background:#eef3ff;border:1px solid #d5e0fb;
+ border-radius:5px;color:#3659b4;font-size:10px}
+.po-workflow-table-wrap{flex:0 1 auto;min-height:0;overflow:auto}
+.po-workflow-user-table{min-width:850px;table-layout:fixed}
+.po-workflow-user-table th:first-child{width:38px}
+.po-workflow-user-table th:nth-child(2){width:325px}
+.po-workflow-user-table th:nth-child(3){width:80px}
+.po-workflow-user-table th:nth-child(4){width:105px}
+.po-workflow-user-table th:nth-child(5){width:86px}
+.po-workflow-user-table th:nth-child(6){width:188px}
+.po-workflow-user-table td:nth-child(3),.po-workflow-user-table td:nth-child(4),
+.po-workflow-user-table td:nth-child(5){text-align:center}
+.po-workflow-user-table td:nth-child(6){text-align:left}
+.po-workflow-nested-link{max-width:300px;display:block;text-align:left;color:#48659a;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10px;font-weight:600}
+.po-workflow-nested-link:hover{color:#3156b8}
+.po-workflow-nested-link small{display:block;font-size:8px;color:#96a4b7;font-weight:400;margin-top:3px}
+.po-workflow-nested td{background:#fbfcff}
+.po-workflow-mix-table{min-width:1040px;table-layout:fixed}
+.po-workflow-mix-table th:first-child{width:38px}
+.po-workflow-mix-table th:nth-child(2){width:256px}
+.po-workflow-mix-table th:nth-child(3){width:60px}
+.po-workflow-mix-table th:nth-child(4){width:88px}
+.po-workflow-mix-table th:nth-child(5){width:80px}
+.po-workflow-mix-table th:nth-child(n+6):not(:last-child){width:80px}
+.po-workflow-mix-table th:last-child{width:169px}
+.po-workflow-mix-table td:nth-child(n+3):not(:last-child){text-align:center}
+.po-workflow-mix-table td:last-child{text-align:left}
+.po-workflow-inline-note{display:block;color:#8f9cae;font-size:10px;padding:12px}
+.po-workflow-inline-users{display:flex;gap:8px;flex-direction:column;font-size:9.5px;
+ color:#7185a0;white-space:normal;padding:8px 4px}
+.po-workflow-inline-users>span:first-child{font-weight:650;color:#465f82}
+.po-workflow-inline-users strong{font-weight:600;color:#465f82}
+.po-workflow-inline-users button{align-self:flex-start;font-size:9px;color:#3156b8}
+.po-workflow-inline-users button:hover{text-decoration:underline}
+.po-workflow-company-modal .rd-company-scroll{padding-bottom:20px}
+.po-workflow-info-dialog{height:auto;max-height:calc(100dvh - 48px);width:min(780px,calc(100vw - 48px))}
+.po-workflow-info-body{overflow:auto;padding:20px 24px 25px;color:#73839b;font-size:11px;line-height:19px}
+.po-workflow-info-body h3{color:#465c79;font-size:12px;margin:12px 0 5px}
+.po-workflow-info-body p{margin:0 0 13px}
+@media(max-width:760px){
+ .po-workflow-modal-summary{margin:10px 12px 0}
+ .po-workflow-modal-summary>div{padding:7px 9px}
+ .po-workflow-modal-summary strong{font-size:12px}
+ .po-workflow-drill-toolbar{padding:10px 12px}
+ .po-workflow-drill-toolbar .rd-search{margin-left:0;width:100%;max-width:none}
+ .po-workflow-table-wrap{margin:0 12px}
+ .po-workflow-expanded .po-workflow-mix-row{flex-basis:30px}
+ .po-workflow-data.is-expanded{height:min(50vh,450px)}
+}
