@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { OverviewUsageSnapshot } from "../../lib/overview/kpis";
+import { OverviewUsageModal, type OverviewMetric } from "./overview-usage-modals";
 
-type Metric = "wau" | "mau" | "stickiness";
+type Metric = OverviewMetric;
 const numbers = new Intl.NumberFormat("en-US");
 
 function change(current: number, previous: number): number | null {
@@ -42,6 +43,8 @@ export default function OverviewKpiStrip({
 }) {
   const [asOfDate, setAsOfDate] = useState(snapshot?.asOfDate ?? "");
   const [selected, setSelected] = useState<Metric>("wau");
+  const [activeDrill, setActiveDrill] = useState<Metric | null>(null);
+  const trigger = useRef<HTMLButtonElement | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -103,9 +106,17 @@ export default function OverviewKpiStrip({
     },
   ];
 
-  const open = (metric: Metric) => {
+  const openDefinition = (metric: Metric) => {
     setSelected(metric);
     dialog.current?.showModal();
+  };
+  const open = (metric: Metric) => {
+    if (current) setActiveDrill(metric);
+    else openDefinition(metric);
+  };
+  const closeDrill = () => {
+    setActiveDrill(null);
+    requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   };
 
   const selectedCard = cards.find(card => card.key === selected);
@@ -118,10 +129,10 @@ export default function OverviewKpiStrip({
           key={card.key}
           className="metric-card"
           type="button"
-          onClick={() => open(card.key)}
+          onClick={event => { trigger.current = event.currentTarget; open(card.key); }}
           aria-haspopup="dialog"
-          aria-controls="po-live-kpi-dialog"
-          aria-label={card.title + ": " + card.value + ". View calculation and source."}
+          aria-controls={current ? "po-usage-users-modal" : "po-live-kpi-dialog"}
+          aria-label={card.title + ": " + card.value + (current ? ". View active users." : ". View metric definition.")}
         >
           <span className="po-kpi-divider" aria-hidden="true" />
           <span className="metric-label">{card.title}</span>
@@ -148,6 +159,14 @@ export default function OverviewKpiStrip({
         </button>
       ))}
 
+      {activeDrill && current && snapshot ? (
+        <OverviewUsageModal
+          metric={activeDrill}
+          snapshot={snapshot}
+          onClose={closeDrill}
+          onDefinition={openDefinition}
+        />
+      ) : null}
       <dialog
         ref={dialog}
         id="po-live-kpi-dialog"
