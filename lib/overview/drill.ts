@@ -44,7 +44,7 @@ export interface OverviewDrillMember {
 }
 export interface OverviewDrillCompanyDetail {
   snapshot_id: number;
-  scope: "wau" | "mau";
+  scope: "wau" | "mau" | "weekly" | "frequency";
   as_of: string;
   source_watermark_at: string;
   focus_user_id: string;
@@ -146,6 +146,70 @@ export async function readOverviewCoreCompany(params: {
     {
       p_snapshot_id: params.snapshotId,
       p_scope: params.scope,
+      p_user_id: params.userId,
+      p_company_id: params.companyId,
+    },
+    params.signal,
+  );
+}
+
+
+export type OverviewChartKind = "weekly" | "frequency";
+export type OverviewChartSegment = "all" | "returning" | "first_observed";
+
+export interface OverviewChartUsersResponse
+  extends Omit<OverviewDrillUsersResponse, "segment"> {
+  contract: "independent_core_active_chart_users_v1";
+  kind: OverviewChartKind;
+  key: string;
+  segment: OverviewChartSegment;
+  window_start: string;
+  window_end: string;
+}
+
+export async function readOverviewActiveChartUsers(params: {
+  snapshotId: number;
+  kind: OverviewChartKind;
+  key: string;
+  segment: OverviewChartSegment;
+  query: string;
+  module: OverviewCoreModule;
+  page: number;
+  pageSize: number;
+  signal?: AbortSignal;
+}): Promise<OverviewChartUsersResponse | null> {
+  return rpc<OverviewChartUsersResponse>(
+    "read_overview_active_chart_users_v1",
+    {
+      p_snapshot_id: params.snapshotId,
+      p_kind: params.kind,
+      p_key: params.key,
+      p_segment: params.segment,
+      p_query: params.query,
+      p_module: params.module,
+      p_page: params.page,
+      p_page_size: params.pageSize,
+    },
+    params.signal,
+  );
+}
+
+export async function readOverviewActiveChartCompany(params: {
+  snapshotId: number;
+  kind: OverviewChartKind;
+  key: string;
+  segment: OverviewChartSegment;
+  userId: string;
+  companyId: string;
+  signal?: AbortSignal;
+}): Promise<OverviewDrillCompanyDetail | null> {
+  return rpc<OverviewDrillCompanyDetail>(
+    "read_overview_active_chart_company_v1",
+    {
+      p_snapshot_id: params.snapshotId,
+      p_kind: params.kind,
+      p_key: params.key,
+      p_segment: params.segment,
       p_user_id: params.userId,
       p_company_id: params.companyId,
     },
