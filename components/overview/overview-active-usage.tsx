@@ -43,10 +43,11 @@ function Unavailable({ reason }: { reason: string }) {
 }
 
 function WeeklyChart({
-  chart,ready,onDrill,
+  chart,ready,onDrill,expanded=false,
 }: {
   chart: OverviewActiveCharts|null;
   ready: boolean;
+  expanded?: boolean;
   onDrill: (target:ChartDrillTarget,button:HTMLElement|SVGElement)=>void;
 }) {
   const [view,setView]=useState<"chart"|"table">("chart");
@@ -55,7 +56,7 @@ function WeeklyChart({
   const width=useChartWidth(wrap);
   if(!ready||!chart) return <Unavailable reason="No matching published snapshot for the selected reporting date."/>;
   const rows=chart.weekly.rows;
-  const height=235,left=31,right=10,top=22,bottom=28;
+  const height=expanded?450:235,left=31,right=10,top=22,bottom=28;
   const plotW=width-left-right,plotH=height-top-bottom;
   const max=Math.max(50,Math.ceil(Math.max(...rows.map(x=>x.users))*1.08/50)*50);
   const step=plotW/rows.length;
@@ -153,10 +154,6 @@ function WeeklyChart({
         })()}
       </div>:null}
     </>}
-    <p className="po-active-chart-note">
-      <span>First observed = first recorded core-work week, not a signup.</span>
-      <span className="po-tracking-flag">* July tracking incomplete</span>
-    </p>
   </div>;
 }
 
@@ -199,6 +196,114 @@ function FrequencyChart({
   </div>;
 }
 
+
+type ExpandedReportKind = "weekly" | "frequency";
+
+/**
+ * The prototype's move-the-article expansion is incompatible with React portals.
+ * Render the same approved report inside a native React overlay instead.
+ * Existing user/company drill overlays (z-index 500/700) remain usable above it.
+ */
+function ExpandedActiveReport({
+  kind, chart, ready, onDrill, onClose, drillOpen,
+}: {
+  kind: ExpandedReportKind;
+  chart: OverviewActiveCharts|null;
+  ready: boolean;
+  onDrill: (target:ChartDrillTarget,button:HTMLElement|SVGElement)=>void;
+  onClose: ()=>void;
+  drillOpen: boolean;
+}) {
+  const closeButton=useRef<HTMLButtonElement>(null);
+  const panel=useRef<HTMLElement>(null);
+  const weekly=kind==="weekly";
+
+  useEffect(()=>{
+    const oldOverflow=document.body.style.overflow;
+    document.body.style.overflow="hidden";
+    closeButton.current?.focus({preventScroll:true});
+    return ()=>{document.body.style.overflow=oldOverflow};
+  },[]);
+
+  useEffect(()=>{
+    const onKey=(event:KeyboardEvent)=>{
+      if(drillOpen)return;
+      if(event.key==="Escape"){
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        onClose();
+        return;
+      }
+      if(event.key!=="Tab")return;
+      const focusables=panel.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]),a[href],[tabindex="0"]'
+      );
+      if(!focusables?.length)return;
+      const first=focusables[0],last=focusables[focusables.length-1];
+      if(event.shiftKey&&document.activeElement===first){
+        event.preventDefault();last.focus();
+      }else if(!event.shiftKey&&document.activeElement===last){
+        event.preventDefault();first.focus();
+      }
+    };
+    window.addEventListener("keydown",onKey,true);
+    return ()=>window.removeEventListener("keydown",onKey,true);
+  },[drillOpen,onClose]);
+
+  const rows=chart?.weekly.rows;
+  const range=weekly
+    ? rows?.length
+      ? labelDate(rows[0].week_start)+" to "+weekEnd(rows[rows.length-1].week_start)
+      : "No completed weeks"
+    : chart
+      ? labelDate(chart.frequency.window_start)+" to "+
+        labelDate(new Date(Date.parse(chart.frequency.window_end+"T12:00:00Z")-
+          86_400_000).toISOString().slice(0,10))
+      : "No complete reporting window";
+
+  return <div className="po-native-expanded-overlay" role="presentation"
+    onMouseDown={event=>{
+      if(event.target===event.currentTarget)onClose();
+    }}>
+    <section ref={panel} className="po-report-expanded po-native-expanded-report"
+      role="dialog" aria-modal="true" aria-labelledby="po-native-expanded-title">
+      <div className="report-modal-chrome">
+        <span id="po-native-expanded-title">
+          {weekly?"Weekly core-active users":"Core usage frequency"} · Expanded view
+        </span>
+        <button ref={closeButton} type="button" className="close-button"
+          onClick={onClose} aria-label="Close expanded report">
+          <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
+        </button>
+      </div>
+      <div className="po-expanded-mount">
+        <article className="po-report">
+          <header className="po-report-head">
+            <div>
+              <h2>{weekly?"Weekly core-active users":"Core usage frequency"}</h2>
+              <p className="po-subtitle">
+                {weekly?"12 completed weeks · ":""}
+                {range}
+                {!weekly&&chart?" · "+nf.format(chart.frequency.total_users)+" users":""}
+              </p>
+            </div>
+          </header>
+          <div className="po-body">
+            {weekly
+              ? <WeeklyChart chart={chart} ready={ready} onDrill={onDrill} expanded/>
+              : <FrequencyChart chart={chart} ready={ready} onDrill={onDrill}/>}
+          </div>
+          {weekly?<footer className="po-chart-footer">
+            <span className="po-foot-label">
+              Distinct users per week, not activity count
+            </span>
+          </footer>:null}
+        </article>
+      </div>
+    </section>
+  </div>;
+}
+
 export default function OverviewActiveUsage({
   snapshot,charts,weeklyTarget,frequencyTarget,
 }: {
@@ -209,7 +314,9 @@ export default function OverviewActiveUsage({
 }) {
   const [asOfDate,setAsOfDate]=useState(snapshot?.asOfDate??"");
   const [drill,setDrill]=useState<ChartDrillTarget|null>(null);
+  const [expanded,setExpanded]=useState<ExpandedReportKind|null>(null);
   const opener=useRef<HTMLElement|SVGElement|null>(null);
+  const expandOpener=useRef<HTMLButtonElement|null>(null);
   useEffect(()=>{
     const onDate=(event:Event)=>{
       const value=(event as CustomEvent<{asOf:string}>).detail?.asOf;
@@ -218,6 +325,30 @@ export default function OverviewActiveUsage({
     window.addEventListener("aia:overview-asof",onDate);
     return ()=>window.removeEventListener("aia:overview-asof",onDate);
   },[]);
+
+  // Capture the existing header buttons before the legacy document click handler
+  // attempts to move a React-controlled report into the prototype dialog.
+  useEffect(()=>{
+    const defs: Array<{selector:string;kind:ExpandedReportKind}>= [
+      {selector:'#po-weekly-report [data-po-expand="po-weekly-report"]',kind:"weekly"},
+      {selector:'#po-frequency-report [data-po-expand="po-frequency-report"]',kind:"frequency"},
+    ];
+    const registrations: Array<{button:HTMLButtonElement;listener:(event:MouseEvent)=>void}>=[];
+    for(const def of defs){
+      const button=document.querySelector<HTMLButtonElement>(def.selector);
+      if(!button)continue;
+      const listener=(event:MouseEvent)=>{
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        expandOpener.current=button;
+        setExpanded(def.kind);
+      };
+      button.addEventListener("click",listener,true);
+      registrations.push({button,listener});
+    }
+    return ()=>registrations.forEach(({button,listener})=>
+      button.removeEventListener("click",listener,true));
+  },[weeklyTarget,frequencyTarget]);
   const ready=Boolean(snapshot&&charts
     && charts.snapshotId===snapshot.snapshotId
     && Date.parse(charts.asOf)===Date.parse(snapshot.asOf)
@@ -244,9 +375,18 @@ export default function OverviewActiveUsage({
     setDrill(null);
     requestAnimationFrame(()=>opener.current?.focus({preventScroll:true}));
   }
+  function closeExpanded(){
+    setExpanded(null);
+    requestAnimationFrame(()=>expandOpener.current?.focus({preventScroll:true}));
+  }
   return <>
     {createPortal(<WeeklyChart chart={charts} ready={ready} onDrill={open}/>,weeklyTarget)}
     {createPortal(<FrequencyChart chart={charts} ready={ready} onDrill={open}/>,frequencyTarget)}
+
+    {expanded&&typeof document!=="undefined"?createPortal(
+      <ExpandedActiveReport kind={expanded} chart={charts} ready={ready}
+        onDrill={open} onClose={closeExpanded} drillOpen={drill!==null}/>,
+      document.body):null}
     {drill&&snapshot&&typeof document!=="undefined"?
       createPortal(<OverviewActiveChartModal key={drill.kind+":"+drill.key}
         target={drill} snapshot={snapshot} onClose={close}/>,document.body):null}
