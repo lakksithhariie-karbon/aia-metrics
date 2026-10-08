@@ -49,7 +49,9 @@ function IssueInfo({onClose}:{onClose:()=>void}){
      require an explicit failed status. “Reverted to review” is the deliberate
      Transaction Status action “Revert to Needs Review”; it indicates rework,
      not a product error. A subsequent “Accounting Ready” event in the same
-     company counts as a later workflow success.</p>
+     company counts as a later workflow success. Invoice bulk edits are not
+     included because their success events are not recorded, so a reliable
+     incidence denominator cannot be calculated.</p>
     <h3>Reporting period and exclusions</h3>
     <p>Current and previous windows are adjacent 28-day periods, ending at the
      published Overview cutoff. Events ingested after the source watermark,
