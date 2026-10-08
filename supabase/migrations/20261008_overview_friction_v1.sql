@@ -106,15 +106,24 @@ grouped AS (
   max(e.event_time) last_event_at,
   count(DISTINCT e.distinct_id)::integer observed_users
  FROM ev e GROUP BY e.issue_key,e.period,e.company_id
+),
+follow AS (
+ SELECT g.issue_key,g.period,g.company_id,
+  min(e.event_time) AS followup_at
+ FROM grouped g
+ JOIN ev e ON e.issue_key=g.issue_key AND e.period=g.period
+   AND e.company_id=g.company_id AND e.is_success
+   AND g.last_failure_at IS NOT NULL AND e.event_time>g.last_failure_at
+ GROUP BY g.issue_key,g.period,g.company_id
 )
 SELECT g.issue_key,g.period,g.company_id,
  g.eligible_events,g.failed_events,g.success_events,
  g.first_failure_at,g.last_failure_at,
- (SELECT min(x.event_time) FROM ev x
-  WHERE x.issue_key=g.issue_key AND x.period=g.period AND x.company_id=g.company_id
-  AND x.is_success AND x.event_time>g.last_failure_at) AS followup_at,
+ f.followup_at,
  g.last_event_at,g.observed_users
-FROM grouped g;
+FROM grouped g
+LEFT JOIN follow f ON f.issue_key=g.issue_key AND f.period=g.period
+ AND f.company_id=g.company_id;
 $function$;
 REVOKE ALL ON FUNCTION public.overview_friction_company_facts_v1(bigint)
  FROM PUBLIC,anon,authenticated;
