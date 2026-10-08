@@ -1,3 +1,7 @@
+/** The published Overview snapshot anchors the event cutoff and source watermark.
+ * The actual counts are recomputed from independent accounting-work events.
+ * No KPI value falls back to the prototype fixture or sync-inclusive summary.
+ */
 export interface OverviewUsageSnapshot {
   snapshotId: number;
   asOf: string;
@@ -29,45 +33,40 @@ function usageCount(value: unknown): { current: number; previous: number } | nul
   return current === null || previous === null ? null : { current, previous };
 }
 
-/**
- * The canonical WAU/MAU contract is the current published Overview generation.
- * Never fall back to the legacy demo fixture if the publication is unavailable.
- */
 export async function readPublishedOverviewUsage(): Promise<OverviewUsageSnapshot | null> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
 
-  const response = await fetch(url + "/rest/v1/rpc/read_product_snapshot", {
-    method: "POST",
-    cache: "no-store",
-    headers: {
-      apikey: key,
-      Authorization: "Bearer " + key,
-      "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
+  const response = await fetch(
+    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v1",
+    {
+      method: "POST",
+      cache: "no-store",
+      signal: AbortSignal.timeout(25_000),
+      headers: {
+        apikey: key,
+        Authorization: "Bearer " + key,
+        "Content-Type": "application/json",
+        "Cache-Control": "no-cache",
+      },
+      body: "{}",
     },
-    body: JSON.stringify({ p_kind: "overview", p_scope_key: "" }),
-  });
+  );
   if (!response.ok) {
-    throw new Error("overview_kpis_snapshot_http_" + response.status);
+    throw new Error("overview_independent_core_http_" + response.status);
   }
 
-  const rows: unknown = await response.json();
-  if (!Array.isArray(rows) || rows.length !== 1) return null;
-
-  const row = object(rows[0]);
-  const payload = object(row?.payload);
-  const value = object(payload?.value);
-  const active = object(value?.active_users);
-  const wau = usageCount(active?.wau);
-  const mau = usageCount(active?.mau);
-  const asOf = active?.as_of;
-  const watermark = row?.source_watermark_at;
-  const snapshotId = count(row?.snapshot_id);
+  const data: unknown = await response.json();
+  const snapshot = object(data);
+  const wau = usageCount(snapshot?.wau);
+  const mau = usageCount(snapshot?.mau);
+  const asOf = snapshot?.as_of;
+  const watermark = snapshot?.source_watermark_at;
+  const snapshotId = count(snapshot?.snapshot_id);
 
   if (
-    row?.source_status !== "ok" ||
+    snapshot?.contract !== "independent_core_v1" ||
     !wau ||
     !mau ||
     wau.current > mau.current ||
