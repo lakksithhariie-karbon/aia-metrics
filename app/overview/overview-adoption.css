@@ -1,0 +1,177 @@
+/* Adoption & Value: native cards and funnel, using the approved dashboard design. */
+.po-adoption-kpis{margin:0 0 23px;gap:24px}
+.po-adoption-kpis .metric-card{grid-column:span 4;text-align:left}
+.po-adoption-kpis .metric-value{letter-spacing:-.9px}
+.po-adoption-kpis .po-change{color:#8997a9;font-weight:400}
+.po-journey-funnel-report{grid-column:span 12;min-height:575px}
+.po-journey-funnel-report .po-report-head{padding-bottom:15px}
+.po-journey-funnel-report .po-body{padding-bottom:20px;overflow-x:auto}
+.po-adoption-funnel{min-width:740px}
+.po-journey-table{width:100%;padding:0 0 18px}
+.po-journey-heading{
+ display:grid;
+ grid-template-columns:minmax(0,32%) minmax(0,1fr) 124px 144px;
+ gap:14px;align-items:start;
+ padding:0 0 15px;
+ color:#7b8798;font-size:10px;line-height:15px;font-weight:600
+}
+.po-journey-heading>span:first-child{padding-left:12px}
+.po-journey-heading>span:nth-child(2){text-align:right;padding-right:14px}
+.po-journey-heading>span:nth-child(n+3){text-align:center}
+.po-journey-row{
+ display:grid;grid-template-columns:minmax(0,1fr) 124px 144px;
+ align-items:stretch;gap:14px;
+ margin-bottom:10px;min-height:69px;
+}
+.po-journey-stage-button{
+ display:grid;grid-template-columns:32% minmax(0,1fr);
+ min-width:0;align-items:stretch;padding:0;
+ border:0;background:transparent;text-align:left;cursor:pointer;
+}
+.po-journey-stage-name{
+ display:flex;align-items:center;gap:9px;min-width:0;
+ padding:9px 13px;background:#f1f2f4;border-radius:4px 0 0 4px;
+ border-right:1px solid #e6e9ef;
+}
+.po-journey-stage-name strong{
+ font-size:12px;font-weight:600;color:#465267;
+ overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.po-journey-stage-name small{display:none}
+.po-journey-number{
+ display:grid;place-items:center;
+ min-width:19px;height:19px;border:1px solid #dfe5ec;
+ border-radius:4px;background:#fff;color:#8391a5;font-size:10px;font-weight:600;
+}
+.po-journey-bar-track{
+ position:relative;min-width:0;overflow:hidden;
+ display:block;background:#f0f1f4;border-radius:0 5px 5px 0;
+}
+.po-journey-bar-fill{
+ display:flex;justify-content:flex-end;align-items:center;
+ min-width:34px;height:100%;border-radius:5px;
+ transition:width .2s ease;box-shadow:inset -1px 0 #ffffff33
+}
+.po-journey-bar-fill strong{
+ padding:0 13px;font-size:14px;font-weight:650;color:#fff;
+ font-variant-numeric:tabular-nums;
+ text-shadow:0 1px 1px #00000019;
+}
+.po-journey-row-0 .po-journey-bar-fill{background:#fba284}
+.po-journey-row-1 .po-journey-bar-fill{background:#eb9c9b}
+.po-journey-row-2 .po-journey-bar-fill{background:#b88bdb}
+.po-journey-chevron{
+ clip-path:polygon(0 0,50% 14%,100% 0,100% 83%,50% 100%,0 83%);
+ min-height:55px;padding:10px 3px 15px;border:0;
+ background:#f2f3f5;color:#424d60;
+ text-align:center;font-size:14px;font-weight:700;cursor:pointer;
+ font-variant-numeric:tabular-nums;
+}
+.po-journey-stage-button:hover .po-journey-stage-name,
+.po-journey-stage-button:focus-visible .po-journey-stage-name{background:#eaf0fc}
+.po-journey-stage-button:hover .po-journey-bar-track,
+.po-journey-stage-button:focus-visible .po-journey-bar-track{box-shadow:inset 0 0 0 2px #5d78da44}
+.po-journey-chevron:hover,.po-journey-chevron:focus-visible{background:#e5ebff;color:#3156b8}
+.po-journey-stage-button:focus-visible{outline:2px solid #315de5;outline-offset:2px}
+.po-journey-module-panel{border-top:1px solid #e9edf3;padding:18px 4px 0}
+.po-journey-module-heading{display:flex;justify-content:space-between;align-items:start;gap:12px}
+.po-journey-module-heading h3{font-size:12px;font-weight:650;color:#455a77;margin:0}
+.po-journey-module-heading p{color:#94a0b1;font-size:9px;margin:4px 0 0}
+.po-journey-module-heading>span{font-size:9px;color:#96a3b4;white-space:nowrap}
+.po-journey-module-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.po-journey-module-tabs button{
+ min-width:0;padding:11px 13px;border:1px solid #e2e8f0;
+ border-radius:6px;background:#fff;color:#748499;
+ display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left
+}
+.po-journey-module-tabs button[aria-selected="true"]{
+ border-color:#b9c9f4;background:#f0f4ff;color:#3659b4;
+}
+.po-journey-module-tabs button:hover{border-color:#bac8e4}
+.po-journey-module-tabs strong{font-size:10px;font-weight:600;min-width:0}
+.po-journey-module-tabs span{font-size:13px;font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.po-journey-module-tabs small{font-size:9px;color:#93a0b3;font-weight:400}
+.po-journey-module-details{margin:10px 0 0;border:1px solid #e7ebf1;border-radius:6px;overflow:hidden}
+.po-journey-module-overview{
+ display:flex;justify-content:space-between;align-items:center;gap:10px;
+ min-height:36px;background:#fafbfe;padding:7px 13px;
+ border-bottom:1px solid #e7ebf1;
+ color:#7f8ea3;font-size:9.5px
+}
+.po-journey-module-overview strong{color:#536782}
+.po-journey-module-overview button{color:#3156b8;font-size:9.5px}
+.po-journey-module-overview button:hover{text-decoration:underline}
+.po-journey-module-step{
+ display:grid;grid-template-columns:minmax(190px,1.2fr) minmax(90px,2fr) 55px 75px;
+ align-items:center;gap:13px;width:100%;min-height:38px;padding:7px 13px;
+ color:#697c95;text-align:left;border-bottom:1px solid #edf0f4;
+ background:#fff;font-size:9.5px;cursor:pointer
+}
+.po-journey-module-step:last-child{border-bottom:0}
+.po-journey-module-step:hover,.po-journey-module-step:focus-visible{background:#f7faff}
+.po-journey-module-step strong{font-size:10px;text-align:right;color:#4b617e}
+.po-journey-module-step small{font-size:9px;text-align:right;color:#8798ab}
+.po-journey-mini-track{display:block;height:7px;background:#f0f3f8;border-radius:3px;overflow:hidden}
+.po-journey-mini-track i{display:block;height:100%;background:#6a8cdb;border-radius:3px}
+.po-adoption-unavailable{display:flex;flex-direction:column;align-items:center;justify-content:center;
+ min-height:240px;gap:7px;color:#929dad;font-size:10px}
+.po-adoption-unavailable strong{font-size:12px;color:#596b85}
+.po-adoption-expanded .po-journey-row{min-height:83px}
+.po-adoption-expanded .po-journey-heading{padding-top:10px}
+.po-adoption-expanded .po-journey-module-step{min-height:47px}
+.po-adoption-drill-modal{min-height:0;height:min(770px,calc(100dvh - 38px))}
+.po-adoption-drill-summary{
+ margin:12px 20px 0;background:#fbfcfe;border:1px solid #e4e9f1;
+ border-radius:7px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));flex:0 0 auto;
+}
+.po-adoption-drill-summary>div{padding:11px 16px}
+.po-adoption-drill-summary>div+div{border-left:1px solid #e6ebf2}
+.po-adoption-drill-summary span{font-size:9px;color:#8c98a9;display:block}
+.po-adoption-drill-summary strong{font-size:17px;color:#435875;display:block;margin-top:3px}
+.po-adoption-drill-toolbar{flex-wrap:wrap}
+.po-adoption-drill-toolbar .rd-status-tabs{flex-wrap:wrap}
+.po-adoption-table-wrap{flex:1 1 auto;min-height:0;overflow:auto}
+.po-adoption-table{min-width:950px}
+.po-adoption-table th:first-child{width:37px}
+.po-adoption-table th:nth-child(2){width:240px}
+.po-adoption-table th:nth-child(3){width:110px}
+.po-adoption-table th:nth-child(4){width:110px}
+.po-adoption-table th:nth-child(5){width:100px}
+.po-adoption-table th:nth-child(6){width:65px}
+.po-adoption-table th:nth-child(n+6){text-align:center}
+.po-adoption-table td:nth-child(n+6){text-align:center}
+.po-adoption-status{display:inline-flex;align-items:center;padding:4px 8px;border:1px solid #e0e7f2;
+ border-radius:999px;color:#738299;background:#f7f9fc;font-size:8px;white-space:nowrap}
+.po-adoption-status.is-value{color:#4362ad;border-color:#cddaf5;background:#f2f6ff}
+.po-adoption-status.is-started{color:#5c805f;border-color:#d8ebd7;background:#f5faf4}
+.po-adoption-status.is-stalled{color:#9b7b5d;border-color:#eee2d3;background:#fcf8f3}
+.po-adoption-more{color:#5270c4;font-size:9px}
+.po-adoption-more:hover{text-decoration:underline}
+.po-adoption-outcome-badges{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 14px}
+.po-adoption-outcome-badges span{border:1px solid #e0e6ed;border-radius:99px;
+ background:#fafbfd;padding:5px 8px;font-size:9px;color:#8996a6}
+.po-adoption-outcome-badges .is-met{color:#4f7862;background:#eef8f1;border-color:#d3e9db}
+.po-adoption-info-modal{height:auto;max-height:calc(100dvh - 48px);width:min(780px,calc(100vw - 48px))}
+.po-adoption-info-body{overflow:auto;padding:22px 25px;color:#73839b;font-size:11px;line-height:19px}
+.po-adoption-info-body h3{font-size:12px;color:#465c79;margin:10px 0 4px}
+.po-adoption-info-body p{margin:0 0 14px}
+@media(max-width:960px){
+ .po-journey-heading{grid-template-columns:32% minmax(0,1fr) 90px 110px;gap:8px}
+ .po-journey-row{grid-template-columns:minmax(0,1fr) 90px 110px;gap:8px}
+ .po-journey-stage-name{padding:8px;gap:5px}
+ .po-journey-chevron{font-size:11px}
+ .po-adoption-kpis{gap:15px}
+}
+@media(max-width:680px){
+ .po-adoption-kpis .metric-card{grid-column:span 12}
+ .po-adoption-kpis{gap:11px}
+ .po-journey-funnel-report .po-body{padding-left:14px;padding-right:14px}
+ .po-adoption-funnel{min-width:680px}
+ .po-journey-module-heading{flex-direction:column;gap:4px}
+ .po-journey-module-tabs button{padding:9px 7px;flex-direction:column;align-items:flex-start;gap:3px}
+ .po-journey-module-tabs strong{font-size:9px}
+ .po-adoption-drill-summary{margin:9px 12px 0}
+ .po-adoption-drill-summary>div{padding:8px}
+ .po-adoption-drill-toolbar{padding:10px 12px}
+ .po-adoption-table-wrap{margin:0 12px}
+}
