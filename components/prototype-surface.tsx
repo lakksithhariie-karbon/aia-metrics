@@ -7,26 +7,34 @@ import { prototypeMarkup } from "../lib/prototype/markup";
 import { installCustomerNavigation, withCustomerNavigation } from "../lib/prototype/customer-navigation";
 import type { OverviewUsageSnapshot } from "../lib/overview/kpis";
 import type { OverviewActiveCharts } from "../lib/overview/active-charts";
+import type { AdoptionSummary } from "../lib/overview/adoption";
 import OverviewKpiStrip from "./overview/overview-kpi-strip";
 import OverviewActiveUsage from "./overview/overview-active-usage";
+import OverviewAdoption from "./overview/overview-adoption";
 
 const markup = withCustomerNavigation(prototypeMarkup);
 
 /**
  * Compatibility boundary for the remaining approved prototype surfaces.
- * Native React owns the three KPIs plus two Active Usage chart interiors;
+ * Native React owns the KPIs, two Active Usage charts, and Adoption & Value;
  * the legacy runtime is not allowed to write into those DOM targets.
  */
 export function PrototypeSurface({
   overviewKpis,
   overviewCharts,
+  adoption,
 }: {
   overviewKpis: OverviewUsageSnapshot | null;
   overviewCharts: OverviewActiveCharts | null;
+  adoption: AdoptionSummary | null;
 }) {
   const [baseReady, setBaseReady] = useState(false);
   const [overviewReady, setOverviewReady] = useState(false);
   const [kpiTarget, setKpiTarget] = useState<HTMLElement | null>(null);
+  const [adoptionTargets, setAdoptionTargets] = useState<{
+    strip: HTMLElement;
+    funnel: HTMLElement;
+  } | null>(null);
   const [chartTargets, setChartTargets] = useState<{
     weekly: HTMLElement;
     frequency: HTMLElement;
@@ -57,6 +65,13 @@ export function PrototypeSurface({
     setChartTargets({ weekly, frequency });
   }, [overviewReady]);
 
+  useEffect(() => {
+    if (!overviewReady) return;
+    const strip = document.getElementById("po-adoption-kpis");
+    const funnel = document.getElementById("po-journey-live-content");
+    if (strip && funnel) setAdoptionTargets({ strip, funnel });
+  }, [overviewReady]);
+
   return (
     <>
       <div
@@ -74,6 +89,14 @@ export function PrototypeSurface({
           charts={overviewCharts}
           weeklyTarget={chartTargets.weekly}
           frequencyTarget={chartTargets.frequency}
+        />
+      ) : null}
+      {adoptionTargets ? (
+        <OverviewAdoption
+          summary={adoption}
+          usageSnapshot={overviewKpis}
+          stripTarget={adoptionTargets.strip}
+          funnelTarget={adoptionTargets.funnel}
         />
       ) : null}
       <Script
