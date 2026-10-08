@@ -227,7 +227,7 @@ function ExpandedActiveReport({
 
   useEffect(()=>{
     const onKey=(event:KeyboardEvent)=>{
-      if(drillOpen)return;
+      if(drillOpen || document.querySelector(".po-overview-info-dialog[open]"))return;
       if(event.key==="Escape"){
         event.preventDefault();
         event.stopImmediatePropagation();
@@ -271,10 +271,17 @@ function ExpandedActiveReport({
         <span id="po-native-expanded-title">
           {weekly?"Weekly core-active users":"Core usage frequency"} · Expanded view
         </span>
-        <button ref={closeButton} type="button" className="close-button"
-          onClick={onClose} aria-label="Close expanded report">
-          <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
-        </button>
+        <div className="po-expanded-head-actions">
+          <button type="button" className="icon-button"
+            data-po-help={weekly?"weekly":"frequency"}
+            aria-label="How this chart is counted" title="How it's counted">
+            <svg className="icon" aria-hidden="true"><use href="#i-info"/></svg>
+          </button>
+          <button ref={closeButton} type="button" className="close-button"
+            onClick={onClose} aria-label="Close expanded report">
+            <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
+          </button>
+        </div>
       </div>
       <div className="po-expanded-mount">
         <article className="po-report">
