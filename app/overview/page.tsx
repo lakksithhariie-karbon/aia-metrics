@@ -1,4 +1,6 @@
 import { PrototypeSurface } from "../../components/prototype-surface";
+import "../retention/retention.css";
+import "./overview-kpi-drill.css";
 import { readPublishedOverviewUsage } from "../../lib/overview/kpis";
 import type { OverviewUsageSnapshot } from "../../lib/overview/kpis";
 
