@@ -3,20 +3,24 @@ import "../retention/retention.css";
 import "./overview-kpi-drill.css";
 import "./overview-active-usage.css";
 import "./overview-adoption.css";
+import "./overview-workflow.css";
 import { readPublishedOverviewUsage } from "../../lib/overview/kpis";
 import { readPublishedOverviewActiveCharts } from "../../lib/overview/active-charts";
 import { readPublishedAdoptionSummary } from "../../lib/overview/adoption";
+import { readPublishedWorkflowSummary } from "../../lib/overview/workflow";
 import type { OverviewUsageSnapshot } from "../../lib/overview/kpis";
 import type { OverviewActiveCharts } from "../../lib/overview/active-charts";
 import type { AdoptionSummary } from "../../lib/overview/adoption";
+import type { WorkflowSummary } from "../../lib/overview/workflow";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverviewPage() {
-  const [kpiResult,chartResult,adoptionResult] = await Promise.allSettled([
+  const [kpiResult,chartResult,adoptionResult,workflowResult] = await Promise.allSettled([
     readPublishedOverviewUsage(),
     readPublishedOverviewActiveCharts(),
     readPublishedAdoptionSummary(),
+    readPublishedWorkflowSummary(),
   ]);
   if(kpiResult.status==="rejected") {
     console.error("overview-live-kpis",
@@ -30,11 +34,17 @@ export default async function OverviewPage() {
     console.error("overview-live-adoption",
       adoptionResult.reason instanceof Error ? adoptionResult.reason.message.slice(0,120) : "unknown_error");
   }
+  if(workflowResult.status==="rejected") {
+    console.error("overview-live-workflow",
+      workflowResult.reason instanceof Error ? workflowResult.reason.message.slice(0,120) : "unknown_error");
+  }
+  const workflow: WorkflowSummary|null =
+    workflowResult.status==="fulfilled" ? workflowResult.value : null;
   const adoption: AdoptionSummary|null =
     adoptionResult.status==="fulfilled" ? adoptionResult.value : null;
   const overviewKpis: OverviewUsageSnapshot|null =
     kpiResult.status==="fulfilled" ? kpiResult.value : null;
   const overviewCharts: OverviewActiveCharts|null =
     chartResult.status==="fulfilled" ? chartResult.value : null;
-  return <PrototypeSurface overviewKpis={overviewKpis} overviewCharts={overviewCharts} adoption={adoption}/>;
+  return <PrototypeSurface overviewKpis={overviewKpis} overviewCharts={overviewCharts} adoption={adoption} workflow={workflow}/>;
 }
