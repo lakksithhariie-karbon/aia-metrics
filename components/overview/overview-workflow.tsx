@@ -309,7 +309,8 @@ function WorkflowExpanded({
  },[]);
  useEffect(()=>{
   const escape=(e:KeyboardEvent)=>{
-   if(e.key==="Escape"&&!drillOpen){
+   if(e.key==="Escape"&&!drillOpen&&
+      !document.querySelector(".po-overview-info-dialog[open]")){
     e.preventDefault();e.stopImmediatePropagation();onClose();
    }
   };
@@ -325,10 +326,18 @@ function WorkflowExpanded({
     <span id="po-workflow-expanded-title">
      {isTrend?"Module usage over time":"Module combinations"} · Expanded view
     </span>
-    <button ref={close} type="button" className="close-button" onClick={onClose}
-     aria-label="Close expanded workflow report">
-     <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
-    </button>
+    <div className="po-expanded-head-actions">
+     <button type="button" className="icon-button"
+      data-po-help={isTrend?"feature":"mix"}
+      aria-label="How this workflow chart is counted"
+      title="How it's counted">
+      <svg className="icon" aria-hidden="true"><use href="#i-info"/></svg>
+     </button>
+     <button ref={close} type="button" className="close-button" onClick={onClose}
+      aria-label="Close expanded workflow report">
+      <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
+     </button>
+    </div>
    </div>
    <div className="po-expanded-mount">
     <article className="po-report">
