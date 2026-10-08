@@ -282,3 +282,44 @@
  .po-mix-dumbbell-delta{font-size:8px}
  .po-mix-dumbbell-tooltip{left:15%;width:195px}
 }
+
+
+/* Fill the existing Module Combinations card, not the card dimensions.
+   The neighboring Module Usage chart still controls the shared grid row.
+   Stretch only the chart internals into the height already available. */
+#po-mix-report > .po-body{
+ display:flex;
+ flex-direction:column;
+ padding-bottom:12px;
+}
+#po-mix-content{
+ display:flex;
+ flex-direction:column;
+ flex:1 1 auto;
+ min-height:0;
+}
+#po-mix-report .po-native-module-mix{
+ display:flex;
+ flex-direction:column;
+ flex:1 1 auto;
+ min-height:0;
+}
+#po-mix-report .po-mix-dumbbell{
+ display:flex;
+ flex-direction:column;
+ flex:1 1 auto;
+ min-height:0;
+}
+#po-mix-report .po-mix-dumbbell-rows{
+ display:grid;
+ flex:1 1 auto;
+ grid-auto-rows:minmax(29px,1fr);
+ align-content:stretch;
+}
+#po-mix-report .po-mix-dumbbell-row{
+ height:100%;
+ min-height:29px;
+}
+#po-mix-report .po-mix-dumbbell-plot{height:25px}
+#po-mix-report .po-mix-dumbbell-current{width:11px;height:11px}
+#po-mix-report .po-mix-dumbbell-prior{width:14px;height:14px}
