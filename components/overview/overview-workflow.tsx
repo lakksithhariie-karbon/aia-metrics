@@ -215,11 +215,12 @@ function ModuleMix({
  const multiPct=percentage(mix.current_multi,mix.current_total);
  const previousPct=percentage(mix.previous_multi,mix.previous_total);
  const delta=multiPct-previousPct;
- const ranked=COMBINATIONS.map(category=>({
+ const allRanked=COMBINATIONS.map(category=>({
   ...category,item:mix.rows.find(row=>row.mask===category.mask)!,
- })).filter(category=>category.item.current>0||category.item.previous>0)
-  .sort((a,b)=>b.item.current-a.item.current
+ })).sort((a,b)=>b.item.current-a.item.current
     ||b.item.previous-a.item.previous);
+ const ranked=allRanked.filter(category=>
+  category.item.current>0||category.item.previous>0);
  const maxShare=Math.max(0,...ranked.flatMap(c=>[
   percentage(c.item.current,mix.current_total),
   percentage(c.item.previous,mix.previous_total),
@@ -239,7 +240,7 @@ function ModuleMix({
      <th>Combination</th><th>Companies</th>
      <th>Current share</th><th>Previous share</th><th>Change</th>
     </tr></thead><tbody>
-     {ranked.map(category=>{
+     {allRanked.map(category=>{
       const item=category.item;
       const now=percentage(item.current,mix.current_total);
       const prior=percentage(item.previous,mix.previous_total);
