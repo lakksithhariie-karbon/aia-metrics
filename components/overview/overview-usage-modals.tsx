@@ -9,6 +9,7 @@ import type {
   OverviewDrillSegment,
   OverviewDrillUserRow,
   OverviewDrillUsersResponse,
+  type OverviewChartSegment,
 } from "../../lib/overview/drill";
 
 export type OverviewMetric = "wau" | "mau" | "stickiness";
@@ -413,10 +414,19 @@ export function OverviewUsageModal({
   );
 }
 
-function OverviewCompanyDetailModal({
+export type OverviewCompanyFocus = {
+  userId: string;
+  companyId: string;
+  companyName: string;
+} & (
+  { scope: "wau" | "mau"; chartKey?: never; chartSegment?: never } |
+  { scope: "weekly" | "frequency"; chartKey: string; chartSegment: OverviewChartSegment }
+);
+
+export function OverviewCompanyDetailModal({
   focus, snapshot, onClose,
 }: {
-  focus: { userId: string; companyId: string; companyName: string; scope: "wau" | "mau" };
+  focus: OverviewCompanyFocus;
   snapshot: OverviewUsageSnapshot;
   onClose: () => void;
 }) {
@@ -431,9 +441,17 @@ function OverviewCompanyDetailModal({
     setLoading(true);
     setData(null);
     setError(null);
+    const chart = focus.scope === "weekly" || focus.scope === "frequency";
     post<OverviewDrillCompanyDetail>({
-      action: "company", snapshot_id: snapshot.snapshotId,
-      scope: focus.scope, user_id: focus.userId, company_id: focus.companyId,
+      action: chart ? "chart_company" : "company",
+      snapshot_id: snapshot.snapshotId,
+      ...(chart ? {
+        kind: focus.scope,
+        key: focus.chartKey,
+        segment: focus.chartSegment,
+      } : { scope: focus.scope }),
+      user_id: focus.userId,
+      company_id: focus.companyId,
     }, controller.signal).then(result => {
       if (!controller.signal.aborted) setData(result);
     }).catch(err => {
@@ -444,7 +462,8 @@ function OverviewCompanyDetailModal({
       if (!controller.signal.aborted) setLoading(false);
     });
     return () => controller.abort();
-  }, [focus.companyId, focus.scope, focus.userId, retry, snapshot.snapshotId]);
+  }, [focus.companyId, focus.scope, focus.userId,
+      focus.chartKey, focus.chartSegment, retry, snapshot.snapshotId]);
 
   const milestones = useMemo(() => {
     if (!data) return [];
@@ -473,11 +492,11 @@ function OverviewCompanyDetailModal({
           </div>
           <div>
             <div>
-              <p>Company activity profile · {focus.scope === "wau" ? "7 days" : "30 days"}</p>
+              <p>Company activity profile · {focus.scope === "wau" ? "7 days" : focus.scope === "mau" ? "30 days" : focus.scope === "weekly" ? "Completed week" : "Four completed weeks"}</p>
               <h2 id="po-core-company-title">{data?.company.name ?? focus.companyName}</h2>
             </div>
             <div className="rd-company-tags">
-              <span>{focus.scope === "wau" ? "Weekly active" : "Monthly active"}</span>
+              <span>{focus.scope === "wau" ? "Weekly active" : focus.scope === "mau" ? "Monthly active" : focus.scope === "weekly" ? "Weekly chart" : "Usage frequency"}</span>
               {data?.company.is_test ? <span>Test</span> : null}
               {data ? <span>{nf.format(data.stats.active_users)} active users</span> : null}
             </div>
