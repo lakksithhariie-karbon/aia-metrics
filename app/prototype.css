@@ -621,7 +621,7 @@ html,body,body *,body *::before,body *::after,body *::placeholder{
 .po-context .icon{width:13px;height:13px}
 .po-context button{color:#6e7f96;padding:0;border-bottom:1px dotted #aab5c4;border-radius:0;font-size:11px}
 .po-kpis{grid-template-columns:repeat(12,minmax(0,1fr));margin:20px 0 24px}
-.po-kpis .metric-card{grid-column:span 3;height:163px;padding:20px}
+.po-kpis .metric-card{grid-column:span 4;height:163px;padding:20px}
 .po-kpis .metric-label{font-size:13px;padding-right:55px;max-width:100%}
 .po-kpis .metric-period{font-size:10px;right:20px;top:23px}
 .po-kpis .metric-value{font-size:38px;line-height:46px;margin:9px 0 2px;letter-spacing:-1.05px}
@@ -801,3 +801,7 @@ button.po-stage-rate:hover{color:var(--blue)}
 .po-stage-main .po-stage-track{display:block;width:100%}
 .po-stage-main .po-stage-track i{display:block;height:100%}
 
+
+/* Native Product Overview cards keep the approved surface and three-up layout. */
+.po-live-kpi-dialog .po-kpi-detail-counts{margin-top:12px;color:#53657d;font-size:12px}
+@media(max-width:600px){.po-kpis .metric-card{grid-column:span 12}}
