@@ -10,59 +10,6 @@ const number=new Intl.NumberFormat("en-US");
 function formatPercent(n:number|null):string{
  return n===null?"—":n.toFixed(1)+"%";
 }
-function IssueInfo({onClose}:{onClose:()=>void}){
- const close=useRef<HTMLButtonElement>(null);
- useEffect(()=>{
-  close.current?.focus({preventScroll:true});
-  const keydown=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();onClose();}};
-  window.addEventListener("keydown",keydown);
-  return ()=>window.removeEventListener("keydown",keydown);
- },[onClose]);
- return <div className="rd-overlay" role="presentation">
-  <section className="rd-modal rd-activation-modal po-friction-info-modal"
-   role="dialog" aria-modal="true" aria-labelledby="po-friction-info-title">
-   <header className="rd-modal-head">
-    <div><p>Product Overview · Measurement definitions</p>
-     <h2 id="po-friction-info-title">Issues that need attention</h2>
-     <span>Event-backed company signals · Same source cutoff as the rest of Overview</span>
-    </div>
-    <button ref={close} type="button" className="rd-close"
-     onClick={onClose} aria-label="Close issue definitions">
-     <svg className="rd-icon" aria-hidden="true"><use href="#i-close"/></svg>
-    </button>
-   </header>
-   <div className="po-friction-info-body">
-    <h3>Company-based incidence</h3>
-    <p>The numerator is distinct client companies with an explicitly tracked failed
-     action or a deliberate revert to Needs Review. The denominator is distinct
-     client companies that attempted that same workflow in the same rolling
-     28-day period, whether successful or failed.</p>
-    <h3>Later success, not confirmed resolution</h3>
-    <p>A company is in “Later success” when a successful event in the same workflow
-     occurred after its latest failure/reversion, within that same reporting window.
-     “Needs review” means no such later success was observed by the period end.
-     These are company-level signals, not confirmed fixes to the original transaction
-     or file. The event instrumentation does not provide a consistent item identifier
-     to make that stronger claim.</p>
-    <h3>What each issue means</h3>
-    <p>Bill and invoice uploads, ledger updates, and transaction-type updates
-     require an explicit failed status. “Reverted to review” is the deliberate
-     Transaction Status action “Revert to Needs Review”; it indicates rework,
-     not a product error. A subsequent “Accounting Ready” event in the same
-     company counts as a later workflow success. Invoice bulk edits are not
-     included because their success events are not recorded, so a reliable
-     incidence denominator cannot be calculated.</p>
-    <h3>Reporting period and exclusions</h3>
-    <p>Current and previous windows are adjacent 28-day periods, ending at the
-     published Overview cutoff. Events ingested after the source watermark,
-     internal users, and non-client companies are excluded. Companies may appear
-     under multiple issue categories. The table is ordered by current companies
-     needing review, not event volume.</p>
-   </div>
-  </section>
- </div>;
-}
-
 export default function OverviewFriction({
  summary,usageSnapshot,target,
 }:{
@@ -71,7 +18,6 @@ export default function OverviewFriction({
 }){
  const [asOfDate,setAsOfDate]=useState(usageSnapshot?.asOfDate??"");
  const [drill,setDrill]=useState<FrictionTarget|null>(null);
- const [info,setInfo]=useState(false);
  const lastTrigger=useRef<HTMLElement|null>(null);
  useEffect(()=>{
   const onDate=(event:Event)=>{
@@ -91,20 +37,6 @@ export default function OverviewFriction({
    ?"Company-level signals · Later success is not confirmed resolution"
    :"Verified data unavailable for this reporting date";
  },[ready]);
- useEffect(()=>{
-  const button=document.querySelector<HTMLElement>(
-   '#po-friction-report [data-po-info="friction"]'
-  );
-  if(!button)return;
-  const click=(event:MouseEvent)=>{
-   event.preventDefault();
-   event.stopImmediatePropagation();
-   lastTrigger.current=button;
-   setInfo(true);
-  };
-  button.addEventListener("click",click,true);
-  return ()=>button.removeEventListener("click",click,true);
- },[target]);
  function open(issue:FrictionKey,segment:FrictionSegment,
   event:React.MouseEvent<HTMLButtonElement>,period:FrictionPeriod="current"){
   if(!ready)return;
@@ -112,7 +44,7 @@ export default function OverviewFriction({
   setDrill({key:issue,segment,period});
  }
  function close(){
-  setDrill(null);setInfo(false);
+  setDrill(null);
   requestAnimationFrame(()=>lastTrigger.current?.focus({preventScroll:true}));
  }
  const body=!ready||!summary
@@ -185,7 +117,5 @@ export default function OverviewFriction({
     key={drill.key+":"+drill.period+":"+drill.segment}
     summary={summary} target={drill} onClose={close}/>,
     document.body):null}
-  {info&&typeof document!=="undefined"?
-   createPortal(<IssueInfo onClose={close}/>,document.body):null}
  </>;
 }
