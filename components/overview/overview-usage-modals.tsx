@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { OverviewUsageSnapshot } from "../../lib/overview/kpis";
 import type {
-  OverviewCoreCounts,
   OverviewCoreModule,
   OverviewDrillCompanyDetail,
   OverviewDrillCompanyRow,
@@ -81,16 +80,6 @@ function numberPages(page: number, total: number): Array<number | "ellipsis"> {
 function moduleLabel(key: "ap" | "ar" | "transactions") {
   return key === "ap" ? "AP / Bills" : key === "ar" ? "AR / Invoices" : "Transactions";
 }
-function ModuleCounts({ modules }: { modules: OverviewCoreCounts }) {
-  return (
-    <div className="po-usage-modules" aria-label="Core actions by module">
-      <span>AP <b>{nf.format(modules.ap)}</b></span>
-      <span>AR <b>{nf.format(modules.ar)}</b></span>
-      <span>Txn <b>{nf.format(modules.transactions)}</b></span>
-    </div>
-  );
-}
-
 export function OverviewUsageModal({
   metric, snapshot, onClose, onDefinition,
 }: {
@@ -115,6 +104,7 @@ export function OverviewUsageModal({
   } | null>(null);
   const cache = useRef<Map<string, OverviewDrillUsersResponse>>(new Map());
   const scroll = useRef<HTMLDivElement>(null);
+  const companyTrigger = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setDeferredQuery(query), 250);
@@ -199,7 +189,8 @@ export function OverviewUsageModal({
   function expand(id: string) {
     setExpanded(existing => existing.has(id) ? new Set() : new Set([id]));
   }
-  function openCompany(user: OverviewDrillUserRow, company: OverviewDrillCompanyRow) {
+  function openCompany(user: OverviewDrillUserRow, company: OverviewDrillCompanyRow, button: HTMLButtonElement) {
+    companyTrigger.current = button;
     setFocus({
       userId: user.id, companyId: company.id, companyName: company.name, scope,
     });
@@ -346,7 +337,7 @@ export function OverviewUsageModal({
                         <td>
                           <span className="rd-user-indent">
                             <button type="button" className="po-usage-company-link"
-                              onClick={() => openCompany(user, company)}
+                              onClick={event => openCompany(user, company, event.currentTarget)}
                               title="Open full company activity profile"
                             >
                               {company.name}
@@ -412,7 +403,10 @@ export function OverviewUsageModal({
       </div>
       {focus ? (
         <OverviewCompanyDetailModal
-          focus={focus} snapshot={snapshot} onClose={() => setFocus(null)}
+          focus={focus} snapshot={snapshot} onClose={() => {
+            setFocus(null);
+            requestAnimationFrame(() => companyTrigger.current?.focus({ preventScroll: true }));
+          }}
         />
       ) : null}
     </>
