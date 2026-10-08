@@ -215,7 +215,18 @@ function ModuleMix({
  const multiPct=percentage(mix.current_multi,mix.current_total);
  const previousPct=percentage(mix.previous_multi,mix.previous_total);
  const delta=multiPct-previousPct;
- const maxAxis=Math.max(40,Math.ceil(Math.max(...mix.rows.map(row=>percentage(row.current,mix.current_total)))/5)*5);
+ const ranked=COMBINATIONS.map(category=>({
+  ...category,item:mix.rows.find(row=>row.mask===category.mask)!,
+ })).filter(category=>category.item.current>0||category.item.previous>0)
+  .sort((a,b)=>b.item.current-a.item.current
+    ||b.item.previous-a.item.previous);
+ const maxShare=Math.max(0,...ranked.flatMap(c=>[
+  percentage(c.item.current,mix.current_total),
+  percentage(c.item.previous,mix.previous_total),
+ ]));
+ // A shared scale is essential: neither period should get its own bar axis.
+ const maxAxis=Math.max(40,Math.ceil(maxShare/40)*40);
+ const ticks=Array.from({length:5},(_,i)=>maxAxis*i/4);
  return <div className={"po-native-module-mix"+(expanded?" is-expanded":"")}>
   <div className="po-mix-summary">
    <strong>{multiPct.toFixed(1)}%</strong>
@@ -228,8 +239,8 @@ function ModuleMix({
      <th>Combination</th><th>Companies</th>
      <th>Current share</th><th>Previous share</th><th>Change</th>
     </tr></thead><tbody>
-     {COMBINATIONS.map(category=>{
-      const item=mix.rows.find(r=>r.mask===category.mask)!;
+     {ranked.map(category=>{
+      const item=category.item;
       const now=percentage(item.current,mix.current_total);
       const prior=percentage(item.previous,mix.previous_total);
       return <tr key={category.mask}>
@@ -243,30 +254,61 @@ function ModuleMix({
      })}
     </tbody></table>
    </div>:
-   <>
-    <div className="po-mix-header">
-     <span>Combination</span><span/>
-     <span>Share</span><span>Prev.</span>
+   <div className="po-mix-dumbbell" role="group"
+    aria-label="Current versus previous share of core-active companies, by combination">
+    <div className="po-mix-dumbbell-legend" aria-hidden="true">
+     <span><i className="po-mix-current-dot"/> Current 28d</span>
+     <span><i className="po-mix-prior-dot"/> Previous 28d</span>
+     <small>Click a row to view companies</small>
     </div>
-    {COMBINATIONS.map(category=>{
-     const item=mix.rows.find(r=>r.mask===category.mask)!;
-     const share=percentage(item.current,mix.current_total);
-     const prev=percentage(item.previous,mix.previous_total);
-     const isMulti=category.mask.replaceAll("0","").length>1;
-     return <button key={category.mask} type="button"
-      className="po-mix-row po-workflow-mix-row"
-      onClick={e=>onMask(category.mask,category.label,e.currentTarget)}
-      aria-label={category.label+": "+item.current+" companies, "+
-       share.toFixed(1)+" percent current, "+prev.toFixed(1)+" percent previous. View companies."}>
-      <span>{category.label}</span>
-      <span className={"po-bar-track"+(isMulti?" multi":"")}>
-       <i style={{width:(share/maxAxis*100)+"%"}}/>
-      </span>
-      <strong>{share.toFixed(1)}%</strong>
-      <span>{prev.toFixed(1)}%</span>
-     </button>;
-    })}
-   </>}
+    <div className="po-mix-dumbbell-head" aria-hidden="true">
+     <span>Combination</span>
+     <span className="po-mix-dumbbell-ticks">
+      {ticks.map((n,i)=><span key={i}
+       style={{left:i*25+"%"}}>{n.toFixed(0)}%</span>)}
+     </span>
+     <span>Now</span><span>Δ pp</span>
+    </div>
+    <div className="po-mix-dumbbell-rows">
+     {ranked.map(category=>{
+      const item=category.item;
+      const now=percentage(item.current,mix.current_total);
+      const prior=percentage(item.previous,mix.previous_total);
+      const diff=now-prior;
+      const nowX=now/maxAxis*100;
+      const prevX=prior/maxAxis*100;
+      const trackLeft=Math.min(nowX,prevX);
+      const trackWidth=Math.abs(nowX-prevX);
+      const direction=diff>0.05?"up":diff<-.05?"down":"flat";
+      return <button key={category.mask} type="button"
+       className={"po-mix-dumbbell-row is-"+direction}
+       onClick={e=>onMask(category.mask,category.label,e.currentTarget)}
+       aria-label={category.label+": Current "+item.current+" of "+
+        mix.current_total+" companies, "+now.toFixed(1)+" percent. Previous "+
+        item.previous+" of "+mix.previous_total+" companies, "+
+        prior.toFixed(1)+" percent. "+
+        (diff>0?"+":"")+diff.toFixed(1)+" percentage points. Open company breakdown."}>
+       <span className="po-mix-dumbbell-name">{category.label}</span>
+       <span className="po-mix-dumbbell-plot" aria-hidden="true">
+        <i className="po-mix-dumbbell-connector" style={{
+         left:trackLeft+"%",width:Math.max(trackWidth,.15)+"%",
+        }}/>
+        <i className="po-mix-dumbbell-prior" style={{left:prevX+"%"}}/>
+        <i className="po-mix-dumbbell-current" style={{left:nowX+"%"}}/>
+       </span>
+       <strong className="po-mix-dumbbell-value">{now.toFixed(1)}%</strong>
+       <span className="po-mix-dumbbell-delta">
+        {diff>0?"+":""}{diff.toFixed(1)}
+       </span>
+       <span className="po-mix-dumbbell-tooltip" aria-hidden="true">
+        <strong>{category.label}</strong>
+        <span>Current <b>{item.current} companies · {now.toFixed(1)}%</b></span>
+        <span>Previous <b>{item.previous} companies · {prior.toFixed(1)}%</b></span>
+       </span>
+      </button>;
+     })}
+    </div>
+   </div>}
  </div>;
 }
 
