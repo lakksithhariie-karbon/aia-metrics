@@ -134,3 +134,23 @@
   .po-overview-info-body{padding:16px}
   .po-overview-info-foot{padding:12px 16px}
 }
+
+/* Info stays beside Close in all expanded chart views. */
+.po-expanded-head-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:7px;
+  flex:0 0 auto;
+}
+.po-expanded-head-actions .icon-button{
+  width:29px;
+  height:29px;
+  color:#8291a7;
+}
+.po-expanded-head-actions .icon-button:hover,
+.po-expanded-head-actions .icon-button:focus-visible{
+  color:#365dc4;
+  background:#f0f4ff;
+  border-color:#d7e1f6;
+}
