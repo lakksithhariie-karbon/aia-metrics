@@ -9,7 +9,7 @@ import type {
   OverviewDrillSegment,
   OverviewDrillUserRow,
   OverviewDrillUsersResponse,
-  type OverviewChartSegment,
+  OverviewChartSegment,
 } from "../../lib/overview/drill";
 
 export type OverviewMetric = "wau" | "mau" | "stickiness";
