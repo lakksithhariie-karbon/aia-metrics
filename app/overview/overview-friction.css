@@ -1,0 +1,154 @@
+/* Final Product Overview widget: event-backed friction and company follow-up. */
+#po-friction-report .po-body{min-width:0}
+.po-friction-live-table{table-layout:fixed;width:100%}
+.po-friction-live-table th:nth-child(1){width:33%}
+.po-friction-live-table th:nth-child(2){width:17%}
+.po-friction-live-table th:nth-child(3){width:15%}
+.po-friction-live-table th:nth-child(4){width:19%}
+.po-friction-live-table th:nth-child(5){width:16%;text-align:right}
+.po-friction-live-table td:nth-child(5){text-align:right}
+.po-friction-live-table .po-issue-label{
+ display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+ font-size:10.8px;font-weight:600;color:#4d6281;
+}
+.po-friction-live-table .po-issue-label span{
+ display:inline-block;min-width:88px;padding:4px 5px;
+}
+.po-friction-live-table .po-issue-label:hover{color:#3156b8}
+.po-friction-live-table td:first-child>small{padding-left:2px}
+.po-friction-live-table .po-friction-change{display:block;text-align:left}
+.po-friction-live-table .po-friction-change strong{
+ display:block;font-size:11px;font-weight:650;
+ font-variant-numeric:tabular-nums;
+}
+.po-friction-bad{color:#ad6b63}
+.po-friction-good{color:#628c76}
+.po-friction-live-table .po-recovery{justify-content:flex-end}
+.po-friction-live-table .po-recovery .po-bar-track{
+ flex:0 0 70px;width:70px;height:6px;
+}
+.po-friction-live-table .po-recovery .po-bar-track i{
+ background:#719c88;
+}
+.po-friction-live-table .po-recovery-text{
+ display:flex;flex-direction:column;min-width:78px;text-align:right;
+}
+.po-friction-live-table .po-recovery-text strong{font-size:11px}
+.po-friction-live-table .po-recovery-text small{font-size:8.5px}
+.po-friction-live-table .po-issue-open{
+ min-width:40px;border-radius:4px;padding:5px 10px;
+}
+.po-friction-live-table tr:last-child td{border-bottom:0}
+.po-friction-empty{
+ min-height:320px;display:flex;justify-content:center;
+ align-items:center;flex-direction:column;gap:8px;
+ color:#8f9db0;font-size:10px;
+}
+.po-friction-empty strong{color:#556c8a;font-size:12px}
+
+/* Same Retention-style modal system as the other Overview drills.
+   Content-sized to avoid large empty blocks under the table. */
+.po-friction-drill-modal{
+ min-height:0;height:fit-content;max-height:calc(100dvh - 38px);
+}
+.po-friction-modal-summary{
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+ margin:12px 20px 0;background:#fbfcfe;
+ border:1px solid #e4e9f1;border-radius:7px;flex:0 0 auto;
+}
+.po-friction-modal-summary>div{padding:10px 14px;min-width:0}
+.po-friction-modal-summary>div+div{border-left:1px solid #e6ebf2}
+.po-friction-modal-summary span{
+ display:block;font-size:9px;color:#8e9bad;
+}
+.po-friction-modal-summary strong{
+ display:block;margin-top:3px;font-size:18px;font-weight:650;
+ color:#455a76;font-variant-numeric:tabular-nums;
+}
+.po-friction-drill-toolbar{gap:12px;flex-wrap:wrap}
+.po-friction-drill-tabs{
+ display:flex;gap:12px;flex-wrap:wrap;align-items:center;
+}
+.po-friction-drill-toolbar .rd-search{margin-left:auto}
+.po-friction-drill-scroll{
+ flex:0 1 auto;min-height:0;overflow:auto;scrollbar-width:thin;
+}
+.po-friction-company-table{min-width:1080px;table-layout:fixed}
+.po-friction-company-table th:first-child{width:38px}
+.po-friction-company-table th:nth-child(2){width:247px}
+.po-friction-company-table th:nth-child(3){width:103px}
+.po-friction-company-table th:nth-child(4){width:95px}
+.po-friction-company-table th:nth-child(5){width:83px}
+.po-friction-company-table th:nth-child(6){width:177px}
+.po-friction-company-table th:nth-child(7){width:177px}
+.po-friction-company-table th:nth-child(8){width:75px}
+.po-friction-company-table td:nth-child(4),
+.po-friction-company-table td:nth-child(5),
+.po-friction-company-table td:nth-child(8){text-align:center}
+.po-friction-company-table td:nth-child(6),
+.po-friction-company-table td:nth-child(7){text-align:left}
+.po-friction-company-table .rd-user-row td{background:#fbfcff}
+.po-friction-state{
+ display:inline-flex;align-items:center;justify-content:center;
+ padding:4px 7px;border:1px solid #e0e6ee;
+ border-radius:5px;background:#f6f8fb;
+ color:#7d8ca1;font-size:8.5px;white-space:nowrap;
+}
+.po-friction-state.is-open{
+ color:#a36d5f;border-color:#f0ded6;background:#fdf7f4;
+}
+.po-friction-state.is-success{
+ color:#57816a;border-color:#d8e8df;background:#f4faf6;
+}
+.po-friction-state.is-clear{color:#8896a8}
+.po-friction-company-modal .rd-company-scroll{padding-bottom:20px}
+.po-friction-company-evidence-note{
+ border:1px solid #dde5ef;border-radius:6px;
+ background:#f9fbfe;padding:10px 13px;
+ color:#687e99;font-size:10px;line-height:17px;
+ margin:12px 0 14px;
+}
+.po-friction-evidence-grid{margin-top:13px}
+.po-friction-weeks{overflow:auto;max-height:280px;margin-top:13px}
+.po-friction-weeks table{border-collapse:collapse;width:100%;font-size:10px}
+.po-friction-weeks th{
+ color:#96a4b7;text-align:left;font-size:9px;
+ border-bottom:1px solid #e8edf3;padding:8px 5px;
+}
+.po-friction-weeks td{
+ color:#667b95;border-bottom:1px solid #eff2f7;
+ padding:9px 5px;
+}
+.po-friction-events table{min-width:940px}
+.po-friction-events th:first-child{min-width:178px}
+.po-friction-events th:nth-child(2){min-width:190px}
+.po-friction-events th:last-child{min-width:205px}
+.po-friction-users table{min-width:940px}
+.po-friction-users th:first-child{min-width:275px}
+.po-friction-info-modal{
+ width:min(790px,calc(100vw - 48px));
+ height:auto;max-height:calc(100dvh - 48px);
+}
+.po-friction-info-body{
+ overflow:auto;padding:20px 25px 24px;
+ color:#72849c;font-size:11px;line-height:19px;
+}
+.po-friction-info-body h3{
+ font-size:12px;margin:11px 0 5px;color:#465d79;
+}
+.po-friction-info-body p{margin:0 0 14px}
+@media(max-width:1000px){
+ .po-friction-live-table .po-recovery .po-bar-track{width:50px;flex-basis:50px}
+ .po-friction-live-table .po-issue-label span{min-width:72px}
+ .po-friction-drill-toolbar{padding:10px 12px}
+ .po-friction-modal-summary{margin:10px 12px 0}
+ .po-friction-drill-scroll{margin:0 12px}
+}
+@media(max-width:690px){
+ .po-friction-live-table{min-width:780px}
+ .po-friction-drill-tabs{gap:8px}
+ .po-friction-drill-tabs .rd-status-tabs{flex-wrap:wrap}
+ .po-friction-drill-toolbar .rd-search{margin-left:0;width:100%;max-width:none}
+ .po-friction-modal-summary>div{padding:8px 9px}
+ .po-friction-modal-summary strong{font-size:15px}
+}
