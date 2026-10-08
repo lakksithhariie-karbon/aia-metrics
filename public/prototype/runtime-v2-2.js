@@ -496,10 +496,16 @@
     ['<strong>Invoices / AR</strong>','<strong>37</strong>','14.7% of companies doing work'],['Invoice upload','34','91.9%'],['Invoice entry created','5','13.5%'],['Upload failed','4','Issue count'],
     ['<strong>Statements / Transactions</strong>','<strong>152</strong>','60.6% of companies doing work'],['Statement upload','152','100.0%'],['Transaction work','139','91.4%'],['Accounting ready','132','95.0% of transaction work'],['Reverted after ready','51','Issue count']
    ])}</div><div class="po-notice">Reference snapshot only. Workflow percentages have different denominators in the source. Each module and activity now opens a contextual user/company breakdown. Individual records are illustrative.</div>`},
-  notes:{title:'Data & implementation notes',body:()=>`<section><h3>What is preserved</h3><p>The three headline KPI cards use the published production Supabase snapshot. The two Active Usage charts now show real data from the same snapshot, using 12 completed weeks and a four-week frequency distribution.</p><p>The prototype modal and record tables still contain illustrative users; they must not be used to validate the live KPI cards.</p></section><section><h3>What is illustrative</h3><p>The Weekly core-active users chart and Core usage frequency chart use the same live independent core-work definition as the three KPI cards. Module usage and combinations now use live, verified data from the published Overview snapshot. The friction widget now uses verified company-level workflow events. Legacy sample breakdowns in the prototype runtime are not production records.</p><p>Module usage reports distinct core-active users by module per completed week. Module combinations report mutually exclusive company populations in rolling 28-day windows.</p><p>Adoption and journey keep their separate source cohorts. Filtered cohort results are illustrative. All Overview metrics are aligned to published source snapshots and become unavailable for unsupported historical reporting dates.</p></section><section><h3>Approved design system</h3><p>Three KPI cards in a 12-column grid. Charts span six columns each; wide detail tables span all twelve. Font stack, card hover states, 24px gaps, navigation, dropdowns and modal behavior are shared with Retention v6.</p><p>The font stack is “PP Neue Montreal Medium”, “PP Neue Montreal Medium Placeholder”, sans-serif. The licensed font is not embedded. It uses a local installed copy where available, then the fallback.</p><p>Every overview report has a contextual user/company breakdown. Cohort and workflow memberships are illustrative fixtures matched to the supplied aggregates. Module-combination percentages have no supplied denominator; their sample records are not used to infer production counts. Issue-to-company mappings are also illustrative. Esc closes only the topmost modal and restores the parent state.</p></section>`}
  };
- function showPOInfo(key='notes'){
-  const d=definitions[key]||definitions.notes;$('#po-detail-title').textContent=d.title;$('#po-detail-body').innerHTML=d.body();openDialog('po-detail-dialog');$('#po-detail-dialog').scrollTop=0;
+ function showPOInfo(key='dates'){
+  // Chart-specific definitions remain available; unknown/obsolete keys
+  // never open a misleading implementation-notes popup.
+  const d=definitions[key];
+  if(!d)return;
+  $('#po-detail-title').textContent=d.title;
+  $('#po-detail-body').innerHTML=d.body();
+  openDialog('po-detail-dialog');
+  $('#po-detail-dialog').scrollTop=0;
  }
  function showPOTooltip(target){
   const [type,indexText]=target.dataset.poTip.split(':'),i=Number(indexText),tip=$('#po-tooltip');let title='',rows=[],note='';
@@ -524,6 +530,11 @@
 
  function setPage(page){
   P.page=page;root.hidden=page!=='overview';$('#retention-main').hidden=page==='overview';
+  // The global Help button belongs to Retention. Overview's obsolete
+  // implementation-notes popup must not be exposed on the live dashboard.
+  const help=$('#help-button');
+  help.hidden=page==='overview';
+  help.style.display=page==='overview'?'none':'';
   const heading=page==='overview'?$('#po-page-heading'):$('#retention-main .page-heading');heading.append($('.global-controls'));
   $('#dashboard-trigger>span').textContent=page==='overview'?'Product Overview':'Retention & Churn';
   const options=[['po-menu-item','overview'],['retention-menu-item','retention']];options.forEach(([id,p])=>{const el=$('#'+id),selected=page===p;el.classList.toggle('is-current',selected);el.setAttribute('aria-checked',String(selected));const check=$(':scope > svg',el);if(check)check.hidden=!selected;});
@@ -538,7 +549,12 @@
  renderDashboard=function(){originalRender();renderOverview();};
  $('#po-menu-item').addEventListener('click',()=>{setPage('overview');$('#dashboard-trigger').focus();});
  $('#retention-menu-item').addEventListener('click',()=>{setPage('retention');$('#dashboard-trigger').focus();});
- $('#help-button').addEventListener('click',e=>{if(P.page==='overview'){e.stopImmediatePropagation();showPOInfo('notes');}},true);
+ $('#help-button').addEventListener('click',e=>{
+  if(P.page==='overview'){
+   e.preventDefault();
+   e.stopImmediatePropagation();
+  }
+ },true);
  $('#dashboard-trigger').addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();e.stopImmediatePropagation();toggleDashboardMenu(true);$('#'+(P.page==='overview'?'po-menu-item':'retention-menu-item')).focus();}},true);
  $('#dashboard-menu').addEventListener('keydown',e=>{
   if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key))return;e.preventDefault();e.stopImmediatePropagation();const opts=[$('#po-menu-item'),$('#retention-menu-item')],i=opts.indexOf(document.activeElement);opts[e.key==='Home'?0:e.key==='End'?1:(i+1)%2].focus();
