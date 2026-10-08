@@ -15,7 +15,6 @@
 .po-weekly-hover small{color:#ad7a41}
 .po-active-chart-note{margin:0;display:flex;flex-wrap:wrap;align-items:center;gap:10px;
   font-size:8.4px;line-height:15px;color:#8997aa}
-.po-tracking-flag{color:#a77642}
 .po-live-weekly-table{height:235px;overflow-y:auto;margin:0 0 6px}
 .po-live-weekly-table td{padding:10px 9px}
 .po-live-weekly-table .po-cell-link{color:#3e64b5}
@@ -38,4 +37,60 @@
   .po-chart-summary .po-chart-summary-period{font-size:9.5px;line-height:15px}
   .po-chart-tracking-note{margin:8px 12px 0}
   .po-weekly-hover{max-width:180px}
+}
+
+
+/* React-owned expanded Active Usage report.  Keep it below the Retention-style
+   user and company drill overlays so chart cells still drill through. */
+.po-native-expanded-overlay{
+  position:fixed;
+  inset:0;
+  z-index:450;
+  display:grid;
+  place-items:center;
+  padding:28px;
+  background:rgba(20,31,51,.34);
+  backdrop-filter:blur(2px);
+}
+.po-native-expanded-report{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  max-height:calc(100dvh - 56px);
+  background:#fff;
+  box-shadow:0 26px 90px rgba(22,36,61,.26);
+}
+.po-native-expanded-report>.report-modal-chrome{
+  height:48px;
+  flex:0 0 48px;
+}
+.po-native-expanded-report .po-expanded-mount{
+  flex:1 1 auto;
+  height:auto;
+  min-height:0;
+  overflow:auto;
+}
+.po-native-expanded-report .po-expanded-mount>.po-report{
+  width:100%;
+  min-height:100%;
+  height:auto;
+  display:flex;
+  flex-direction:column;
+}
+.po-native-expanded-report .po-expanded-mount .po-native-weekly-chart .po-chart{
+  height:450px;
+}
+.po-native-expanded-report .po-expanded-mount .po-native-frequency-chart .po-frequency{
+  gap:36px;
+  margin-top:28px;
+}
+.po-native-expanded-report .po-expanded-mount .po-live-frequency-row{
+  min-height:30px;
+}
+@media(max-width:720px){
+  .po-native-expanded-overlay{padding:12px}
+  .po-native-expanded-report{width:calc(100vw - 24px);max-width:none;max-height:calc(100dvh - 24px)}
+  .po-native-expanded-report .po-expanded-mount .po-native-weekly-chart .po-chart{height:min(52vh,450px)}
+  .po-native-expanded-report .po-expanded-mount .po-native-frequency-chart .po-frequency{gap:23px;margin-top:18px}
 }
