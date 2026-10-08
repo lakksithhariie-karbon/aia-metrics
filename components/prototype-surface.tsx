@@ -15,6 +15,7 @@ import OverviewActiveUsage from "./overview/overview-active-usage";
 import OverviewAdoption from "./overview/overview-adoption";
 import OverviewWorkflow from "./overview/overview-workflow";
 import OverviewFriction from "./overview/overview-friction";
+import OverviewMetricInfo from "./overview/overview-info";
 
 const markup = withCustomerNavigation(prototypeMarkup);
 
@@ -149,6 +150,7 @@ export function PrototypeSurface({
           target={frictionTarget}
         />
       ) : null}
+      <OverviewMetricInfo />
       <Script
         id="prototype-v2-base"
         src="/prototype/runtime-v2-1.js"
