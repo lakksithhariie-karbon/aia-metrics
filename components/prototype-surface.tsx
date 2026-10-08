@@ -8,29 +8,37 @@ import { installCustomerNavigation, withCustomerNavigation } from "../lib/protot
 import type { OverviewUsageSnapshot } from "../lib/overview/kpis";
 import type { OverviewActiveCharts } from "../lib/overview/active-charts";
 import type { AdoptionSummary } from "../lib/overview/adoption";
+import type { WorkflowSummary } from "../lib/overview/workflow";
 import OverviewKpiStrip from "./overview/overview-kpi-strip";
 import OverviewActiveUsage from "./overview/overview-active-usage";
 import OverviewAdoption from "./overview/overview-adoption";
+import OverviewWorkflow from "./overview/overview-workflow";
 
 const markup = withCustomerNavigation(prototypeMarkup);
 
 /**
  * Compatibility boundary for the remaining approved prototype surfaces.
- * Native React owns the KPIs, two Active Usage charts, and Adoption & Value;
+ * Native React owns the KPIs, Active Usage, Adoption & Value, and Workflow Usage;
  * the legacy runtime is not allowed to write into those DOM targets.
  */
 export function PrototypeSurface({
   overviewKpis,
   overviewCharts,
   adoption,
+  workflow,
 }: {
   overviewKpis: OverviewUsageSnapshot | null;
   overviewCharts: OverviewActiveCharts | null;
   adoption: AdoptionSummary | null;
+  workflow: WorkflowSummary | null;
 }) {
   const [baseReady, setBaseReady] = useState(false);
   const [overviewReady, setOverviewReady] = useState(false);
   const [kpiTarget, setKpiTarget] = useState<HTMLElement | null>(null);
+  const [workflowTargets, setWorkflowTargets] = useState<{
+    trend: HTMLElement;
+    mix: HTMLElement;
+  } | null>(null);
   const [adoptionTargets, setAdoptionTargets] = useState<{
     strip: HTMLElement;
     funnel: HTMLElement;
@@ -72,6 +80,20 @@ export function PrototypeSurface({
     if (strip && funnel) setAdoptionTargets({ strip, funnel });
   }, [overviewReady]);
 
+  useEffect(() => {
+    if (!overviewReady) return;
+    const trend = document.getElementById("po-feature-chart-view");
+    const mix = document.getElementById("po-mix-content");
+    if (!trend || !mix) return;
+    trend.replaceChildren();
+    mix.replaceChildren();
+    const oldTable = document.getElementById("po-feature-data");
+    oldTable?.replaceChildren();
+    oldTable?.setAttribute("hidden", "");
+    document.querySelector("#po-feature-report .po-sample")?.remove();
+    setWorkflowTargets({ trend, mix });
+  }, [overviewReady]);
+
   return (
     <>
       <div
@@ -97,6 +119,14 @@ export function PrototypeSurface({
           usageSnapshot={overviewKpis}
           stripTarget={adoptionTargets.strip}
           funnelTarget={adoptionTargets.funnel}
+        />
+      ) : null}
+      {workflowTargets ? (
+        <OverviewWorkflow
+          summary={workflow}
+          usageSnapshot={overviewKpis}
+          trendTarget={workflowTargets.trend}
+          mixTarget={workflowTargets.mix}
         />
       ) : null}
       <Script
