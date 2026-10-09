@@ -1,0 +1,159 @@
+/* Shared shadcn / Base UI dashboard menu across all three pages.
+   Uses Base UI for menu state, positioning and keyboard behavior.
+   Existing chart menus, selects, filters and date controls are unaffected. */
+.app-dashboard-trigger{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  height:36px;
+  min-width:0;
+  padding:0 12px;
+  background:#fff;
+  color:#254bc6;
+  border:1px solid #e2e8f5;
+  border-radius:6px;
+  font-size:11.5px;
+  font-weight:600;
+  line-height:1;
+  cursor:pointer;
+  transition:background .15s,border-color .15s,box-shadow .15s;
+}
+.app-dashboard-trigger>.icon{
+  width:15px;
+  height:15px;
+  flex:0 0 auto;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.65;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.app-dashboard-trigger>.icon:last-child{
+  width:12px;
+  height:12px;
+  margin-left:10px;
+  transition:transform .16s;
+}
+.app-dashboard-trigger:hover,
+.app-dashboard-trigger[aria-expanded="true"],
+.app-dashboard-trigger[data-popup-open]{
+  background:#f5f7ff;
+  border-color:#a9bdf1;
+}
+.app-dashboard-trigger[aria-expanded="true"]>.icon:last-child,
+.app-dashboard-trigger[data-popup-open]>.icon:last-child{
+  transform:rotate(180deg);
+}
+.app-dashboard-trigger:focus-visible{
+  outline:2px solid #91b0ff;
+  outline-offset:3px;
+}
+.app-dropdown-positioner{
+  z-index:1500;
+  outline:none;
+}
+.app-dropdown-content{
+  width:306px;
+  max-width:calc(100vw - 24px);
+  max-height:min(420px,var(--available-height,420px));
+  padding:7px;
+  overflow-x:hidden;
+  overflow-y:auto;
+  background:#fff;
+  border:1px solid #dfe5ee;
+  border-radius:9px;
+  box-shadow:0 16px 45px rgba(20,36,66,.18),0 3px 9px rgba(20,36,66,.06);
+  color:#2d3748;
+  font-size:12px;
+  outline:none;
+  transform-origin:var(--transform-origin);
+}
+.app-dashboard-menu-label{
+  padding:8px 10px 9px;
+  color:#8593a7;
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.7px;
+  line-height:1;
+  text-transform:uppercase;
+  user-select:none;
+}
+.app-dashboard-item{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  min-height:59px;
+  padding:9px 13px;
+  color:#425168;
+  background:transparent;
+  text-align:left;
+  border:1px solid transparent;
+  border-radius:6px;
+  text-decoration:none;
+  outline:none;
+  cursor:pointer;
+  transition:background .12s;
+}
+.app-dashboard-item[data-highlighted],
+.app-dashboard-item:hover,
+.app-dashboard-item:focus-visible{
+  background:#f4f6fa;
+}
+.app-dashboard-item[aria-current="page"]{
+  color:#3156c2;
+  background:#eef3ff;
+}
+.app-dashboard-item[aria-current="page"][data-highlighted],
+.app-dashboard-item[aria-current="page"]:hover,
+.app-dashboard-item[aria-current="page"]:focus-visible{
+  background:#e5edff;
+}
+.app-dashboard-current .icon{
+  width:15px;
+  height:15px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.65;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.app-dashboard-item-label{
+  display:flex;
+  flex:1 1 auto;
+  min-width:0;
+  flex-direction:column;
+  gap:3px;
+}
+.app-dashboard-item-label strong{
+  font-size:11px;
+  font-weight:650;
+  line-height:15px;
+  color:inherit;
+}
+.app-dashboard-item-label small{
+  font-size:9px;
+  font-weight:400;
+  line-height:13px;
+  color:#8f9daf;
+  white-space:normal;
+}
+.app-dashboard-current{
+  display:grid;
+  place-items:center;
+  width:18px;
+  height:18px;
+  flex:0 0 18px;
+  color:#3156c2;
+}
+.app-dashboard-current .icon{width:16px;height:16px}
+@media(max-width:720px){
+  .app-dashboard-trigger{
+    height:34px;
+    padding:0 10px;
+    gap:6px;
+    font-size:10.5px;
+  }
+  .app-dashboard-trigger>.icon:last-child{margin-left:3px}
+  .app-dropdown-content{width:285px}
+}

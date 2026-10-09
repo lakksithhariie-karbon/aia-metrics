@@ -471,7 +471,6 @@ export default function CompaniesDashboard() {
     <div className="companies-shell">
       <ProductMetricsHeader
         current="companies"
-        onHelp={() => helpRef.current?.showModal()}
       />
 
       <main className="companies-page" id="companies-main">
