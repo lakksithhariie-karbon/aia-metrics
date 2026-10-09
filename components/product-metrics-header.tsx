@@ -18,37 +18,32 @@ const DASHBOARDS = [
     name: "Product Overview",
     description: "Active usage, adoption and workflow health",
     href: "/overview",
-    icon: "grid" as const,
   },
   {
     key: "retention" as const,
     name: "Retention & Churn",
     description: "Activation, retention and monthly churn",
     href: "/retention",
-    icon: "trend" as const,
   },
   {
     key: "companies" as const,
     name: "Companies",
     description: "Monthly usage by company and user",
     href: "/customer",
-    icon: "grid" as const,
   },
 ];
 
 function HeaderIcon({
   name,
 }: {
-  name: "grid" | "trend" | "down" | "check";
+  name: "grid" | "down" | "check";
 }) {
   const path =
-    name === "trend"
-      ? "m3 17 6-6 4 4 8-10m-6 0h6v6"
-      : name === "down"
-        ? "m7 10 5 5 5-5"
-        : name === "check"
-          ? "m5 12 4 4L19 6"
-          : null;
+    name === "down"
+      ? "m7 10 5 5 5-5"
+      : name === "check"
+        ? "m5 12 4 4L19 6"
+        : null;
 
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -97,7 +92,6 @@ export default function ProductMetricsHeader({
             className="app-dashboard-trigger"
             aria-label={"Dashboards, currently " + active.name}
           >
-            <HeaderIcon name={active.icon} />
             <span>{active.name}</span>
             <HeaderIcon name="down" />
           </DropdownMenuTrigger>
