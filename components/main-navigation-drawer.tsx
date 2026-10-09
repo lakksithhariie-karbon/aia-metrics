@@ -78,11 +78,9 @@ export default function MainNavigationDrawer() {
       cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", onKeyDown, true);
       document.body.style.overflow = previousOverflow;
-      requestAnimationFrame(() => {
-        if (triggerRef.current?.isConnected) {
-          triggerRef.current.focus({ preventScroll: true });
-        }
-      });
+      if (triggerRef.current?.isConnected) {
+        triggerRef.current.focus({ preventScroll: true });
+      }
     };
   }, [open, close]);
 
