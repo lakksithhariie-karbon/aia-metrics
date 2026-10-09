@@ -1,0 +1,344 @@
+/* Shared Product Metrics page rhythm.
+   Reference: Product Overview's centered 1560px / 12-column / 24px grid.
+   Scope all rules to Retention and Companies; Product Overview is unchanged. */
+:root{
+  --metrics-page-max:1560px;
+  --metrics-page-gutter:28px;
+  --metrics-page-gap:24px;
+}
+.rd-shell,.companies-shell,.companies-page{background:#fff}
+.rd-page,.companies-page{
+  width:100%;
+  max-width:var(--metrics-page-max)!important;
+  margin:0 auto!important;
+  padding-left:var(--metrics-page-gutter)!important;
+  padding-right:var(--metrics-page-gutter)!important;
+  min-width:0;
+}
+.rd-page{
+  display:grid;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  column-gap:var(--metrics-page-gap);
+  row-gap:var(--metrics-page-gap);
+  padding-top:26px!important;
+  padding-bottom:34px!important;
+  align-content:start;
+}
+.rd-page>.rd-page-head,
+.rd-page>.rd-kpi-grid,
+.rd-page>.metrics-grid-section{
+  grid-column:1 / -1;
+  min-width:0;
+}
+.rd-page-head{align-items:center}
+.rd-page-head h1,.companies-title-block h1{
+  font-size:26px;
+  line-height:33px;
+  font-weight:650;
+  letter-spacing:-.65px;
+}
+.rd-page-head>div:first-child p,
+.companies-title-block p{
+  font-size:11px;
+  line-height:16px;
+  margin-top:6px;
+}
+.rd-page>.rd-kpi-grid{
+  display:grid;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  gap:var(--metrics-page-gap);
+  margin:0;
+}
+.rd-kpi-grid>.rd-kpi-card{
+  grid-column:span 4;
+  height:163px;
+  min-width:0;
+  padding:20px;
+  border-radius:7px;
+  border-color:#e0e6ef;
+  box-shadow:none;
+  grid-template-rows:24px 53px minmax(0,auto);
+  align-content:start;
+}
+.rd-kpi-grid .rd-card-top{
+  height:24px;
+  font-size:13px;
+  line-height:19px;
+  gap:12px;
+}
+.rd-kpi-grid .rd-card-period{
+  flex-shrink:0;
+  height:auto;
+  border:0;
+  border-radius:0;
+  padding:0;
+  background:transparent;
+  color:#929fb1;
+  font-size:10px;
+  white-space:nowrap;
+}
+.rd-kpi-grid .rd-card-value{
+  height:53px;
+  font-size:38px;
+  line-height:50px;
+  font-weight:650;
+  letter-spacing:-1px;
+  align-items:baseline;
+}
+.rd-kpi-grid .rd-card-value>span{font-size:17px}
+.rd-kpi-grid .rd-card-note{
+  height:auto;
+  min-height:17px;
+  font-size:11px;
+  line-height:17px;
+  align-items:flex-start;
+  padding-right:26px;
+}
+.rd-kpi-grid .rd-kpi-card.is-interactive:hover{
+  background:#fdfdff;
+  border-color:#a9bbee;
+  box-shadow:0 0 0 1px #1646e80a;
+  transform:none;
+}
+.metrics-grid-section{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  min-width:0;
+}
+.metrics-section-kicker{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:#8290a2;
+  font-size:10px;
+  line-height:16px;
+  letter-spacing:.7px;
+  text-transform:uppercase;
+  font-weight:550;
+}
+.metrics-section-kicker>.metrics-section-description{
+  color:#939dab;
+  font-weight:400;
+  text-transform:none;
+  letter-spacing:0;
+  text-align:right;
+}
+.rd-page .metrics-grid-section>.report-card{
+  width:100%;
+  max-width:none;
+  min-width:0;
+  margin:0;
+  grid-column:1 / -1;
+  border-color:#e0e6ef;
+  border-radius:7px;
+  box-shadow:none;
+}
+.rd-page .metrics-grid-section .report-header{
+  padding:22px 24px 14px;
+}
+.rd-page .metrics-grid-section .report-header h2{
+  font-size:15px;
+  line-height:22px;
+  font-weight:600;
+  letter-spacing:-.2px;
+}
+.rd-page .metrics-grid-section .report-subtitle{
+  font-size:11px;
+  line-height:17px;
+  margin-top:5px;
+}
+.rd-page .metrics-grid-section>.rd-churn-trend-report{
+  height:auto!important;
+  min-height:0!important;
+}
+/* The Companies matrix remains internally scrollable, but its surrounding
+   analysis card follows the same full-width 12-column planning as Overview. */
+.companies-page{
+  display:grid;
+  grid-template-columns:repeat(12,minmax(0,1fr));
+  grid-template-rows:auto auto minmax(0,1fr);
+  column-gap:var(--metrics-page-gap);
+  row-gap:12px;
+  height:calc(100dvh - 56px);
+  overflow:hidden;
+}
+.companies-page>.companies-page-heading{
+  grid-column:1 / -1;
+  min-width:0;
+  margin:0;
+  padding:26px 0 8px;
+  flex:initial;
+}
+.companies-page>.metrics-section-kicker{
+  grid-column:1 / -1;
+  min-width:0;
+}
+.companies-page>.companies-records{
+  grid-column:1 / -1;
+  min-width:0;
+  min-height:0;
+  height:auto;
+  max-height:none;
+  margin:0 0 24px;
+  border-color:#e0e6ef;
+  border-radius:7px;
+  box-shadow:none;
+}
+/* Shared, nonintrusive info controls never overlap card drill targets. */
+.metrics-info-trigger{
+  display:grid;
+  place-items:center;
+  width:28px;
+  height:28px;
+  flex:0 0 28px;
+  padding:5px;
+  border:1px solid transparent;
+  border-radius:5px;
+  color:#8695aa;
+  background:transparent;
+  cursor:pointer;
+}
+.metrics-info-trigger svg{
+  width:17px;
+  height:17px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.7;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.metrics-info-trigger:hover,
+.metrics-info-trigger:focus-visible{
+  color:#365dc4;
+  background:#f0f4ff;
+  border-color:#d7e1f6;
+}
+.metrics-info-trigger:focus-visible{
+  outline:2px solid #7899e4;
+  outline-offset:1px;
+}
+.rd-kpi-card>.metrics-info-trigger{
+  position:absolute;
+  z-index:4;
+  right:11px;
+  bottom:11px;
+}
+.metrics-report-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  min-width:0;
+}
+.rd-retention-controls.metrics-report-actions{gap:10px}
+.companies-command-bar .metrics-info-trigger{
+  margin:0 2px 0 0;
+}
+/* Native top-layer modal shares the compact Product Overview explanation. */
+.metrics-info-dialog{
+  position:fixed;
+  margin:auto;
+  width:min(485px,calc(100vw - 32px));
+  max-height:calc(100dvh - 32px);
+  overflow:auto;
+  padding:0;
+  border:1px solid #dbe3ee;
+  border-radius:9px;
+  color:#4a5a73;
+  background:#fff;
+  box-shadow:0 24px 85px rgba(23,40,70,.24);
+}
+.metrics-info-dialog::backdrop{
+  background:rgba(25,38,59,.42);
+  backdrop-filter:blur(2px);
+}
+.metrics-info-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:19px 22px 17px;
+  border-bottom:1px solid #e7ecf3;
+}
+.metrics-info-head p{
+  margin:0 0 6px;
+  color:#95a2b5;
+  font-size:10px;
+}
+.metrics-info-head h2{
+  margin:0;
+  font-size:19px;
+  line-height:24px;
+  letter-spacing:-.3px;
+  font-weight:650;
+  color:#2d3646;
+}
+.metrics-info-close{margin:-2px -2px 0 0}
+.metrics-info-body{padding:19px 22px 14px}
+.metrics-info-body h3{
+  margin:0 0 6px;
+  font-size:10px;
+  color:#7f90a7;
+  font-weight:650;
+  letter-spacing:.45px;
+  text-transform:uppercase;
+}
+.metrics-info-body>p{
+  margin:0;
+  font-size:12px;
+  line-height:19px;
+  color:#52657e;
+}
+.metrics-info-example{
+  margin-top:18px;
+  padding:13px 15px;
+  border:1px solid #e6ebf3;
+  border-radius:6px;
+  background:#fafbfe;
+}
+.metrics-info-example>strong{
+  display:block;
+  margin-bottom:5px;
+  color:#415c85;
+  font-size:10px;
+  font-weight:650;
+}
+.metrics-info-example p{
+  margin:0;
+  color:#576d89;
+  font-size:11.5px;
+  line-height:18px;
+}
+.metrics-info-note{
+  margin-top:13px!important;
+  font-size:10px!important;
+  line-height:16px!important;
+  color:#8f7959!important;
+}
+@media(max-width:900px){
+  :root{--metrics-page-gutter:18px;--metrics-page-gap:16px}
+  .rd-kpi-grid>.rd-kpi-card{padding:16px}
+  .rd-kpi-grid .rd-card-top{font-size:11px}
+  .rd-kpi-grid .rd-card-value{font-size:34px}
+  .rd-kpi-grid .rd-card-note{font-size:10px}
+}
+@media(max-width:620px){
+  :root{--metrics-page-gutter:16px;--metrics-page-gap:16px}
+  .rd-page{row-gap:20px;padding-top:20px!important}
+  .rd-page>.rd-kpi-grid{grid-template-columns:1fr;gap:12px}
+  .rd-kpi-grid>.rd-kpi-card{grid-column:1/-1;height:132px}
+  .rd-page-head,.companies-page-heading{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .rd-page .metrics-grid-section .report-header{padding:17px 16px 12px}
+  .metrics-section-kicker{align-items:flex-start;gap:8px}
+  .metrics-section-kicker>.metrics-section-description{font-size:9px}
+  .companies-page{grid-template-rows:auto auto minmax(0,1fr)}
+  .companies-page>.companies-page-heading{padding-top:20px}
+  .companies-page>.companies-records{margin-bottom:16px}
+  .metrics-info-head{padding:16px}
+  .metrics-info-body{padding:16px}
+}
