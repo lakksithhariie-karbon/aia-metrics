@@ -84,7 +84,7 @@
   align-items:center;
   gap:11px;
   min-height:59px;
-  padding:9px 10px;
+  padding:9px 13px;
   color:#425168;
   background:transparent;
   text-align:left;
@@ -109,22 +109,6 @@
 .app-dashboard-item[aria-current="page"]:focus-visible{
   background:#e5edff;
 }
-.app-dashboard-item-icon{
-  width:28px;
-  height:28px;
-  flex:0 0 28px;
-  display:grid;
-  place-items:center;
-  border:1px solid #e7ebf1;
-  border-radius:5px;
-  color:#718198;
-  background:#fff;
-}
-.app-dashboard-item[aria-current="page"] .app-dashboard-item-icon{
-  color:#3156c2;
-  border-color:#d9e3fa;
-}
-.app-dashboard-item-icon .icon,
 .app-dashboard-current .icon{
   width:15px;
   height:15px;
