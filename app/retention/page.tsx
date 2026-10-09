@@ -3,6 +3,8 @@ import { readRetentionDashboardV4 } from "../../lib/retention/server";
 import type { RetentionDashboardV4Response } from "../../lib/retention/types";
 import "./retention.css";
 import "../metrics-page-grid.css";
+// Reuse the exact Product Overview KPI info-button and wrapper styles.
+import "../overview/overview-info.css";
 
 export const dynamic = "force-dynamic";
 
