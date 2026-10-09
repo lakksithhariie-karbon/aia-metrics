@@ -16,6 +16,7 @@ import OverviewAdoption from "./overview/overview-adoption";
 import OverviewWorkflow from "./overview/overview-workflow";
 import OverviewFriction from "./overview/overview-friction";
 import OverviewMetricInfo from "./overview/overview-info";
+import ProductMetricsHeader from "./product-metrics-header";
 
 const markup = withCustomerNavigation(prototypeMarkup);
 
@@ -110,6 +111,7 @@ export function PrototypeSurface({
 
   return (
     <>
+      <ProductMetricsHeader current="overview" />
       <div
         id="prototype-surface"
         data-overview-as-of={overviewKpis?.asOfDate ?? ""}
