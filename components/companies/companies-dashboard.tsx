@@ -2,6 +2,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProductMetricsHeader from "../product-metrics-header";
+import MetricsInfoDialog, {
+  MetricsInfoButton,
+  metricsInfoDefinitions,
+} from "../ui/metrics-info";
 import {
   MONTH_MODULES,
   type CalendarMonthUsage,
@@ -193,6 +197,8 @@ export default function CompaniesDashboard() {
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const helpRef = useRef<HTMLDialogElement | null>(null);
+  const [monthlyInfoOpen, setMonthlyInfoOpen] = useState(false);
+  const monthlyInfoTrigger = useRef<HTMLButtonElement | null>(null);
   const triggerRef = useRef<HTMLElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const dateTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -511,6 +517,11 @@ export default function CompaniesDashboard() {
           </div>
         </div>
 
+        <div className="metrics-section-kicker" aria-label="Company activity section">
+          <span>Company usage</span>
+          <span className="metrics-section-description">Monthly modules · Integration cohorts</span>
+        </div>
+
         <section
           className="companies-records po-record-layout companies-monthly-records companies-grid-card"
           aria-label="Monthly company usage"
@@ -521,6 +532,13 @@ export default function CompaniesDashboard() {
               <span>{label} cohort · updated {prettyDateTime(data?.source_watermark_at ?? null)}</span>
             </div>
             <div className="po-record-tools">
+              <MetricsInfoButton
+                label="How monthly company module usage is counted"
+                onClick={event => {
+                  monthlyInfoTrigger.current = event.currentTarget;
+                  setMonthlyInfoOpen(true);
+                }}
+              />
               <div className="po-search">
                 <Icon name="search" />
                 <input
@@ -1313,6 +1331,16 @@ export default function CompaniesDashboard() {
           </footer>
         </div>
       </dialog>
+
+      {monthlyInfoOpen ? (
+        <MetricsInfoDialog
+          definition={metricsInfoDefinitions.companies_monthly}
+          onClose={() => {
+            setMonthlyInfoOpen(false);
+            requestAnimationFrame(() => monthlyInfoTrigger.current?.focus({ preventScroll: true }));
+          }}
+        />
+      ) : null}
 
       <dialog
         ref={helpRef}
