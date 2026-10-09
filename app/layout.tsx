@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Oxanium } from "next/font/google";
 import "./prototype.css";
+import "./navigation-dropdown.css";
 
 const oxanium = Oxanium({
   subsets: ["latin"],
