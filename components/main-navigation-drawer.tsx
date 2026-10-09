@@ -150,7 +150,11 @@ export default function MainNavigationDrawer() {
                         href="/overview"
                         className="app-main-drawer-item is-current"
                         aria-current="page"
-                        onClick={close}
+                        onClick={() => {
+                          // Keep the anchor mounted for Next.js navigation.
+                          // On Overview itself, the same-page click only closes the drawer.
+                          if (window.location.pathname === "/overview") close();
+                        }}
                       >
                         Overview
                       </Link>
