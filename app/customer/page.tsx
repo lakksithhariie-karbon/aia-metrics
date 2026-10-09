@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import CompaniesDashboard from "../../components/companies/companies-dashboard";
 import "./customer.css";
+import "../metrics-page-grid.css";
 
 export const metadata: Metadata = {
   title: "AI Accountant | Companies",
