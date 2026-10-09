@@ -8,6 +8,11 @@ import RetentionChurnTrend from "./retention-churn-trend";
 import RetentionHeatmap, {
   type RetentionHeatmapTarget,
 } from "./retention-heatmap";
+import MetricsInfoDialog, {
+  MetricsInfoButton,
+  metricsInfoDefinitions,
+  type MetricsInfoKey,
+} from "../ui/metrics-info";
 import type {
   RetentionChurnSeriesRow,
   RetentionDashboardV4Response,
@@ -335,37 +340,59 @@ function KpiCard({
   value,
   unit,
   note,
+  caption,
   interactive,
   onClick,
+  onInfo,
 }: {
   label: string;
   period: string;
   value: string;
   unit?: string;
   note: string;
+  caption: string;
   interactive?: boolean;
   onClick?: () => void;
+  onInfo: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
+  // Use the actual Product Overview card hierarchy and CSS, not a
+  // lookalike Retention-specific style. Keep the info control outside
+  // the interactive card so it doesn't trigger a company drill.
+  const content = (
+    <>
+      <span className="po-kpi-divider" aria-hidden="true" />
+      <span className="metric-label">{label}</span>
+      <span className="metric-period">{period}</span>
+      <span className="metric-value">
+        {value}
+        {unit ? <span className="unit">{unit}</span> : null}
+      </span>
+      <span className="metric-note">{note}</span>
+      <span className="po-change">{caption}</span>
+    </>
+  );
+
   return (
-    <article className={"rd-kpi-card " + (interactive ? "is-interactive" : "")}>
+    <div className="po-kpi-info-wrap">
       {interactive ? (
         <button
           type="button"
-          className="rd-card-hit-target"
+          className="metric-card"
           onClick={onClick}
           aria-label={label + ", " + value + ". View details."}
-        />
-      ) : null}
-      <div className="rd-card-top">
-        <span>{label}</span>
-        <span className="rd-card-period">{period}</span>
-      </div>
-      <div className="rd-card-value">
-        {value}
-        {unit ? <span>{unit}</span> : null}
-      </div>
-      <div className="rd-card-note">{note}</div>
-    </article>
+          aria-haspopup="dialog"
+        >
+          {content}
+        </button>
+      ) : (
+        <article className="metric-card metric-static">{content}</article>
+      )}
+      <MetricsInfoButton
+        className="po-kpi-info-button icon-button"
+        label={"How " + label + " is calculated"}
+        onClick={onInfo}
+      />
+    </div>
   );
 }
 
@@ -1254,6 +1281,8 @@ export default function RetentionDashboard({
     context: ChurnMonthContext;
   } | null>(null);
   const helpRef = useRef<HTMLDialogElement | null>(null);
+  const [metricInfo, setMetricInfo] = useState<MetricsInfoKey | null>(null);
+  const infoTrigger = useRef<HTMLButtonElement | null>(null);
   const rangeBounds = useMemo(() => bounds(range), [range]);
 
   useEffect(() => {
@@ -1366,6 +1395,18 @@ export default function RetentionDashboard({
   };
 
 
+  const openInfo = (
+    key: MetricsInfoKey,
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => {
+    infoTrigger.current = event.currentTarget;
+    setMetricInfo(key);
+  };
+  const closeInfo = () => {
+    setMetricInfo(null);
+    requestAnimationFrame(() => infoTrigger.current?.focus({ preventScroll: true }));
+  };
+
   return (
     <div className="rd-shell">
       <ProductMetricsHeader
@@ -1382,9 +1423,10 @@ export default function RetentionDashboard({
           <DatePicker range={range} onApply={setRange} />
         </div>
 
-        <section className="rd-kpi-grid" aria-label="Retention key metrics">
+        <section className="kpi-grid po-kpis rd-kpi-grid" aria-label="Retention key metrics">
           <KpiCard
             label="Activation rate"
+            caption="Completed the activation sequence"
             period={rangeLabel(range)}
             value={loading && !kpis ? "…" : activationRate}
             note={
@@ -1397,9 +1439,11 @@ export default function RetentionDashboard({
             }
             interactive={Boolean(kpis)}
             onClick={() => setActivationOpen(true)}
+            onInfo={event => openInfo("activation", event)}
           />
           <KpiCard
             label="Average time to value"
+            caption="Time from integration to activation"
             period={rangeLabel(range)}
             value={loading && !kpis ? "…" : ttv.value}
             unit={ttv.unit}
@@ -1409,9 +1453,11 @@ export default function RetentionDashboard({
                   " activated companies with measurable TTV"
                 : "Live KPI unavailable"
             }
+            onInfo={event => openInfo("ttv", event)}
           />
           <KpiCard
             label="Monthly churn"
+            caption="No core work in the completed month"
             period={
               kpis?.churn.month
                 ? monthLabel(kpis.churn.month)
@@ -1433,30 +1479,45 @@ export default function RetentionDashboard({
             ) ?? null;
               if (latest) setChurnMonth({ row: latest, segment: "all" });
             }}
+            onInfo={event => openInfo("monthly_churn", event)}
           />
         </section>
 
-        {dashboardData ? (
-          <RetentionHeatmap
-            weekly={dashboardData.weekly}
-            monthly={dashboardData.monthly}
-            loading={loading}
-            onCellClick={setHeatmapTarget}
-          />
-        ) : (
-          <article className="report-card rd-retention-report">
-            <div className="heatmap-empty">Loading retention…</div>
-          </article>
-        )}
+        <section className="metrics-grid-section" aria-label="Retention cohort analysis">
+          <div className="metrics-section-kicker">
+            <span>Retention analysis</span>
+            <span className="metrics-section-description">Activation cohorts · Completed weeks and months</span>
+          </div>
+          {dashboardData ? (
+            <RetentionHeatmap
+              weekly={dashboardData.weekly}
+              monthly={dashboardData.monthly}
+              loading={loading}
+              onCellClick={setHeatmapTarget}
+              onInfo={event => openInfo("retention_cohorts", event)}
+            />
+          ) : (
+            <article className="report-card rd-retention-report">
+              <div className="heatmap-empty">Loading retention…</div>
+            </article>
+          )}
+        </section>
 
         {dashboardData ? (
-          <RetentionChurnTrend
-            series={dashboardData.churn_series}
-            loading={loading}
-            onMonthClick={(row, segment = "all") =>
-              setChurnMonth({ row, segment })
-            }
-          />
+          <section className="metrics-grid-section" aria-label="Monthly churn analysis">
+            <div className="metrics-section-kicker">
+              <span>Churn analysis</span>
+              <span className="metrics-section-description">Completed calendar months · Company lifecycle</span>
+            </div>
+            <RetentionChurnTrend
+              series={dashboardData.churn_series}
+              loading={loading}
+              onMonthClick={(row, segment = "all") =>
+                setChurnMonth({ row, segment })
+              }
+              onInfo={event => openInfo("churn_trend", event)}
+            />
+          </section>
         ) : null}
       </main>
 
@@ -1503,6 +1564,13 @@ export default function RetentionDashboard({
           churnContext={churnCompany.context}
           backLabel="Monthly churn"
           onClose={() => setChurnCompany(null)}
+        />
+      ) : null}
+
+      {metricInfo ? (
+        <MetricsInfoDialog
+          definition={metricsInfoDefinitions[metricInfo]}
+          onClose={closeInfo}
         />
       ) : null}
 

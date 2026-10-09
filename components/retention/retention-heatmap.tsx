@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import CompactMenuSelect from "../ui/compact-menu-select";
+import { MetricsInfoButton } from "../ui/metrics-info";
 import type {
   RetentionHeatmapInterval,
   RetentionHeatmapResponse,
@@ -222,11 +223,13 @@ export default function RetentionHeatmap({
   monthly,
   loading,
   onCellClick,
+  onInfo,
 }: {
   weekly: RetentionHeatmapResponse;
   monthly: RetentionHeatmapResponse;
   loading?: boolean;
   onCellClick: (target: RetentionHeatmapTarget) => void;
+  onInfo: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const [interval, setInterval] =
     useState<RetentionHeatmapInterval>("weekly");
@@ -277,7 +280,8 @@ export default function RetentionHeatmap({
                 : "Activation cohorts · core activity in subsequent completed months"}
             </p>
           </div>
-          <div className="report-actions rd-retention-controls">
+          <div className="report-actions rd-retention-controls metrics-report-actions">
+            <MetricsInfoButton label="How retention cohorts are calculated" onClick={onInfo} />
             <CompactMenuSelect
               value={interval}
               options={INTERVAL_OPTIONS}
