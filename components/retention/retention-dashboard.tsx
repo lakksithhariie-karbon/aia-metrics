@@ -340,6 +340,7 @@ function KpiCard({
   value,
   unit,
   note,
+  caption,
   interactive,
   onClick,
   onInfo,
@@ -349,31 +350,49 @@ function KpiCard({
   value: string;
   unit?: string;
   note: string;
+  caption: string;
   interactive?: boolean;
   onClick?: () => void;
   onInfo: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
+  // Use the actual Product Overview card hierarchy and CSS, not a
+  // lookalike Retention-specific style. Keep the info control outside
+  // the interactive card so it doesn't trigger a company drill.
+  const content = (
+    <>
+      <span className="po-kpi-divider" aria-hidden="true" />
+      <span className="metric-label">{label}</span>
+      <span className="metric-period">{period}</span>
+      <span className="metric-value">
+        {value}
+        {unit ? <span className="unit">{unit}</span> : null}
+      </span>
+      <span className="metric-note">{note}</span>
+      <span className="po-change">{caption}</span>
+    </>
+  );
+
   return (
-    <article className={"rd-kpi-card " + (interactive ? "is-interactive" : "")}>
+    <div className="po-kpi-info-wrap">
       {interactive ? (
         <button
           type="button"
-          className="rd-card-hit-target"
+          className="metric-card"
           onClick={onClick}
           aria-label={label + ", " + value + ". View details."}
-        />
-      ) : null}
-      <div className="rd-card-top">
-        <span>{label}</span>
-        <span className="rd-card-period">{period}</span>
-      </div>
-      <div className="rd-card-value">
-        {value}
-        {unit ? <span>{unit}</span> : null}
-      </div>
-      <div className="rd-card-note">{note}</div>
-      <MetricsInfoButton label={"How " + label + " is calculated"} onClick={onInfo} />
-    </article>
+          aria-haspopup="dialog"
+        >
+          {content}
+        </button>
+      ) : (
+        <article className="metric-card metric-static">{content}</article>
+      )}
+      <MetricsInfoButton
+        className="po-kpi-info-button icon-button"
+        label={"How " + label + " is calculated"}
+        onClick={onInfo}
+      />
+    </div>
   );
 }
 
@@ -1404,9 +1423,10 @@ export default function RetentionDashboard({
           <DatePicker range={range} onApply={setRange} />
         </div>
 
-        <section className="rd-kpi-grid" aria-label="Retention key metrics">
+        <section className="kpi-grid po-kpis rd-kpi-grid" aria-label="Retention key metrics">
           <KpiCard
             label="Activation rate"
+            caption="Completed the activation sequence"
             period={rangeLabel(range)}
             value={loading && !kpis ? "…" : activationRate}
             note={
@@ -1423,6 +1443,7 @@ export default function RetentionDashboard({
           />
           <KpiCard
             label="Average time to value"
+            caption="Time from integration to activation"
             period={rangeLabel(range)}
             value={loading && !kpis ? "…" : ttv.value}
             unit={ttv.unit}
@@ -1436,6 +1457,7 @@ export default function RetentionDashboard({
           />
           <KpiCard
             label="Monthly churn"
+            caption="No core work in the completed month"
             period={
               kpis?.churn.month
                 ? monthLabel(kpis.churn.month)
