@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo } from "react";
+import { MetricsInfoButton } from "../ui/metrics-info";
 import type {
   RetentionChurnSeries,
   RetentionChurnSeriesRow,
@@ -39,6 +40,7 @@ export default function RetentionChurnTrend({
   series,
   loading,
   onMonthClick,
+  onInfo,
 }: {
   series: RetentionChurnSeries;
   loading?: boolean;
@@ -46,6 +48,7 @@ export default function RetentionChurnTrend({
     row: RetentionChurnSeriesRow,
     segment?: RetentionChurnSegment,
   ) => void;
+  onInfo: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   const rows = series.rows;
   const latest = rows.at(-1) ?? null;
@@ -64,9 +67,10 @@ export default function RetentionChurnTrend({
             Completed monthly cohorts · each row opens that month&apos;s company list
           </p>
         </div>
-        {loading ? (
-          <span className="rd-churn-updating">Updating…</span>
-        ) : null}
+        <div className="metrics-report-actions">
+          {loading ? <span className="rd-churn-updating">Updating…</span> : null}
+          <MetricsInfoButton label="How monthly churn trend is calculated" onClick={onInfo} />
+        </div>
       </header>
 
       {latest ? (
