@@ -1411,7 +1411,6 @@ export default function RetentionDashboard({
     <div className="rd-shell">
       <ProductMetricsHeader
         current="retention"
-        onHelp={() => helpRef.current?.showModal()}
       />
 
       <main className="rd-page">
