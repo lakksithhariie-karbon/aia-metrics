@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import MainNavigationDrawer from "./main-navigation-drawer";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,30 +34,11 @@ const DASHBOARDS = [
   },
 ];
 
-function HeaderIcon({
-  name,
-}: {
-  name: "grid" | "down" | "check";
-}) {
-  const path =
-    name === "down"
-      ? "m7 10 5 5 5-5"
-      : name === "check"
-        ? "m5 12 4 4L19 6"
-        : null;
-
+function HeaderIcon({ name }: { name: "down" | "check" }) {
+  const path = name === "down" ? "m7 10 5 5 5-5" : "m5 12 4 4L19 6";
   return (
     <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
-      {name === "grid" ? (
-        <>
-          <rect x="3.5" y="3.5" width="6" height="6" rx="1" />
-          <rect x="14.5" y="3.5" width="6" height="6" rx="1" />
-          <rect x="3.5" y="14.5" width="6" height="6" rx="1" />
-          <rect x="14.5" y="14.5" width="6" height="6" rx="1" />
-        </>
-      ) : (
-        <path d={path ?? ""} />
-      )}
+      <path d={path} />
     </svg>
   );
 }
@@ -77,9 +59,7 @@ export default function ProductMetricsHeader({
     <header className="app-header product-metrics-header">
       <div className="brand-left">
         <div className="brand">
-          <span className="brand-mark">
-            <HeaderIcon name="grid" />
-          </span>
+          <MainNavigationDrawer />
           AI Accountant
         </div>
         <span className="brand-divider" />
