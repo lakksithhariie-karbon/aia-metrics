@@ -7,6 +7,7 @@ import type {
  AdoptionSummary,AdoptionOutcome,AdoptionStage,AdoptionModule,AdoptionStep,AdoptionSegment,
 } from "../../lib/overview/adoption";
 import AdoptionDrillModal,{type AdoptionDrillTarget} from "./overview-adoption-modals";
+import { OverviewInfoButton } from "./overview-info";
 
 const nf=new Intl.NumberFormat("en-US");
 function rate(n:number,d:number){
@@ -131,7 +132,8 @@ function OutcomeCards({
   {outcomeMeta.map(meta=>{
    const count=ready&&summary?summary.outcomes[meta.key]:null;
    const pct=count!==null&&summary?rate(count,summary.total):"—";
-   return <button key={meta.key} className="metric-card" type="button"
+   return <div className="po-kpi-info-wrap" key={meta.key}>
+    <button className="metric-card" type="button"
     aria-haspopup="dialog"
     aria-label={meta.title+": "+pct+". Open company drill-down"}
     onClick={e=>{
@@ -145,7 +147,9 @@ function OutcomeCards({
       nf.format(count)+" of "+nf.format(summary.total)+" integrated companies":
       "Published data unavailable"}</span>
     <span className="po-change">{meta.note}</span>
-   </button>;
+   </button>
+    <OverviewInfoButton infoKey={meta.key}/>
+   </div>;
   })}
  </>;
 }
@@ -257,7 +261,8 @@ function JourneyExpanded({
  },[]);
  useEffect(()=>{
   const escape=(e:KeyboardEvent)=>{
-   if(e.key==="Escape"&&!drillOpen){
+   if(e.key==="Escape"&&!drillOpen&&
+      !document.querySelector(".po-overview-info-dialog[open]")){
     e.preventDefault();e.stopImmediatePropagation();onClose();
    }
   };
@@ -270,10 +275,17 @@ function JourneyExpanded({
    role="dialog" aria-modal="true" aria-labelledby="po-adoption-expanded-title">
    <div className="report-modal-chrome">
     <span id="po-adoption-expanded-title">Integration journey · Expanded view</span>
-    <button ref={closeButton} type="button" className="close-button"
-     onClick={onClose} aria-label="Close expanded journey">
-     <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
-    </button>
+    <div className="po-expanded-head-actions">
+     <button type="button" className="icon-button"
+      data-po-help="journey" aria-label="How integration journey is counted"
+      title="How it's counted">
+      <svg className="icon" aria-hidden="true"><use href="#i-info"/></svg>
+     </button>
+     <button ref={closeButton} type="button" className="close-button"
+      onClick={onClose} aria-label="Close expanded journey">
+      <svg className="icon" aria-hidden="true"><use href="#i-close"/></svg>
+     </button>
+    </div>
    </div>
    <div className="po-expanded-mount">
     <article className="po-report po-full po-journey-funnel-report">
@@ -289,43 +301,6 @@ function JourneyExpanded({
   </section>
  </div>;
 }
-function JourneyInfo({onClose}:{onClose:()=>void}){
- useEffect(()=>{
-  const close=(e:KeyboardEvent)=>{if(e.key==="Escape"){e.preventDefault();onClose()}};
-  window.addEventListener("keydown",close);
-  return ()=>window.removeEventListener("keydown",close);
- },[onClose]);
- return <div className="rd-overlay" role="presentation">
-  <section className="rd-modal rd-activation-modal po-adoption-info-modal"
-   role="dialog" aria-modal="true" aria-labelledby="po-adoption-info-title">
-   <header className="rd-modal-head"><div>
-    <p>Measurement definition</p>
-    <h2 id="po-adoption-info-title">Adoption &amp; integration</h2>
-    <span>One mature integration cohort · consistent source watermark</span>
-   </div><button type="button" className="rd-close" onClick={onClose}
-    aria-label="Close definitions"><svg className="rd-icon"><use href="#i-close"/></svg></button></header>
-   <div className="po-adoption-info-body">
-    <h3>Eligible companies</h3>
-    <p>Client companies with recorded successful Tally or Zoho integration,
-     observed for a full 28 days. Each company counts once.</p>
-    <h3>Funnel stages</h3>
-    <p>Successful integration → independent accounting work within 7 days →
-     qualifying accounting sync after that work within 28 days.
-     Stage conversion divides by the previous stage; cumulative conversion
-     divides by all eligible integrations.</p>
-    <h3>Independent outcome cards</h3>
-    <p>7-day core adoption is the first independent work milestone. Value conversion
-     requires a training sync, independent core work on a later IST calendar day,
-     and a closing sync within 28 days. Sustained adoption requires core work in
-     at least two of the first four seven-day periods.</p>
-    <p>Automated/unclassified Accounting Sync never qualifies as independent
-     work. Failed events, internal staff and non-client companies are excluded.
-     Adoption outcomes are not assumed to be sequential steps of the funnel.</p>
-   </div>
-  </section>
- </div>;
-}
-
 export default function OverviewAdoption({
  summary,usageSnapshot,stripTarget,funnelTarget,
 }:{
@@ -335,7 +310,6 @@ export default function OverviewAdoption({
  const [asOfDate,setAsOfDate]=useState(usageSnapshot?.asOfDate??"");
  const [target,setTarget]=useState<AdoptionDrillTarget|null>(null);
  const [expanded,setExpanded]=useState(false);
- const [showInfo,setShowInfo]=useState(false);
  const trigger=useRef<HTMLElement|null>(null);
  const expandTrigger=useRef<HTMLButtonElement|null>(null);
  useEffect(()=>{
@@ -360,20 +334,14 @@ export default function OverviewAdoption({
  useEffect(()=>{
   const expandButton=document.querySelector<HTMLButtonElement>(
    '#po-journey-report [data-po-expand="po-journey-report"]');
-  const infoButton=document.getElementById("po-live-journey-info");
-  if(!expandButton||!infoButton)return;
+  if(!expandButton)return;
   const expand=(event:Event)=>{
    event.preventDefault();event.stopImmediatePropagation();
    expandTrigger.current=expandButton;setExpanded(true);
   };
-  const info=(event:Event)=>{
-   event.preventDefault();event.stopImmediatePropagation();setShowInfo(true);
-  };
   expandButton.addEventListener("click",expand,true);
-  infoButton.addEventListener("click",info,true);
   return ()=>{
    expandButton.removeEventListener("click",expand,true);
-   infoButton.removeEventListener("click",info,true);
   };
  },[funnelTarget]);
  function openDrill(next:AdoptionDrillTarget,element:HTMLElement){
@@ -402,7 +370,5 @@ export default function OverviewAdoption({
     key={target.title+":"+target.initial}
     summary={summary} target={target} onClose={closeDrill}/>,
     document.body):null}
-  {showInfo&&typeof document!=="undefined"?
-   createPortal(<JourneyInfo onClose={()=>setShowInfo(false)}/>,document.body):null}
  </>;
 }

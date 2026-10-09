@@ -195,42 +195,17 @@
  function chartGrid(d,max){let s='';const step=max<=100?25:max<=250?50:100;for(let value=0;value<=max;value+=step){const i=value/step,y=d.top+d.plotH*(1-value/max);s+=`<line x1="${d.left}" y1="${y}" x2="${d.w-d.right}" y2="${y}" stroke="${i===0?'#dfe5ef':'#ecf0f6'}" ${i?'stroke-dasharray="2 5"':''}/><text x="${d.left-9}" y="${y+3}" text-anchor="end" fill="#9aa7b9" font-size="9">${value}</text>`;}return s;}
  function chartEmpty(svg){const d=chartDimensions(svg);svg.setAttribute('viewBox',`0 0 ${d.w} ${d.h}`);svg.innerHTML=`<text x="${d.w/2}" y="${d.h/2}" text-anchor="middle" fill="#96a3b6" font-size="11">No completed weeks in the available fixture</text>`;}
  function renderWeeklyChart(){ /* React owns #po-weekly-chart-view. */ }
- function renderFeatureChart(){
-  const svg=$('#po-feature-chart');if(!svg.getClientRects().length)return;
-  const data=current.chart;if(!data.length){chartEmpty(svg);return;}
-  const d=chartDimensions(svg),max=niceMax(Math.max(...data.flatMap(v=>[...P.series].map(k=>v[k])))*1.15),step=data.length>1?d.plotW/(data.length-1):d.plotW;
-  svg.setAttribute('viewBox',`0 0 ${d.w} ${d.h}`);let s=chartGrid(d,max);
-  const colors={ap:'#315de5',ar:'#9cbfe8',txn:'#243864'},labels={ap:'AP / Bills',ar:'AR / Invoices',txn:'Transactions'};
-  const xx=i=>d.left+(data.length>1?step*i:d.plotW/2),yy=(v,k)=>d.top+d.plotH-v[k]/max*d.plotH;
-  // Wide hit areas sit behind the series. Clicking whitespace opens all users.
-  data.forEach((v,i)=>{const x=xx(i);s+=`<g role="button" tabindex="0" aria-haspopup="dialog" data-po-drill="feature:${i}:all" data-po-tip="feature:${i}" aria-label="Explore all module users for ${dateLabel(v.week)}"><rect x="${x-Math.min(step/2,20)}" y="${d.top-5}" width="${Math.min(step,40)}" height="${d.plotH+10}" fill="transparent"/></g>`;if(d.w>500||i%2===0||i===data.length-1)s+=`<text x="${x}" y="${d.h-8}" text-anchor="middle" fill="#95a2b5" font-size="${d.w<390?8:9}">${dateLabel(v.week)}</text>`;});
-  [...P.series].forEach(k=>{const points=data.map((v,i)=>`${xx(i)},${yy(v,k)}`).join(' ');s+=`<polyline points="${points}" fill="none" stroke="${colors[k]}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" pointer-events="none"/>`;});
-  [...P.series].forEach(k=>data.forEach((v,i)=>{s+=`<g class="po-feature-point" role="button" tabindex="0" aria-haspopup="dialog" data-po-drill="feature:${i}:${k}" data-po-tip="feature:${i}" aria-label="Explore ${v[k]} ${labels[k]} users, ${dateLabel(v.week)}"><circle class="po-point-halo" cx="${xx(i)}" cy="${yy(v,k)}" r="10"/><circle cx="${xx(i)}" cy="${yy(v,k)}" r="3" fill="white" stroke="${colors[k]}" stroke-width="1.8"/></g>`;}));
-  svg.innerHTML=s;
- }
-
+ function renderFeatureChart(){ /* Native React owns module usage over time. */ }
  function renderCharts(){renderWeeklyChart();renderFeatureChart();}
  function renderFrequency(){ /* React owns #po-frequency-content. */ }
  function renderAdoption(){ /* The native React adoption cards own the report. */ }
  function renderJourney(){ /* The native React full-width funnel owns the report. */ }
 
- function renderMix(){
-  const el=$('#po-mix-content');
-  if(!referenceAvailable()){el.innerHTML=emptyHTML('Historical mix is not supplied','The reference shares are available for the original snapshot only.',true);return;}
-  const rows=mix.map(([label,cur,prev,delta,multi])=>[`<button class="po-cell-link" data-po-drill="mix:${mix.findIndex(m=>m[0]===label)}">${label}</button>`,`${cur.toFixed(1)}%`,`${prev.toFixed(1)}%`,`${delta>0?'+':''}${delta.toFixed(1)} pp`]);
-  if(P.chartTables.mix){el.innerHTML=`<div class="po-data-view" style="height:292px;margin:0">${htmlTable(['Combination','Current','Previous','Change'],rows)}</div>`;return;}
-  el.innerHTML=`<div class="po-mix-summary"><strong>33.9%</strong><span>use more than one module</span><small>+2.8 pp</small></div><div class="po-mix-header"><span>Combination</span><span></span><span>Share</span><span>Prev.</span></div>${mix.map(([label,cur,prev,delta,multi],i)=>`<div class="po-mix-row" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Explore ${label}" data-po-drill="mix:${i}" data-po-tip="mix:${i}"><span>${label}</span><span class="po-bar-track ${multi?'multi':''}"><i style="width:${cur/40*100}%"></i></span><strong>${cur.toFixed(1)}%</strong><span>${prev.toFixed(1)}%</span></div>`).join('')}`;
- }
- function renderFriction(){
-  const el=$('#po-friction-content');
-  if(!referenceAvailable()){el.innerHTML=emptyHTML('No historical issue snapshot','The period and source eligibility rules need to be connected.',true);return;}
-  el.innerHTML=`<div class="po-data-wrap">${htmlTable(['Issue','Incidence','vs previous','Recovered','Unresolved'],issues.map(i=>[`<button class="po-cell-link po-issue-label" data-po-drill="issue:${issues.indexOf(i)}:all"><span>${i.module}</span>${i.issue}</button>`,`<button class="po-cell-link" data-po-drill="issue:${issues.indexOf(i)}:all"><strong>${i.rate.toFixed(1)}%</strong><small>${nf(i.affected)} / ${nf(i.eligible)} eligible</small></button>`,`<span style="color:${i.change>0?'#a76b61':'#6b8d7e'}">${i.change>0?'+':''}${i.change.toFixed(1)} pp</span><small>prev. ${i.previous.toFixed(1)}%</small>`,`<button class="po-recovery po-cell-link" data-po-drill="issue:${issues.indexOf(i)}:recovered"><span class="po-bar-track"><i style="width:${i.recovery}%"></i></span><span class="po-recovery-text"><strong>${i.recovery.toFixed(1)}%</strong><small>${i.recovered} of ${i.affected}</small></span></button>`,`<button class="po-cell-link" data-po-drill="issue:${issues.indexOf(i)}:unresolved" aria-label="${i.unresolved} unresolved ${i.issue} cases"><strong class="po-issue-open ${i.unresolved?'':'clear'}">${i.unresolved}</strong></button>`]),'po-friction-table')}</div>`;
- }
+ function renderMix(){ /* Native React owns module combinations. */ }
+ function renderFriction(){ /* Native React owns the verified issue chart and drills. */ }
  function renderOverview(){
   compute();renderKPIs();renderFrequency();renderAdoption();renderJourney();renderMix();renderFriction();
   const data=current.chart;
-  $('#po-feature-caption').textContent=`Distinct core-active users · ${data.length} completed weeks`;
-  $('#po-feature-data').innerHTML=htmlTable(['Week starting','AP / Bills','AR / Invoices','Transactions'],data.map(v=>[cohortLabel(v.week),`<button class="po-cell-link" data-po-drill="feature:${data.indexOf(v)}:ap">${nf(v.ap)}</button>`,`<button class="po-cell-link" data-po-drill="feature:${data.indexOf(v)}:ar">${nf(v.ar)}</button>`,`<button class="po-cell-link" data-po-drill="feature:${data.indexOf(v)}:txn">${nf(v.txn)}</button>`]));
   requestAnimationFrame(renderCharts);
  }
  // One record modal, with an explicit context for the clicked metric, period or stage.
@@ -510,21 +485,60 @@
  // Supporting definitions surface unresolved source questions instead of
  // silently inventing production definitions during a UI refactor.
  const definitions={
-  dates:{title:'Report windows',body:()=>`<section><h3>Global date range</h3><p>The selected range is <strong>${esc(rangeLabel(appliedRange))}</strong>. In this prototype, its end sets the reporting date: <strong>${cohortLabel(P.asof)}</strong>. Lifetime uses the current published KPI snapshot. Active Usage and Adoption & Value now use live snapshot-aligned data; only the remaining workflow and friction reports are illustrative.</p><p>WAU always covers the last 7 days ending on that date. MAU always covers the last 30 days. Their previous-period comparisons use the preceding, non-overlapping 7 or 30 days. The start of a month filter does not shorten these rolling windows.</p></section><section><h3>Charts and cohorts</h3><p>Weekly charts show up to 12 completed Monday–Sunday weeks inside the selected range. Frequency always uses the last 4 completed weeks. A current, incomplete week is not plotted as zero.</p><p>Adoption and the integration journey select integration dates and require a full 28-day observation through the reporting date. They remain separate source cohorts.</p><p>Historical module-mix and friction values were not supplied. Those panels display an honest unavailable state outside the reference snapshot, rather than made-up values.</p></section>`},
+  dates:{title:'Report windows',body:()=>`<section>
+<h3>Published reporting date</h3>
+<p>The selected date range is <strong>${esc(rangeLabel(appliedRange))}</strong>.
+Live Overview metrics use the published Supabase snapshot and its ingestion watermark.
+If a historical reporting date has no published generation, the widgets show an
+unavailable state rather than prototype numbers.</p>
+<h3>Rolling usage</h3>
+<p>WAU is distinct users doing independent core accounting work in the last
+7 rolling days. MAU uses 30 rolling days, and Stickiness is WAU divided by MAU.
+Period comparisons use the immediately preceding non-overlapping 7 or 30 days.</p>
+<h3>Completed weeks</h3>
+<p>Weekly core-active users and module usage each show 12 completed Monday–Sunday
+weeks in Asia/Kolkata. Core usage frequency counts which of the last four completed
+weeks each person worked in. The incomplete current week is excluded.
+First observed means first recorded qualifying work, not signup. Tracking was
+incomplete during May–July 2026.</p></section>
+<section>
+<h3>Adoption and integration</h3>
+<p>The three adoption outcomes and integration journey use the same mature
+integration-company cohort with a full 28-day observation window.
+Seven-day adoption requires independent core work in the first 7 days.
+Value conversion requires a training sync, work on a later IST calendar day,
+and a confirming sync within 28 days. Sustained adoption requires work in
+at least two of the first four integration-relative weeks. These outcome
+cards are not assumed to be consecutive funnel stages.</p>
+<h3>Workflow and issues</h3>
+<p>Module combinations classify distinct core-active companies during the last
+rolling 28 days, versus the preceding 28 days. Every company belongs to one
+combination per period. Issues that need attention use these adjacent periods,
+and each issue has its own eligible-company denominator. A later success in the
+same company and workflow is only a follow-up signal, not verified repair.</p>
+<p>Independent core activity excludes Accounting Sync because it does not
+distinguish human from automatic execution, as well as failed actions, internal
+staff and non-client companies.</p></section>`},
   frequency:{title:'Core usage frequency',body:()=>`<h3>How consistently do users return to core work?</h3><p>Count distinct users who performed independent qualifying core accounting work in each of the four most recent completed Monday–Sunday weeks (Asia/Kolkata). Every user belongs in exactly one bucket: active in one, two, three or four of the weeks. The denominator is all users with work in those four completed weeks.</p><div class="po-notice">Automatic or unclassified Accounting Sync events are excluded, as are failed events, internal users and non-client companies. Frequency and rolling 7-day WAU do not use identical windows, so their totals need not match.</div>`},
     adoption:{title:'Adoption outcomes',body:()=>`<h3>Three outcomes, not an assumed funnel</h3><p>The supplied reference has 360 fully observed eligible companies: 232 performed core work within 7 days, 82 reached a qualifying sync within 28 days, and 61 were active in at least 2 of the first 4 weeks.</p><p>These are presented as separate outcomes. A company must not be forced into a sequential funnel without confirming the event and eligibility rules.</p><div class="po-notice">The integration journey starts with 386 companies, not 360. This prototype preserves those distinct populations. Confirm the exclusion rules before wiring production data.</div><p>The adoption outcomes are separate from the three live core-active user KPIs. Filtered cohort values are illustrative and derived from local dated fixtures.</p>`},
   journey:{title:'Integration journey',body:()=>`<h3>One aligned stage table</h3><p>The reference shows 386 successful integrations, 251 companies starting accounting work, and 203 reaching accounting sync, for integrations from 8 June to 6 September 2026.</p><p>Each stage shows its share of the initial cohort and conversion from the immediately prior stage. At the snapshot, these are 65.0% for starting work and 80.9% for progressing from work to sync.</p><div class="po-notice">The previous design showed a 28.6% next-step conversion on the final visible stage. No next stage was supplied, so that unexplained number is not carried into this presentation.</div><p>Stage membership, order and the mature-cohort rule still need verification against production queries. AP, AR and transaction branches overlap; they are not sequential funnel steps.</p>`},
   mix:{title:'Module combinations',body:()=>`<h3>Which workflows are used together?</h3><p>These are the supplied, mutually exclusive combinations for core-active companies over the last 28 days. Current and previous shares are shown together; exact changes are in the comparison table.</p><p>The reference reports 33.9% multi-module adoption, up 2.8 percentage points. Displayed category values are rounded. Reported deltas are preserved rather than recalculated from rounded shares.</p><div class="po-notice">The company denominator was not provided, so this prototype does not invent absolute company counts. The original observation end date also needs confirmation.</div>`},
-  friction:{title:'Friction and recovery',body:()=>`<h3>Prioritize unfinished work</h3><p>The table is ordered by unresolved count. It shows affected volume over the source denominator, the change in incidence, and recovery as a count and a rate.</p><p>Unresolved is affected minus recovered. The five visible issues total 14 unresolved issue occurrences, but they must not be described as 14 unique companies because issue populations may overlap.</p><div class="po-notice">The reporting period, event eligibility, recovery definition and entity units were not supplied. Reference numerators and denominators are retained. Historical values are unavailable. Current-snapshot drills use clearly labeled sample case-to-company mappings, not production records.</div>`},
+  friction:{title:'Issues that need attention',body:()=>`<h3>Observed company workflow issues</h3><p>Each row reports distinct client companies with a failed action or deliberate review reversion, divided by companies attempting that same workflow in the latest 28 days. Previous incidence uses the preceding 28 days.</p><p>“Later success” means a successful action in the same company and workflow after the latest recorded failure. This is a follow-up signal, not proof that the original transaction or upload was fixed. “Needs review” means no later success was observed by the end of the selected period.</p><div class="po-notice">Reverting to Needs Review is deliberate workflow rework, not a software error. Categories can overlap across companies. All figures and company drill-downs use verified Supabase events and the current published snapshot, excluding internal users and non-client companies.</div>`},
   workflows:{title:'Accounting work by workflow',body:()=>`<p>Breakdown of the <strong>251 companies</strong> that started accounting work in the original integration cohort. A company may use several workflows, so the three totals are not additive.</p><div class="po-data-wrap">${htmlTable(['Workflow / step','Companies / count','Within workflow'],[
     ['<strong>Bills / AP</strong>','<strong>165</strong>','65.7% of companies doing work'],['Bill upload','145','87.9%'],['Bill entry created','132','80.0%'],['Review / correction','72','43.6%'],['Upload failed','12','Issue count'],
     ['<strong>Invoices / AR</strong>','<strong>37</strong>','14.7% of companies doing work'],['Invoice upload','34','91.9%'],['Invoice entry created','5','13.5%'],['Upload failed','4','Issue count'],
     ['<strong>Statements / Transactions</strong>','<strong>152</strong>','60.6% of companies doing work'],['Statement upload','152','100.0%'],['Transaction work','139','91.4%'],['Accounting ready','132','95.0% of transaction work'],['Reverted after ready','51','Issue count']
    ])}</div><div class="po-notice">Reference snapshot only. Workflow percentages have different denominators in the source. Each module and activity now opens a contextual user/company breakdown. Individual records are illustrative.</div>`},
-  notes:{title:'Data & implementation notes',body:()=>`<section><h3>What is preserved</h3><p>The three headline KPI cards use the published production Supabase snapshot. The two Active Usage charts now show real data from the same snapshot, using 12 completed weeks and a four-week frequency distribution.</p><p>The prototype modal and record tables still contain illustrative users; they must not be used to validate the live KPI cards.</p></section><section><h3>What is illustrative</h3><p>The Weekly core-active users chart and Core usage frequency chart use the same live independent core-work definition as the three KPI cards. Only the remaining module trend, module mix and friction charts are still fixture-based. Their sample drill-downs are not production user records.</p><p>Module usage is deliberately labeled distinct core-active users by module. This is a proposed measurement because the original chart had no supplied unit. Confirm the desired user/company/action basis before implementation.</p><p>Adoption and journey keep their separate source cohorts. Filtered cohort results are illustrative. Module mix and friction preserve the screenshot and become unavailable for unsupported historical ranges.</p></section><section><h3>Approved design system</h3><p>Three KPI cards in a 12-column grid. Charts span six columns each; wide detail tables span all twelve. Font stack, card hover states, 24px gaps, navigation, dropdowns and modal behavior are shared with Retention v6.</p><p>The font stack is “PP Neue Montreal Medium”, “PP Neue Montreal Medium Placeholder”, sans-serif. The licensed font is not embedded. It uses a local installed copy where available, then the fallback.</p><p>Every overview report has a contextual user/company breakdown. Cohort and workflow memberships are illustrative fixtures matched to the supplied aggregates. Module-combination percentages have no supplied denominator; their sample records are not used to infer production counts. Issue-to-company mappings are also illustrative. Esc closes only the topmost modal and restores the parent state.</p></section>`}
  };
- function showPOInfo(key='notes'){
-  const d=definitions[key]||definitions.notes;$('#po-detail-title').textContent=d.title;$('#po-detail-body').innerHTML=d.body();openDialog('po-detail-dialog');$('#po-detail-dialog').scrollTop=0;
+ function showPOInfo(key='dates'){
+  // Chart-specific definitions remain available; unknown/obsolete keys
+  // never open a misleading implementation-notes popup.
+  const d=definitions[key];
+  if(!d)return;
+  $('#po-detail-title').textContent=d.title;
+  $('#po-detail-body').innerHTML=d.body();
+  openDialog('po-detail-dialog');
+  $('#po-detail-dialog').scrollTop=0;
  }
  function showPOTooltip(target){
   const [type,indexText]=target.dataset.poTip.split(':'),i=Number(indexText),tip=$('#po-tooltip');let title='',rows=[],note='';
@@ -549,6 +563,11 @@
 
  function setPage(page){
   P.page=page;root.hidden=page!=='overview';$('#retention-main').hidden=page==='overview';
+  // The global Help button belongs to Retention. Overview's obsolete
+  // implementation-notes popup must not be exposed on the live dashboard.
+  const help=$('#help-button');
+  help.hidden=page==='overview';
+  help.style.display=page==='overview'?'none':'';
   const heading=page==='overview'?$('#po-page-heading'):$('#retention-main .page-heading');heading.append($('.global-controls'));
   $('#dashboard-trigger>span').textContent=page==='overview'?'Product Overview':'Retention & Churn';
   const options=[['po-menu-item','overview'],['retention-menu-item','retention']];options.forEach(([id,p])=>{const el=$('#'+id),selected=page===p;el.classList.toggle('is-current',selected);el.setAttribute('aria-checked',String(selected));const check=$(':scope > svg',el);if(check)check.hidden=!selected;});
@@ -563,7 +582,12 @@
  renderDashboard=function(){originalRender();renderOverview();};
  $('#po-menu-item').addEventListener('click',()=>{setPage('overview');$('#dashboard-trigger').focus();});
  $('#retention-menu-item').addEventListener('click',()=>{setPage('retention');$('#dashboard-trigger').focus();});
- $('#help-button').addEventListener('click',e=>{if(P.page==='overview'){e.stopImmediatePropagation();showPOInfo('notes');}},true);
+ $('#help-button').addEventListener('click',e=>{
+  if(P.page==='overview'){
+   e.preventDefault();
+   e.stopImmediatePropagation();
+  }
+ },true);
  $('#dashboard-trigger').addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown'].includes(e.key)){e.preventDefault();e.stopImmediatePropagation();toggleDashboardMenu(true);$('#'+(P.page==='overview'?'po-menu-item':'retention-menu-item')).focus();}},true);
  $('#dashboard-menu').addEventListener('keydown',e=>{
   if(!['ArrowDown','ArrowUp','Home','End'].includes(e.key))return;e.preventDefault();e.stopImmediatePropagation();const opts=[$('#po-menu-item'),$('#retention-menu-item')],i=opts.indexOf(document.activeElement);opts[e.key==='Home'?0:e.key==='End'?1:(i+1)%2].focus();

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { OverviewUsageSnapshot } from "../../lib/overview/kpis";
 import { OverviewUsageModal, type OverviewMetric } from "./overview-usage-modals";
+import { OverviewInfoButton } from "./overview-info";
 
 type Metric = OverviewMetric;
 const numbers = new Intl.NumberFormat("en-US");
@@ -125,8 +126,8 @@ export default function OverviewKpiStrip({
   return (
     <>
       {cards.map(card => (
+        <div className="po-kpi-info-wrap" key={card.key}>
         <button
-          key={card.key}
           className="metric-card"
           type="button"
           onClick={event => { trigger.current = event.currentTarget; open(card.key); }}
@@ -157,6 +158,8 @@ export default function OverviewKpiStrip({
             </span>
           )}
         </button>
+        <OverviewInfoButton infoKey={card.key} />
+        </div>
       ))}
 
       {activeDrill && current && snapshot ? (
