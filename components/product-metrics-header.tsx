@@ -119,9 +119,6 @@ export default function ProductMetricsHeader({
                       if (selected) event.preventDefault();
                     }}
                   >
-                    <span className="app-dashboard-item-icon">
-                      <HeaderIcon name={item.icon} />
-                    </span>
                     <span className="app-dashboard-item-label">
                       <strong>{item.name}</strong>
                       <small>{item.description}</small>
