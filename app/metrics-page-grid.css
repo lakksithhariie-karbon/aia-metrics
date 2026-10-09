@@ -49,57 +49,8 @@
   gap:var(--metrics-page-gap);
   margin:0;
 }
-.rd-kpi-grid>.rd-kpi-card{
-  grid-column:span 4;
-  height:163px;
-  min-width:0;
-  padding:20px;
-  border-radius:7px;
-  border-color:#e0e6ef;
-  box-shadow:none;
-  grid-template-rows:24px 53px minmax(0,auto);
-  align-content:start;
-}
-.rd-kpi-grid .rd-card-top{
-  height:24px;
-  font-size:13px;
-  line-height:19px;
-  gap:12px;
-}
-.rd-kpi-grid .rd-card-period{
-  flex-shrink:0;
-  height:auto;
-  border:0;
-  border-radius:0;
-  padding:0;
-  background:transparent;
-  color:#929fb1;
-  font-size:10px;
-  white-space:nowrap;
-}
-.rd-kpi-grid .rd-card-value{
-  height:53px;
-  font-size:38px;
-  line-height:50px;
-  font-weight:650;
-  letter-spacing:-1px;
-  align-items:baseline;
-}
-.rd-kpi-grid .rd-card-value>span{font-size:17px}
-.rd-kpi-grid .rd-card-note{
-  height:auto;
-  min-height:17px;
-  font-size:11px;
-  line-height:17px;
-  align-items:flex-start;
-  padding-right:26px;
-}
-.rd-kpi-grid .rd-kpi-card.is-interactive:hover{
-  background:#fdfdff;
-  border-color:#a9bbee;
-  box-shadow:0 0 0 1px #1646e80a;
-  transform:none;
-}
+/* KPI children use the existing global .metric-card and .po-kpis styles
+   from Product Overview; no page-specific card lookalikes remain. */
 .metrics-grid-section{
   display:flex;
   flex-direction:column;
@@ -319,16 +270,11 @@
 }
 @media(max-width:900px){
   :root{--metrics-page-gutter:18px;--metrics-page-gap:16px}
-  .rd-kpi-grid>.rd-kpi-card{padding:16px}
-  .rd-kpi-grid .rd-card-top{font-size:11px}
-  .rd-kpi-grid .rd-card-value{font-size:34px}
-  .rd-kpi-grid .rd-card-note{font-size:10px}
 }
 @media(max-width:620px){
   :root{--metrics-page-gutter:16px;--metrics-page-gap:16px}
   .rd-page{row-gap:20px;padding-top:20px!important}
   .rd-page>.rd-kpi-grid{grid-template-columns:1fr;gap:12px}
-  .rd-kpi-grid>.rd-kpi-card{grid-column:1/-1;height:132px}
   .rd-page-head,.companies-page-heading{
     flex-direction:column;
     align-items:flex-start;
