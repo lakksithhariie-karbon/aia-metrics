@@ -1,8 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuLinkItem,
+  DropdownMenuTrigger,
+} from "./ui/dropdown-menu";
 
-type DashboardKey = "overview" | "retention" | "companies";
+export type DashboardKey = "overview" | "retention" | "companies";
 
 const DASHBOARDS = [
   {
@@ -22,7 +30,7 @@ const DASHBOARDS = [
   {
     key: "companies" as const,
     name: "Companies",
-    description: "Monthly usage by integration cohort",
+    description: "Monthly usage by company and user",
     href: "/customer",
     icon: "grid" as const,
   },
@@ -31,7 +39,7 @@ const DASHBOARDS = [
 function HeaderIcon({
   name,
 }: {
-  name: "grid" | "trend" | "down" | "check" | "help";
+  name: "grid" | "trend" | "down" | "check";
 }) {
   const path =
     name === "trend"
@@ -51,11 +59,6 @@ function HeaderIcon({
           <rect x="3.5" y="14.5" width="6" height="6" rx="1" />
           <rect x="14.5" y="14.5" width="6" height="6" rx="1" />
         </>
-      ) : name === "help" ? (
-        <>
-          <circle cx="12" cy="12" r="9" />
-          <path d="M9.5 8.7a2.6 2.6 0 0 1 5 1c0 1.8-2.5 2-2.5 3.8M12 16.8v.1" />
-        </>
       ) : (
         <path d={path ?? ""} />
       )}
@@ -63,14 +66,16 @@ function HeaderIcon({
   );
 }
 
+/**
+ * One React header for Product Overview, Retention & Churn, and Companies.
+ * The dropdown uses the shadcn Base UI Menu primitives, not the old
+ * hand-managed prototype popover. Chart help remains in individual cards.
+ */
 export default function ProductMetricsHeader({
   current,
-  onHelp,
 }: {
   current: DashboardKey;
-  onHelp?: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const active = DASHBOARDS.find(item => item.key === current) ?? DASHBOARDS[0];
 
   return (
@@ -87,66 +92,51 @@ export default function ProductMetricsHeader({
       </div>
 
       <nav aria-label="Product metrics navigation" className="top-nav">
-        <div className="dashboard-switcher">
-          <button
-            className="dashboard-trigger ui-control"
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={open}
-            onClick={() => setOpen(value => !value)}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="app-dashboard-trigger"
+            aria-label={"Dashboards, currently " + active.name}
           >
             <HeaderIcon name={active.icon} />
             <span>{active.name}</span>
             <HeaderIcon name="down" />
-          </button>
+          </DropdownMenuTrigger>
 
-          <div
-            className="dashboard-menu ui-menu-surface"
-            role="menu"
-            hidden={!open}
-          >
-            <div className="menu-heading" role="presentation">
-              Dashboards
-            </div>
-            {DASHBOARDS.map(item => (
-              <a
-                key={item.key}
-                href={item.href}
-                role="menuitemradio"
-                aria-checked={item.key === current}
-                className={
-                  "dashboard-option " +
-                  (item.key === current ? "is-current" : "")
-                }
-                onClick={event => {
-                  if (item.key === current) {
-                    event.preventDefault();
-                    setOpen(false);
-                  }
-                }}
-              >
-                <span className="menu-option-icon">
-                  <HeaderIcon name={item.icon} />
-                </span>
-                <span className="menu-option-copy">
-                  <strong>{item.name}</strong>
-                  <small>{item.description}</small>
-                </span>
-                {item.key === current ? <HeaderIcon name="check" /> : null}
-              </a>
-            ))}
-          </div>
-        </div>
-
-        <button
-          className="header-help"
-          type="button"
-          aria-label="Metric definitions"
-          title="Metric definitions"
-          onClick={onHelp}
-        >
-          <HeaderIcon name="help" />
-        </button>
+          <DropdownMenuContent aria-label="Dashboards" align="end" sideOffset={8}>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="app-dashboard-menu-label">
+                Dashboards
+              </DropdownMenuLabel>
+              {DASHBOARDS.map(item => {
+                const selected = item.key === current;
+                return (
+                  <DropdownMenuLinkItem
+                    key={item.key}
+                    href={item.href}
+                    aria-current={selected ? "page" : undefined}
+                    className="app-dashboard-item"
+                    onClick={event => {
+                      if (selected) event.preventDefault();
+                    }}
+                  >
+                    <span className="app-dashboard-item-icon">
+                      <HeaderIcon name={item.icon} />
+                    </span>
+                    <span className="app-dashboard-item-label">
+                      <strong>{item.name}</strong>
+                      <small>{item.description}</small>
+                    </span>
+                    {selected ? (
+                      <span className="app-dashboard-current" aria-hidden="true">
+                        <HeaderIcon name="check" />
+                      </span>
+                    ) : null}
+                  </DropdownMenuLinkItem>
+                );
+              })}
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </nav>
     </header>
   );
