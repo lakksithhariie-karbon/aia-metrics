@@ -42,7 +42,7 @@ export async function readPublishedOverviewActiveCharts(): Promise<OverviewActiv
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
-  const response = await fetch(url + "/rest/v1/rpc/read_overview_active_charts_v1", {
+  const response = await fetch(url + "/rest/v1/rpc/read_overview_active_charts_v2", {
     method: "POST", cache: "no-store", signal: AbortSignal.timeout(25_000),
     headers: {
       apikey: key, Authorization: "Bearer " + key,
