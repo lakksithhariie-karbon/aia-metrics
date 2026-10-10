@@ -1,12 +1,12 @@
 /*
- * Engineering & Delivery visual-reference shell.
+ * Engineering & Delivery KPI layout reuses the real Product Overview cards.
  *
  * Do not override the approved Product Overview page geometry here.
  * app/metrics-page-grid.css supplies 1560px max width, 28px gutters,
  * 12 outer columns and 24px section/grid gaps.
  *
- * Inner content densities match the original Engineering reference:
- * 3-up Sprint KPI tiles, 5-up Attention / Quality cards, full-width tables.
+ * Reuse the Product metric-card typography, surfaces and info-button pattern;
+ * KPI rows are balanced to avoid orphaned cards.
  */
 .ed-shell{min-height:100dvh;background:#fff}
 .ed-page{padding-bottom:38px!important}
@@ -33,49 +33,39 @@
 .ed-section-heading .metrics-section-description{
   color:#909bac;font-size:10px;
 }
-.ed-sprint-kpis,.ed-five-kpis{
-  width:100%;display:grid;align-content:start;
-  min-width:0;gap:var(--metrics-page-gap,24px);
+/* The same Product Overview .po-kpis and .metric-* card primitives.
+   Keep one 12-column grid with Product's 24px rhythm; balance every row.
+   Four Sprint cards and five Attention cards stay on one row on desktop;
+   the six Quality cards use two complete Product-style rows of three. */
+.ed-kpi-grid.po-kpis{
+  display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
+  align-content:start;width:100%;min-width:0;
+  gap:var(--metrics-page-gap,24px);margin:0;
 }
-.ed-sprint-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
-.ed-five-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
-.ed-metric-wrap{position:relative;min-width:0;width:100%}
-.ed-metric.metric-card{
-  grid-column:auto;width:100%;min-width:0;
-  height:155px;min-height:155px;
-  padding:16px 18px 14px;
-  display:flex;flex-direction:column;align-items:flex-start;
-  text-align:left;overflow:hidden;
-  border:1px solid #e0e5ee;border-left:2px solid #bfd0f5;
-  border-radius:6px;background:#f7f8fb;box-shadow:none;
-  color:#25334a;cursor:pointer;
+.ed-kpi-grid>.ed-metric-wrap{
+  grid-column:span 4;position:relative;min-width:0;width:100%;
 }
-.ed-metric.metric-card:hover{border-color:#9aafee;border-left-color:#2d5ce1;background:#fdfdff}
-.ed-metric.metric-card:focus-visible{outline:2px solid #8eaafa;outline-offset:2px}
-.ed-metric-featured.metric-card{background:#eef3ff;border-left-color:#2d5ce1}
-.ed-metric-label{
-  flex:0 0 auto;min-width:0;width:100%;
-  color:#647389;font-size:10.5px;line-height:16px;
-  font-weight:630;letter-spacing:.08px;
+.ed-sprint-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:span 3}
+.ed-attention-kpis.ed-kpi-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+.ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:auto}
+.ed-quality-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:span 4}
+.ed-kpi-grid.po-kpis .ed-metric.metric-card{
+  grid-column:auto;width:100%;min-width:0;cursor:pointer;
 }
-.ed-metric-readout{
-  display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;
-  min-width:0;max-width:100%;margin:7px 0 1px;
+.ed-kpi-grid .ed-metric.metric-card:focus-visible{
+  outline:2px solid #7899e4;outline-offset:2px;
 }
-.ed-metric-readout strong{
-  color:#1b2533;font-size:30px;line-height:33px;
-  font-weight:700;letter-spacing:-.9px;font-variant-numeric:tabular-nums;
+/* Featured state mirrors Product's restrained indigo active KPI treatment. */
+.ed-kpi-grid .ed-metric-featured.metric-card{
+  border-color:#c4d2fa;border-left:3px solid #315de5;
+  background:#f5f7ff;
 }
-.ed-metric-readout>span{font-size:10px;color:#8b98ab;white-space:nowrap}
-.ed-metric-caption{
-  margin:2px 0 0;min-height:14px;width:100%;
-  color:#7f8c9f;font-size:9.5px;line-height:14px;
+.ed-kpi-grid .ed-metric-featured.metric-card:hover{
+  border-color:#96b2f2;border-left-color:#244de0;background:#f1f5ff;
 }
-.ed-metric-caption-attention{color:#b05652}
-.ed-five-kpis .ed-metric.metric-card{height:155px;min-height:155px;padding:16px 14px 13px}
-.ed-five-kpis .ed-metric-label{font-size:10px}
-.ed-five-kpis .ed-metric-readout strong{font-size:29px}
-.ed-five-kpis .ed-metric-caption{font-size:9px}
+.ed-kpi-grid .metric-label{max-width:100%;padding-right:65px}
+.ed-kpi-grid .metric-note{max-width:100%;padding-right:30px}
+.ed-kpi-grid .ed-metric-note-attention{color:#b4514b}
 .ed-collection{
   display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
   gap:var(--metrics-page-gap,24px);
@@ -183,13 +173,21 @@
 .ed-preview-note>strong{color:#607395;font-weight:670}
 .app-dashboard-current-section{cursor:default;user-select:none}
 @media(max-width:1200px){
-  .ed-five-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .ed-sprint-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:span 6}
+  .ed-attention-kpis.ed-kpi-grid{grid-template-columns:repeat(12,minmax(0,1fr))}
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:span 4}
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap:nth-child(n+4){grid-column:span 6}
 }
 @media(max-width:900px){
   .ed-page>.ed-page-head{align-items:flex-start;flex-direction:column}
   .ed-filters{justify-content:flex-start}
-  .ed-sprint-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .ed-five-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ed-quality-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:span 6}
+}
+@media(max-width:750px){
+  .ed-sprint-kpis.ed-kpi-grid>.ed-metric-wrap,
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap,
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap:nth-child(n+4){grid-column:span 6}
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap:last-child{grid-column:1/-1}
 }
 @media(max-width:620px){
   .ed-page{padding-bottom:25px!important}
@@ -197,9 +195,14 @@
   .ed-page>.ed-page-head{align-items:flex-start}
   .ed-filters{gap:6px}
   .ed-filter-static{height:32px;font-size:9px;min-width:84px}
-  .ed-sprint-kpis,.ed-five-kpis{grid-template-columns:1fr;gap:12px}
-  .ed-sprint-kpis>.ed-metric-wrap>.ed-metric.metric-card,
-  .ed-five-kpis>.ed-metric-wrap>.ed-metric.metric-card{height:143px;min-height:143px}
+  .ed-kpi-grid.po-kpis{gap:12px}
+  .ed-kpi-grid.po-kpis>.ed-metric-wrap,
+  .ed-sprint-kpis.ed-kpi-grid>.ed-metric-wrap,
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap,
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap:nth-child(n+4),
+  .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap:last-child,
+  .ed-quality-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:1/-1}
+  .ed-kpi-grid.po-kpis .ed-metric.metric-card{height:158px;min-height:158px}
   .ed-report-heading.report-header{padding:17px 15px 12px}
   .ed-table-shell{width:calc(100% - 30px);max-width:calc(100% - 30px);margin-left:15px;margin-right:15px}
   .ed-flow-summary{padding:0 15px 14px}
@@ -236,16 +239,19 @@
 }
 .ed-reset:hover{background:#f5f7fb}
 .ed-reset:focus-visible{outline:2px solid #8eaafa;outline-offset:2px}
+/* Product Overview's separate info control sits at the bottom right,
+   outside the native full-card drill button. */
 .ed-info-button{
-  position:absolute;right:9px;top:8px;width:27px;height:27px;
-  display:grid;place-items:center;padding:0;border:1px solid transparent;
-  border-radius:5px;color:#8f9db1;background:transparent;z-index:2;
+  position:absolute;z-index:3;right:13px;bottom:12px;
+  display:flex;align-items:center;justify-content:center;
+  width:28px;height:28px;padding:0;border:1px solid transparent;
+  border-radius:5px;color:#8a98ad;background:transparent;cursor:pointer;
 }
+.ed-info-button svg{width:17px;height:17px}
 .ed-info-button:hover,.ed-info-button:focus-visible{
-  background:#e9efff;color:#3258bd;border-color:#d6e1f8;
+  color:#365dc4;background:#f0f4ff;border-color:#d7e1f6;
 }
-.ed-metric-label{padding-right:17px;line-height:17px;min-height:17px}
-.ed-metric-featured .ed-metric-label{color:#466391}
+.ed-info-button:focus-visible{outline:2px solid #7899e4;outline-offset:1px}
 .ed-cell-drill:focus-visible{
   outline:2px solid #96b2f0;outline-offset:3px;
 }
@@ -378,7 +384,6 @@
   .ed-evidence-footer{align-items:flex-start;flex-direction:column}
 }
 @media(max-width:620px){
-  .ed-metric-label{font-size:10.5px}
   .ed-filter-label{flex:1 1 calc(50% - 10px)}
   .ed-filter-label:first-child,.ed-filter-label:nth-child(3),.ed-filter-label:nth-child(5){min-width:0}
   .ed-reset{margin-top:14px}

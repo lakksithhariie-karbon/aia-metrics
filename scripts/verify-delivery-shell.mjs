@@ -30,8 +30,24 @@ for (const token of [
   "--metrics-page-gap:24px",
   "grid-template-columns:repeat(12,minmax(0,1fr))",
 ]) assert.ok(grid.includes(token), "Product page grid changed: " + token);
-assert.match(css,/\.ed-sprint-kpis\{grid-template-columns:repeat\(3,minmax\(0,1fr\)\)\}/);
-assert.match(css,/\.ed-five-kpis\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)\}/);
+assert.match(shell,/className="ed-sprint-kpis ed-kpi-grid po-kpis"/);
+assert.match(shell,/className="ed-attention-kpis ed-kpi-grid po-kpis"/);
+assert.match(shell,/className="ed-quality-kpis ed-kpi-grid po-kpis"/);
+assert.match(css,/\.ed-kpi-grid\.po-kpis\{/);
+assert.match(css,/grid-template-columns:repeat\(12,minmax\(0,1fr\)\)/);
+assert.match(css,/\.ed-sprint-kpis\.ed-kpi-grid>\.ed-metric-wrap\{grid-column:span 3\}/);
+assert.match(css,/\.ed-attention-kpis\.ed-kpi-grid\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)\}/);
+assert.match(css,/\.ed-quality-kpis\.ed-kpi-grid>\.ed-metric-wrap\{grid-column:span 4\}/);
+for(const shared of [
+  'className="po-kpi-divider"',
+  'className="metric-label"',
+  'className="metric-period"',
+  'className="metric-value"',
+  'className={"metric-note"',
+]) assert.ok(shell.includes(shared),"Missing shared Product Overview KPI primitive "+shared);
+assert.doesNotMatch(css,/ed-metric-readout|ed-five-kpis|ed-metric-caption|ed-metric-label/,
+  "Do not copy Product card styling into a smaller grey Engineering lookalike.");
+assert.match(css,/bottom:12px/,"Metric info icons must match Product's bottom-right position.");
 assert.match(css,/\.ed-collection\{/);
 for (const section of ["Sprint delivery","Attention","Delivery","Flow","Quality"]) {
   assert.ok(shell.includes('title="'+section+'"'), "Missing section "+section);
@@ -73,6 +89,8 @@ const stageSql=read("supabase/migrations/20261010_jira_delivery_stage_evidence_v
 assert.match(stageSql,/jira_delivery_stage_evidence_parity_mismatch/);
 assert.match(stageSql,/v_last_run IS DISTINCT FROM v_published/);
 assert.match(shell,/drillKey:reviewCount!==null\?"stage:Code Review":undefined/);
+assert.match(shell,/<title>\{\x60\$\{date\(s\.week_start\)\}: \$\{num\(s\.open_eod\)\} open issues\x60\}<\/title>/,
+  "SVG tooltip title must be a single text expression to avoid hydration errors.");
 assert.match(page,/export const maxDuration = 45/);
 assert.match(overviewCards,/className="metric-card"/,
   "Product Overview remains the reference for full-card drill triggers.");

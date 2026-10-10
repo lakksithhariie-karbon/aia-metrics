@@ -18,6 +18,7 @@ type Metric = {
   value: string;
   unit?: string;
   caption: string;
+  period: string;
   definition: string;
   source: string;
   drillKey?: string;
@@ -89,12 +90,13 @@ function MetricTile({metric,onInfo,onDrill}:{
       onClick={openCard}
       aria-haspopup="dialog"
       aria-label={metric.label+": "+metric.value+(metric.drillKey?". View matching Jira issues.":". View metric definition.")}>
-      <span className="ed-metric-label">{metric.label}</span>
-      <span className="ed-metric-readout">
-        <strong>{metric.value}</strong>
-        {metric.unit?<span>{metric.unit}</span>:null}
+      <span className="po-kpi-divider" aria-hidden="true"/>
+      <span className="metric-label">{metric.label}</span>
+      <span className="metric-period">{metric.period}</span>
+      <span className="metric-value">{metric.value}
+        {metric.unit?<span className="unit">{metric.unit}</span>:null}
       </span>
-      <span className={"ed-metric-caption"+(metric.attention?" ed-metric-caption-attention":"")}>{metric.caption}</span>
+      <span className={"metric-note"+(metric.attention?" ed-metric-note-attention":"")}>{metric.caption}</span>
     </button>
     <InfoIcon label={metric.label} onClick={()=>onInfo(metric)}/>
   </div>;
@@ -272,7 +274,7 @@ function BacklogTrend({data}:{data:DeliveryDashboard}){
             stroke="#e4eaf2" strokeWidth="1"/><text x={left-7} y={y(lo+(hi-lo)*f)+4} textAnchor="end" fontSize="12" fill="#8b9aae">{num(Math.round(lo+(hi-lo)*f))}</text></g>)}
         <path d={path} fill="none" stroke="#416de8" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>
         {series.map((s,i)=><circle key={s.week_start} cx={x(i)} cy={y(s.open_eod)} r="3" fill="#416de8">
-          <title>{date(s.week_start)}: {num(s.open_eod)} open issues</title></circle>)}
+          <title>{`${date(s.week_start)}: ${num(s.open_eod)} open issues`}</title></circle>)}
         <text x={left} y={height-5} fill="#8b9aae" fontSize="12">{date(series[0].week_start)}</text>
         <text x={width-right} y={height-5} fill="#8b9aae" fontSize="12" textAnchor="end">{date(series[series.length-1].week_start)}</text>
       </svg>:<p className="ed-table-meta">Not enough reporting weeks.</p>}
@@ -426,22 +428,22 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
   const reviewCount=reviewStage?.issues_in_stage??null;
   const reviewHours=reviewStage?.median_hours??null;
   const sprintMetrics:Metric[]=[
-    {id:"commitment",label:(first.state==="active"?"Active":"Selected")+" sprint · "+first.sprint_name,
+    {id:"commitment",label:"Sprint commitment",period:shortSprint(first.sprint_name),
       value:pct(first.commitment_completion_pct),caption:num(first.committed_done)+" of "+num(first.committed)+" committed issues completed",
 
       definition:"Completed committed issues divided by all originally committed direct sprint issues. Commitment uses the sprint-start plus two-day cutoff; removed-before-cutoff items are excluded.",
       source:"jira.v_sprint_discipline · verified sprint cohort",highlighted:true,
       drillKey:metricAction("commit_s45"),sprintId:filters.sprint,attention:true},
-    {id:"commitment_gap",label:"Committed work not delivered",
+    {id:"commitment_gap",label:"Committed work not delivered",period:shortSprint(first.sprint_name),
       value:num(gap),unit:"issues",caption:"Committed by cutoff · currently not Done",
 
       definition:"Original committed direct sprint issues minus those currently Done. The issue population matches the sprint discipline removal cutoff.",
       source:"jira.v_sprint_discipline + filtered sprint issue evidence",drillKey:"commitment_gap",sprintId:filters.sprint},
-    {id:"mid_sprint",label:"Mid-sprint additions",value:num(first.added_mid_sprint),unit:"issues",
+    {id:"mid_sprint",label:"Mid-sprint additions",period:shortSprint(first.sprint_name),value:num(first.added_mid_sprint),unit:"issues",
       caption:pct(first.mid_sprint_add_pct)+" of current sprint scope",
       definition:"Direct sprint issues created after the sprint-start plus two-day commitment cutoff, within the published sprint population.",
       source:"jira.v_sprint_discipline / adds_s45 published cohort",drillKey:metricAction("adds_s45"),sprintId:filters.sprint},
-    {id:"throughput",label:"Throughput",value:num(throughput?.throughput),unit:"completed",
+    {id:"throughput",label:"Throughput",period:shortSprint(first.sprint_name),value:num(throughput?.throughput),unit:"completed",
       caption:num(throughput?.first_done_after_start)+" first completed after sprint start",
 
       definition:"Distinct Jira issues first completed during the sprint reporting window. This is a throughput measure, not the count currently Done in sprint scope.",
@@ -450,26 +452,26 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
   ];
   const fc=data.flow.flow_counts;
   const attention:Metric[]=[
-    {id:"stale",label:"Stale work",value:num(fc.stale_all),unit:"issues",
+    {id:"stale",label:"Stale work",period:"7+ days",value:num(fc.stale_all),unit:"issues",
       caption:"Open issues not updated for 7+ days",
       definition:"Open issues whose last Jira update is older than seven days. Deleted Jira issues are excluded.",
       source:"jira.v_issue_flow_state / stale_7d cohort",drillKey:metricAction("stale_7d")},
-    {id:"stale_blocked",label:"Stale and blocked",value:num(fc.stale_blocked),unit:"issues",
+    {id:"stale_blocked",label:"Stale and blocked",period:"7+ days",value:num(fc.stale_blocked),unit:"issues",
       caption:"Blocked status and stale for 7+ days",
 
       definition:"Open issues with status Blocked/Onhold and no Jira update in the past seven days.",
       source:"jira.v_flow_counts / stale_blocked cohort",drillKey:metricAction("stale_blocked")},
-    {id:"l1",label:"Open L1 bugs",value:num(cohort("open_l1_s45")),unit:"bugs",
+    {id:"l1",label:"Open L1 bugs",period:"L1",value:num(cohort("open_l1_s45")),unit:"bugs",
       caption:"Open issues classified L1 · untagged retained elsewhere",
 
       definition:"Not-Done Jira bug issues explicitly tagged with severity L1. Issues missing severity remain in total open bugs, not this segment.",
       source:"jira.v_metric_cohorts_active_v1 / open_l1_s45",drillKey:metricAction("open_l1_s45")},
-    {id:"qa_queue",label:"QA queue",value:num(fc.open_total>=0?cohort("qa_queue"):null),unit:"open",
+    {id:"qa_queue",label:"QA queue",period:"Current",value:num(fc.open_total>=0?cohort("qa_queue"):null),unit:"open",
       caption:"Open issues awaiting UAT, testing or staging exit",
 
       definition:"Open issues currently in UAT, Testing or Staging, matching the audited QA queue population.",
       source:"jira.v_qa_queue / qa_queue cohort",drillKey:metricAction("qa_queue")},
-    {id:"blocked",label:"Blocked",value:num(fc.blocked_all),unit:"issues",
+    {id:"blocked",label:"Blocked",period:"Current",value:num(fc.blocked_all),unit:"issues",
       caption:pct(fc.open_total?fc.blocked_all/fc.open_total*100:null)+" of current open work",
 
       definition:"Open Jira issues currently in Blocked/Onhold. Denominator is all currently open, non-deleted issues.",
@@ -478,30 +480,30 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
   const qReopen=q.reopen_latest, qReject=q.qa_rejection,qResolution=q.bug_resolution,qTurn=q.qa_turnaround;
   const bugAging=data.flow.bug_health;
   const quality:Metric[]=[
-    {id:"bugs",label:"Open bug backlog",value:num(bugAging.open_bugs),unit:"open bugs",
+    {id:"bugs",label:"Open bug backlog",period:"Current",value:num(bugAging.open_bugs),unit:"open bugs",
       caption:"Median age "+decimal(bugAging.median_age_days)+"d",
 
       definition:"Jira issues of type Bug not in Done status, excluding Jira-deleted issues. Median age is measured from creation.",
       source:"jira.v_bug_health / open_bugs cohort",drillKey:metricAction("open_bugs"),highlighted:true},
-    {id:"reopen",label:"Reopen rate",value:pct(qReopen?.value),caption:num(qReopen?.n)+" of "+num(qReopen?.denominator)+" closes · latest observed month",
+    {id:"reopen",label:"Reopen rate",period:"Latest month",value:pct(qReopen?.value),caption:num(qReopen?.n)+" of "+num(qReopen?.denominator)+" closes · latest observed month",
 
       definition:"Reopened issues relative to the published closed-issue denominator for the latest measured month. Historical status changes are used.",
       source:"jira.get_filtered_dashboard_quality_submodule / reopen_latest cohort",drillKey:metricAction("reopen_latest")},
-    {id:"qa_reject",label:"QA rejection",value:pct(qReject?.value,2),caption:num(qReject?.n)+" rejected cycles of "+num(qReject?.denominator)+" decisions",
+    {id:"qa_reject",label:"QA rejection",period:"All time",value:pct(qReject?.value,2),caption:num(qReject?.n)+" rejected cycles of "+num(qReject?.denominator)+" decisions",
 
       definition:"Rejected UAT cycles divided by accepted plus rejected UAT decisions. The rate counts decisions; the issue drill lists distinct affected issue records.",
       source:"jira.v_qa_rejection_org / qa_rejection cohort",drillKey:metricAction("qa_rejection")},
-    {id:"bug_resolution",label:"Bug resolution",value:decimal(qResolution?.value,2)+"d",
+    {id:"bug_resolution",label:"Bug resolution",period:"All time",value:decimal(qResolution?.value,2)+"d",
       caption:"Median created → resolved · "+num(qResolution?.n)+" bugs",
 
       definition:"Median elapsed days from Jira bug creation to its published resolved timestamp, using the filtered resolved-bug population.",
       source:"jira.v_resolution_medians / bug_resolution cohort",drillKey:metricAction("bug_resolution")},
-    {id:"qa_turn",label:"QA turnaround",value:decimal(qTurn?.value!=null?qTurn.value/24:null,1)+"d",
+    {id:"qa_turn",label:"QA turnaround",period:"All time",value:decimal(qTurn?.value!=null?qTurn.value/24:null,1)+"d",
       caption:"Median UAT stay · "+num(qTurn?.n)+" measured",
 
       definition:"Median hours from UAT entry to a recorded exit decision, displayed in days (hours divided by 24). Incomplete/open windows are excluded.",
       source:"jira.v_resolution_medians / qa_turnaround cohort",drillKey:metricAction("qa_turnaround")},
-    {id:"code_review",label:"Code review",value:hrs(reviewHours),caption:"Median stage dwell · "+shortSprint(first.sprint_name),
+    {id:"code_review",label:"Code review",period:shortSprint(first.sprint_name),value:hrs(reviewHours),caption:"Median stage dwell · "+shortSprint(first.sprint_name),
 
       definition:"Median accumulated time in Code Review per issue, for the displayed sprint. Issues can revisit review; their recorded stage intervals are summed. The evidence median and population are independently reconciled before display.",
       source:"jira.v_sprint_stage_summary / exact Code Review stage-history evidence",
@@ -521,12 +523,12 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
 
       <section className="metrics-grid-section ed-section" aria-label="Sprint delivery">
         <SectionHead title="Sprint delivery" question="Did we finish the work we planned?"/>
-        <div className="ed-sprint-kpis">{sprintMetrics.map(m=>
+        <div className="ed-sprint-kpis ed-kpi-grid po-kpis">{sprintMetrics.map(m=>
           <MetricTile key={m.id} metric={m} onInfo={apply} onDrill={drillTo}/>)}</div>
       </section>
       <section className="metrics-grid-section ed-section" aria-label="Attention">
         <SectionHead title="Attention" question="Work requiring action now"/>
-        <div className="ed-five-kpis">{attention.map(m=>
+        <div className="ed-attention-kpis ed-kpi-grid po-kpis">{attention.map(m=>
           <MetricTile key={m.id} metric={m} onInfo={apply} onDrill={drillTo}/>)}</div>
         <div className="ed-collection"><WorkInFlight data={data} open={drillTo}/></div>
       </section>
@@ -543,7 +545,7 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       </section>
       <section className="metrics-grid-section ed-section" aria-label="Quality">
         <SectionHead title="Quality" question="Defect stock, rejection, recovery and cycle time"/>
-        <div className="ed-five-kpis">{quality.map(m=>
+        <div className="ed-quality-kpis ed-kpi-grid po-kpis">{quality.map(m=>
           <MetricTile key={m.id} metric={m} onInfo={apply} onDrill={drillTo}/>)}</div>
         <div className="ed-collection">
           <BugAging data={data}/><BacklogTrend data={data}/>
