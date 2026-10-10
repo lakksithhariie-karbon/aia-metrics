@@ -312,6 +312,25 @@ function DefinitionDialog({metric,onClose}:{metric:Metric;onClose:()=>void}){
     </section>
   </div>;
 }
+function EvidenceTableSkeleton({showReviewDwell}:{showReviewDwell:boolean}){
+  // Mirror the real issue table's columns while keeping all placeholder rows
+  // hidden from assistive technology. The live region announces loading.
+  return <table className="ed-report-table ed-evidence-table ed-evidence-skeleton-table" aria-hidden="true">
+    <thead><tr><th>Jira issue</th><th>Summary</th><th>Status</th>
+      {showReviewDwell?<th>Review dwell</th>:null}
+      <th>Priority</th><th>Module</th><th>Assignee</th></tr></thead>
+    <tbody>{Array.from({length:9},(_,index)=><tr key={index}>
+      <th scope="row"><span className="ed-skeleton-line ed-skeleton-key"/></th>
+      <td><span className="ed-skeleton-line ed-skeleton-summary-main"/>
+        <span className="ed-skeleton-line ed-skeleton-summary-detail"/></td>
+      <td><span className="ed-skeleton-line ed-skeleton-status"/></td>
+      {showReviewDwell?<td><span className="ed-skeleton-line ed-skeleton-duration"/></td>:null}
+      <td><span className="ed-skeleton-line ed-skeleton-priority"/></td>
+      <td><span className="ed-skeleton-line ed-skeleton-module"/></td>
+      <td><span className="ed-skeleton-line ed-skeleton-assignee"/></td>
+    </tr>)}</tbody>
+  </table>;
+}
 function EvidenceDialog({target,data,filters,onClose}:{target:DrillTarget;data:DeliveryDashboard;filters:DeliveryFilters;onClose:()=>void}){
   const [offset,setOffset]=useState(0);
   const [result,setResult]=useState<DeliveryEvidence|null>(null);
@@ -352,12 +371,16 @@ function EvidenceDialog({target,data,filters,onClose}:{target:DrillTarget;data:D
   const next=()=>{setLoading(true);setResult(null);setOffset(x=>x+40);};
   const previous=()=>{setLoading(true);setResult(null);setOffset(x=>Math.max(0,x-40));};
   return <div className="ed-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
-    <section className="ed-evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="ed-evidence-title">
+    <section className="ed-evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="ed-evidence-title" aria-busy={loading}>
       <header><div><span>VERIFIED JIRA ISSUE EVIDENCE · SYNC {data.snapshot_id}</span>
         <h2 id="ed-evidence-title">{target.label}</h2></div>
         <button ref={firstButton} type="button" aria-label="Close issue evidence" onClick={onClose}>×</button></header>
       <div className="ed-evidence-summary">
-        {loading?"Loading issue evidence…":error?"Evidence temporarily unavailable":
+        {loading?<><span className="ed-screenreader-only" role="status">Loading Jira issue evidence…</span>
+          <div className="ed-evidence-skeleton-summary" aria-hidden="true">
+            <span className="ed-skeleton-line ed-skeleton-summary-count"/>
+            <span className="ed-skeleton-line ed-skeleton-summary-page"/>
+          </div></>:error?"Evidence temporarily unavailable":
         <>{num(result?.total)} matching issues{result && result.source_count!==result.total?
           " · "+num(result.source_count)+" reported metric events / cycles":""}
           {" · "}Rows {num(result&&result.total?offset+1:0)}–{num(Math.min(offset+40,result?.total??0))}
@@ -365,7 +388,7 @@ function EvidenceDialog({target,data,filters,onClose}:{target:DrillTarget;data:D
       </div>
       <div className="ed-evidence-table-shell">
         {error?<p role="alert" className="ed-error">Couldn’t verify the selected issue population. No unverified rows are shown.</p>:
-        loading?<p className="ed-table-meta">Querying the published Jira snapshot…</p>:
+        loading?<EvidenceTableSkeleton showReviewDwell={target.key==="stage:Code Review"}/>:
         !result?.rows.length?<p className="ed-table-meta">No matching issues in this scope.</p>:
         <table className="ed-report-table ed-evidence-table">
           <thead><tr><th>Jira issue</th><th>Summary</th><th>Status</th>{target.key==="stage:Code Review"?<th>Review dwell</th>:null}<th>Priority</th><th>Module</th><th>Assignee</th></tr></thead>

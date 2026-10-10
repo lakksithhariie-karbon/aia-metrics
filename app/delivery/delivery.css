@@ -306,6 +306,43 @@
   background:#fff;color:#253348;
   box-shadow:0 30px 90px rgba(22,36,62,.26);
 }
+
+/* Issue-drill loading: real table-shaped skeleton, never a blank pane.
+   Keep dialog height stable between first page, next page and loaded rows. */
+.ed-evidence-dialog{height:min(760px,calc(100dvh - 36px))}
+.ed-screenreader-only{
+  position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+.ed-evidence-skeleton-summary{display:flex;align-items:center;gap:13px;height:18px}
+.ed-skeleton-line{
+  display:block;max-width:100%;height:10px;border-radius:4px;
+  background:linear-gradient(100deg,#edf1f7 15%,#e0e7f0 40%,#edf1f7 65%);
+  background-size:220% 100%;
+  animation:ed-evidence-shimmer 1.65s ease-in-out infinite;
+}
+.ed-skeleton-summary-count{width:162px;height:11px}
+.ed-skeleton-summary-page{width:106px;height:11px}
+.ed-evidence-skeleton-table tbody tr{height:52px}
+.ed-evidence-skeleton-table tbody td,
+.ed-evidence-skeleton-table tbody th{vertical-align:middle}
+.ed-evidence-skeleton-table .ed-skeleton-key{width:77px}
+.ed-evidence-skeleton-table .ed-skeleton-summary-main{width:83%;height:10px}
+.ed-evidence-skeleton-table .ed-skeleton-summary-detail{width:57%;height:8px;margin-top:8px;opacity:.75}
+.ed-evidence-skeleton-table tbody tr:nth-child(3n+2) .ed-skeleton-summary-main{width:66%}
+.ed-evidence-skeleton-table tbody tr:nth-child(3n+3) .ed-skeleton-summary-main{width:92%}
+.ed-evidence-skeleton-table .ed-skeleton-status{width:72px}
+.ed-evidence-skeleton-table .ed-skeleton-duration{width:62px}
+.ed-evidence-skeleton-table .ed-skeleton-priority{width:56px}
+.ed-evidence-skeleton-table .ed-skeleton-module{width:68px}
+.ed-evidence-skeleton-table .ed-skeleton-assignee{width:85px}
+@keyframes ed-evidence-shimmer{
+  0%{background-position:110% 0}
+  100%{background-position:-110% 0}
+}
+@media(prefers-reduced-motion:reduce){
+  .ed-skeleton-line{animation:none;background:#e8edf4}
+}
 .ed-definition-dialog{width:min(490px,calc(100vw - 32px))}
 .ed-evidence-dialog>header,.ed-definition-dialog>header{
   display:flex;align-items:flex-start;justify-content:space-between;

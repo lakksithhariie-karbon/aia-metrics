@@ -105,6 +105,20 @@ assert.match(overviewCards,/className="metric-card"/,
   "Product Overview remains the reference for full-card drill triggers.");
 assert.match(shell,/function MetricTile\(/);
 assert.match(shell,/return <div className="ed-metric-wrap">/);
+assert.match(shell,/function EvidenceTableSkeleton\(/,
+  "Drill-down loading must render real table-shaped skeleton rows.");
+assert.match(shell,/loading\?<EvidenceTableSkeleton showReviewDwell=\{target.key==="stage:Code Review"\}\/>/,
+  "Both standard and Code Review loading must use the table skeleton.");
+assert.match(shell,/ed-evidence-skeleton-summary/,"Loading summary must have skeleton placeholders.");
+assert.match(shell,/className="ed-screenreader-only" role="status"/,
+  "Loading must remain announced to assistive technology.");
+assert.match(shell,/aria-busy=\{loading\}/,"Evidence dialog should be busy while loading.");
+assert.doesNotMatch(shell,/Querying the published Jira snapshot|Loading issue evidence…/,
+  "Do not display tiny loading copy in place of an issue table.");
+assert.match(css,/\.ed-evidence-dialog\{height:min\(760px,calc\(100dvh - 36px\)\)\}/,
+  "Evidence dialog must not resize substantially when issue rows load.");
+assert.match(css,/@media\(prefers-reduced-motion:reduce\)\{/,
+  "Skeleton animations must respect reduced-motion preference.");
 assert.match(shell,/className="metric-card ed-metric"/);
 assert.match(shell,/onClick=\{openCard\}/);
 assert.match(shell,/aria-haspopup="dialog"/);
