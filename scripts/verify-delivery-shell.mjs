@@ -105,7 +105,7 @@ assert.match(overviewCards,/className="metric-card"/,
   "Product Overview remains the reference for full-card drill triggers.");
 assert.match(shell,/function MetricTile\(/);
 assert.match(shell,/return <div className="ed-metric-wrap">/);
-assert.match(shell,/className=\{"metric-card ed-metric"/);
+assert.match(shell,/className="metric-card ed-metric"/);
 assert.match(shell,/onClick=\{openCard\}/);
 assert.match(shell,/aria-haspopup="dialog"/);
 assert.match(shell,/<InfoIcon label=\{metric.label\} onClick=\{\(\)=>onInfo\(metric\)\}\/>/);
