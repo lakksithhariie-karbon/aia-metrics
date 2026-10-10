@@ -661,7 +661,7 @@ staff and non-client companies.</p></section>`},
  window.addEventListener('resize',resize);
  if('ResizeObserver' in window){const observer=new ResizeObserver(resize);observer.observe(root);observer.observe($('#po-expanded-mount'));}
  // Only check original fixture totals when the original reference date is active.
-  if(P.asof===SNAPSHOT_DATE){
+  if(P.asof===SNAPSHOT_DATE && Array.isArray(current.weekly)){
    console.assert(current.weekly.length===153,'WAU fixture should reconcile to 153');
    console.assert(current.monthly.length===429,'MAU fixture should reconcile to 429');
    console.assert(current.buckets.join(',')==='299,50,29,42','Frequency fixture should reconcile');
@@ -670,6 +670,6 @@ staff and non-client companies.</p></section>`},
   }
   setPage('overview');
  // Expose a small read-only test snapshot rather than internal mutable state.
- window.overviewPrototype={snapshot:()=>({asof:P.asof,wau:current.weekly.length,mau:current.monthly.length,previousWAU:current.prevW.length,previousMAU:current.prevM.length,frequency:current.buckets.slice(),weekly:current.chart.map(v=>({...v})),adoptionEligible:current.adoption.length,converted:current.adoption.filter(c=>c.converted).length,filteredUserCount:recordCandidates().length,drill:P.drill?{kind:P.drill.kind,key:P.drill.key,index:P.drill.index,tab:P.tab,tabs:recordTabs().map(t=>({key:t.key,label:t.label,count:t.count})),visibleCompanies:recordCandidates().reduce((n,u)=>n+u.count,0)}:null,journeyModules:moduleDefs.map(m=>({key:m.key,count:current.journey.filter(c=>c.modules?.includes(m.key)).length,steps:m.steps.map(s=>({key:s.key,count:current.journey.filter(c=>c.steps?.includes(s.key)).length}))})),page:P.page})};
+ window.overviewPrototype={snapshot:()=>!Array.isArray(current.weekly)?null:({asof:P.asof,wau:current.weekly.length,mau:current.monthly.length,previousWAU:current.prevW.length,previousMAU:current.prevM.length,frequency:current.buckets.slice(),weekly:current.chart.map(v=>({...v})),adoptionEligible:current.adoption.length,converted:current.adoption.filter(c=>c.converted).length,filteredUserCount:recordCandidates().length,drill:P.drill?{kind:P.drill.kind,key:P.drill.key,index:P.drill.index,tab:P.tab,tabs:recordTabs().map(t=>({key:t.key,label:t.label,count:t.count})),visibleCompanies:recordCandidates().reduce((n,u)=>n+u.count,0)}:null,journeyModules:moduleDefs.map(m=>({key:m.key,count:current.journey.filter(c=>c.modules?.includes(m.key)).length,steps:m.steps.map(s=>({key:s.key,count:current.journey.filter(c=>c.steps?.includes(s.key)).length}))})),page:P.page})};
 })();
 
