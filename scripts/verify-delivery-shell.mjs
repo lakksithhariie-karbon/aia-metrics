@@ -63,7 +63,7 @@ for (const insight of [
   'title="Issue types by sprint"',
   'title="Flow health"',
   'Blocked / On hold', 'Code Review', 'Staging',
-  'Commitment', 'Committed work finished', 'Late-added completions',
+  'Sprint commitment', 'Committed work finished', 'Late-added completions',
 ]) {
   assert.ok(shell.includes(insight), "Missing reference report or row: " + insight);
 }
