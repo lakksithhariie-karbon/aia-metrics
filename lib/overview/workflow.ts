@@ -191,7 +191,7 @@ export async function readWorkflowModuleUsers(params:{
  snapshotId:number;week:string;module:WorkflowModule;
  query:string;page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<WorkflowModuleUsers|null>{
- return rpc<WorkflowModuleUsers>("read_overview_workflow_module_users_v3",{
+ return rpc<WorkflowModuleUsers>("read_overview_workflow_module_users_v4",{
   p_snapshot_id:params.snapshotId,p_week:params.week,p_module:params.module,
   p_query:params.query,p_page:params.page,p_page_size:params.pageSize,
  },params.signal);

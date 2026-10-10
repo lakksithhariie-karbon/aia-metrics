@@ -148,7 +148,7 @@ export async function readFrictionCompanies(params:{
  snapshotId:number;issue:FrictionKey;period:FrictionPeriod;segment:FrictionSegment;
  query:string;page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<FrictionCompanyList|null>{
- return rpc<FrictionCompanyList>("read_overview_friction_companies_v3",{
+ return rpc<FrictionCompanyList>("read_overview_friction_companies_v5",{
   p_snapshot_id:params.snapshotId,p_issue_key:params.issue,
   p_period:params.period,p_segment:params.segment,
   p_query:params.query,p_page:params.page,p_page_size:params.pageSize,
