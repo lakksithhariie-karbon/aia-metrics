@@ -303,7 +303,7 @@ select jsonb_build_object(
   'data_end',(select data_month from meta),
   'source_watermark_at',(select source_watermark_at from meta)
 );
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.read_companies_monthly_breakdown_v2(p_company_id text, p_module text, p_user_key text DEFAULT NULL::text, p_usage_month date DEFAULT NULL::date)
@@ -368,7 +368,7 @@ select
 from classified c
 group by c.event,c.subtype,c.status
 order by count(*) desc,c.event,c.subtype nulls first,c.status nulls first;
-$function$
+$function$;
 
 
 REVOKE ALL ON FUNCTION public.read_companies_monthly_grid_v2(date,date,text,text,text,text,text,integer,integer) FROM PUBLIC,anon,authenticated;
