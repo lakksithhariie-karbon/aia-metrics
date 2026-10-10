@@ -105,8 +105,8 @@ async function rpc<T>(name:string,body:Record<string,unknown>,signal?:AbortSigna
  if(!r.ok)throw new Error("overview_friction_http_"+r.status);
  return await r.json() as T|null;
 }
-export async function readPublishedFrictionSummary():Promise<FrictionSummary|null>{
- const raw=obj(await rpc<unknown>("read_overview_friction_v1",{}));
+export async function readPublishedFrictionSummary(snapshotId?:number):Promise<FrictionSummary|null>{
+ const raw=obj(await rpc<unknown>("read_overview_friction_v4",snapshotId==null?{}:{p_snapshot_id:snapshotId}));
  if(!raw||raw.contract!=="observed_company_friction_v1"
   ||!natural(raw.snapshot_id)||typeof raw.as_of!=="string"
   ||Number.isNaN(Date.parse(raw.as_of))
@@ -129,7 +129,7 @@ export async function readPublishedFrictionSummary():Promise<FrictionSummary|nul
    ||(row.change_pp!==null&&(
     typeof row.change_pp!=="number"||!Number.isFinite(row.change_pp)
    )))return null;
-  if(current.incidence_pct===null||previous.incidence_pct===null)return null;
+  // Zero eligible workflows yield a meaningful unavailable rate, not a fatal error.
   seen.add(row.key);
   rows.push({
    key:row.key as FrictionKey,label:row.label,
@@ -148,7 +148,7 @@ export async function readFrictionCompanies(params:{
  snapshotId:number;issue:FrictionKey;period:FrictionPeriod;segment:FrictionSegment;
  query:string;page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<FrictionCompanyList|null>{
- return rpc<FrictionCompanyList>("read_overview_friction_companies_v1",{
+ return rpc<FrictionCompanyList>("read_overview_friction_companies_v5",{
   p_snapshot_id:params.snapshotId,p_issue_key:params.issue,
   p_period:params.period,p_segment:params.segment,
   p_query:params.query,p_page:params.page,p_page_size:params.pageSize,
@@ -158,7 +158,7 @@ export async function readFrictionCompanyDetail(params:{
  snapshotId:number;issue:FrictionKey;period:FrictionPeriod;
  segment:FrictionSegment;companyId:string;signal?:AbortSignal;
 }):Promise<FrictionCompanyDetail|null>{
- return rpc<FrictionCompanyDetail>("read_overview_friction_company_v1",{
+ return rpc<FrictionCompanyDetail>("read_overview_friction_company_v3",{
   p_snapshot_id:params.snapshotId,p_issue_key:params.issue,p_period:params.period,
   p_segment:params.segment,p_company_id:params.companyId,
  },params.signal);

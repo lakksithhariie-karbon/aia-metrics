@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProductMetricsHeader from "../product-metrics-header";
+import CompaniesInsightsDrill from "./companies-insights-drill";
 import MetricsInfoDialog, {
   MetricsInfoButton,
   metricsInfoDefinitions,
@@ -144,6 +145,15 @@ async function postCompanies<T>(
     );
   }
   return payload as T;
+}
+
+// Small, time-bounded cache for reopened company drill-downs. Keep the
+// cache keyed by the full evidence scope so dates/users never mix.
+const breakdownCache = new Map<string, { value: ModuleBreakdownResponse; expiresAt: number }>();
+const BREAKDOWN_CACHE_MS = 30_000;
+
+function drillCacheKey(companyId: string, userId: string | null, module: MonthModuleKey, month: string): string {
+  return JSON.stringify([companyId, userId, module, month.slice(0, 7)]);
 }
 
 interface BreakdownTarget {
@@ -294,6 +304,13 @@ export default function CompaniesDashboard() {
   useEffect(() => {
     if (!target) return;
     const controller = new AbortController();
+    const key = drillCacheKey(target.company.id, target.user?.id ?? null, target.module, target.month);
+    const cached = breakdownCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      setBreakdown(cached.value);
+      setBreakdownLoading(false);
+      return () => controller.abort();
+    }
     setBreakdown(null);
     setBreakdownLoading(true);
     postCompanies<ModuleBreakdownResponse>(
@@ -306,8 +323,14 @@ export default function CompaniesDashboard() {
       },
       controller.signal,
     )
-      .then(setBreakdown)
-      .catch(() => setBreakdown(null))
+      .then(result => {
+        if (controller.signal.aborted) return;
+        // Bound memory and only store successful, complete responses.
+        if (breakdownCache.size >= 50) breakdownCache.delete(breakdownCache.keys().next().value!);
+        breakdownCache.set(key, { value: result, expiresAt: Date.now() + BREAKDOWN_CACHE_MS });
+        setBreakdown(result);
+      })
+      .catch(() => { if (!controller.signal.aborted) setBreakdown(null); })
       .finally(() => {
         if (!controller.signal.aborted) setBreakdownLoading(false);
       });
@@ -527,8 +550,11 @@ export default function CompaniesDashboard() {
         >
           <div className="po-record-toolbar companies-command-bar">
             <div className="companies-toolbar-meta">
-              <strong>{number.format(data?.total ?? 0)} companies</strong>
-              <span>{label} cohort · updated {prettyDateTime(data?.source_watermark_at ?? null)}</span>
+              <strong>{loading && !data ? "Loading companies…" : error && !data ? "Data unavailable" : number.format(data?.total ?? 0) + " companies"}</strong>
+              <span>{label} cohort · updated {prettyDateTime(data?.source_watermark_at ?? null)}
+                {range.start <= "2026-07" && range.end >= "2026-05"
+                  ? " · May–July integration tracking incomplete" : ""}
+              </span>
             </div>
             <div className="po-record-tools">
               <MetricsInfoButton
@@ -1054,7 +1080,7 @@ export default function CompaniesDashboard() {
                     className="icon-button"
                     type="button"
                     aria-label="Previous year"
-                    disabled={year <= 2020}
+                    disabled={year <= Number(minMonth.slice(0, 4))}
                     onClick={() => setYear(year - 1)}
                   >
                     <Icon name="left" />
@@ -1160,175 +1186,15 @@ export default function CompaniesDashboard() {
         aria-labelledby="companies-breakdown-title"
         onClose={onDialogClose}
       >
-        <div className="companies-breakdown-layout">
-          <header className="dialog-header">
-            <div>
-              <p className="dialog-eyebrow">
-                {target
-                  ? `${shortMonth(target.month)} · ${moduleLabel(target.module)}`
-                  : "Module usage"}
-              </p>
-              <h2
-                className="dialog-title"
-                id="companies-breakdown-title"
-              >
-                {target?.company.name ??
-                  "Usage breakdown"}
-              </h2>
-              <p className="dialog-subtitle">
-                {target?.user
-                  ? `${target.user.email} · `
-                  : "Company total · "}
-                {target
-                  ? `${shortMonth(target.month)} calendar-month usage`
-                  : ""}
-              </p>
-            </div>
-            <button
-              className="close-button"
-              type="button"
-              aria-label="Close usage breakdown"
-              onClick={closeBreakdown}
-            >
-              <Icon name="close" />
-            </button>
-          </header>
-
-          <div className="companies-breakdown-summary">
-            <span>
-              <strong>
-                {breakdownLoading
-                  ? "…"
-                  : number.format(breakdown?.total ?? 0)}
-              </strong>{" "}
-              events
-            </span>
-            {breakdown?.item_total != null ? (
-              <span>
-                <strong>
-                  {number.format(breakdown.item_total)}
-                </strong>{" "}
-                affected items reported by instrumented events
-              </span>
-            ) : (
-              <span>
-                No instrumented item volume for this selection
-              </span>
-            )}
-          </div>
-
-          <div
-            className="companies-breakdown-wrap"
-            role="region"
-            tabIndex={0}
-            aria-label="Module event breakdown"
-          >
-            {breakdownLoading ? (
-              <div className="companies-loading">
-                Loading event breakdown…
-              </div>
-            ) : !breakdown ? (
-              <div className="companies-error">
-                <div>
-                  <strong>Breakdown unavailable</strong>
-                  <span>
-                    The secure data bridge is unavailable. No
-                    fallback data is shown.
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <table className="companies-breakdown-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Event / subtype</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" className="numeric">
-                      Events
-                    </th>
-                    <th scope="col" className="numeric">
-                      Affected items
-                    </th>
-                    <th scope="col">
-                      Latest activity
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {breakdown.rows.length ? (
-                    breakdown.rows.map((row, index) => (
-                      <tr
-                        key={`${row.event}-${row.subtype}-${row.status}-${index}`}
-                      >
-                        <td>
-                          {row.event}
-                          {row.subtype ? (
-                            <span className="companies-breakdown-subtype">
-                              {row.subtype}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td>
-                          {row.status ? (
-                            <span
-                              className={`companies-breakdown-status ${row.status.toLowerCase() === "failed" ? "failed" : ""}`}
-                            >
-                              {row.status}
-                            </span>
-                          ) : (
-                            "–"
-                          )}
-                        </td>
-                        <td className="numeric">
-                          {number.format(row.count)}
-                        </td>
-                        <td className="numeric">
-                          {row.items == null ? (
-                            <span title="Item volume is not instrumented for this event.">
-                              –
-                            </span>
-                          ) : (
-                            number.format(row.items)
-                          )}
-                        </td>
-                        <td>
-                          {prettyDateTime(row.latest_at)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5}>
-                        <div className="po-empty">
-                          <strong>
-                            No events in this module
-                          </strong>
-                          <span>
-                            This is a real zero for this
-                            company/user and calendar month.
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <footer className="companies-breakdown-foot">
-            <span>
-              {breakdown?.window_start
-                ? `${prettyDateTime(breakdown.window_start)} → ${prettyDateTime(breakdown.window_end)}`
-                : target
-                  ? shortMonth(target.month)
-                  : ""}
-            </span>
-            <span>
-              {target?.user ? "User scope" : "Company scope"}
-            </span>
-          </footer>
-        </div>
+        <CompaniesInsightsDrill
+          companyName={target?.company.name ?? "Company activity"}
+          userLabel={target?.user?.email ?? null}
+          month={target?.month ?? currentMonthIST() + "-01"}
+          module={target?.module ?? "transactions"}
+          loading={breakdownLoading}
+          breakdown={breakdown}
+          onClose={closeBreakdown}
+        />
       </dialog>
 
       {monthlyInfoOpen ? (

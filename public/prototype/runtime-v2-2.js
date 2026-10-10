@@ -184,7 +184,20 @@
  let lastNativeKpiAsOf=null;
  function renderKPIs(){
   // The React-owned KPI strip never receives demo values from this runtime.
-  $('#po-page-context').innerHTML=icon('clock')+'<span>Rolling metrics end <strong style="font-weight:500;color:#677b97">'+cohortLabel(P.asof)+'</strong></span><span>·</span><button data-po-info="dates">Report windows explained</button>';
+  const status=$('#prototype-surface')?.dataset.overviewStatus||'current';
+  const includesGap=appliedRange.preset!=='lifetime'&&
+    appliedRange.start<='2026-07'&&appliedRange.end>='2026-05';
+  const unavailable=status==='unavailable';
+  const caveat=unavailable?'No verified data for this selection'
+    :appliedRange.preset!=='lifetime'&&appliedRange.end<'2026-05'
+      ?'Prior-to-March activity history is incomplete'
+      :includesGap?'May–July event tracking incomplete'
+      :status==='available'?'Reconstructed from recorded events':'';
+  $('#po-page-context').innerHTML=icon('clock')+
+    '<span>Reporting as of <strong style="font-weight:500;color:#677b97">'+
+      cohortLabel(P.asof)+'</strong></span><span>·</span>'+
+    '<button data-po-info="dates">How date ranges work</button>'+
+    (caveat?'<span class="po-quality-caption">· '+esc(caveat)+'</span>':'');
   if(lastNativeKpiAsOf!==P.asof){
    lastNativeKpiAsOf=P.asof;
    window.dispatchEvent(new CustomEvent('aia:overview-asof',{detail:{asOf:P.asof}}));
@@ -571,8 +584,8 @@ staff and non-client companies.</p></section>`},
   const heading=page==='overview'?$('#po-page-heading'):$('#retention-main .page-heading');heading.append($('.global-controls'));
   $('#dashboard-trigger>span').textContent=page==='overview'?'Product Overview':'Retention & Churn';
   const options=[['po-menu-item','overview'],['retention-menu-item','retention']];options.forEach(([id,p])=>{const el=$('#'+id),selected=page===p;el.classList.toggle('is-current',selected);el.setAttribute('aria-checked',String(selected));const check=$(':scope > svg',el);if(check)check.hidden=!selected;});
-  $('#date-range-popover .date-scope-note span').textContent=page==='overview'?'Rolling metrics end at the selected range end. Charts use completed weeks.':'Retention follows cohort dates. Churn includes completed months only.';
-  $('#date-range-popover .date-popover-heading span').textContent=page==='overview'?'Reporting date and chart/cohort range':'Applies across this dashboard';
+  $('#date-range-popover .date-scope-note span').textContent=page==='overview'?'End month sets the reporting cutoff. Start month limits weekly trends. All KPIs use their own rolling windows.':'Retention follows cohort dates. Churn includes completed months only.';
+  $('#date-range-popover .date-popover-heading span').textContent=page==='overview'?'Point-in-time reporting':'Applies across this dashboard';
   document.title=`AI Accountant | ${page==='overview'?'Product Overview v2':'Retention & Churn v6'}`;
   toggleDashboardMenu(false);hidePOTooltip();closeDatePicker(false);closeSelectMenu();window.scrollTo(0,0);
   requestAnimationFrame(page==='overview'?renderCharts:renderChurnChart);
@@ -648,7 +661,7 @@ staff and non-client companies.</p></section>`},
  window.addEventListener('resize',resize);
  if('ResizeObserver' in window){const observer=new ResizeObserver(resize);observer.observe(root);observer.observe($('#po-expanded-mount'));}
  // Only check original fixture totals when the original reference date is active.
-  if(P.asof===SNAPSHOT_DATE){
+  if(P.asof===SNAPSHOT_DATE && Array.isArray(current.weekly)){
    console.assert(current.weekly.length===153,'WAU fixture should reconcile to 153');
    console.assert(current.monthly.length===429,'MAU fixture should reconcile to 429');
    console.assert(current.buckets.join(',')==='299,50,29,42','Frequency fixture should reconcile');
@@ -656,7 +669,10 @@ staff and non-client companies.</p></section>`},
    console.assert(current.prevM.length===292,'Prior 30-day fixture should reconcile');
   }
   setPage('overview');
+  // The base runtime already rendered before we installed this module's
+  // dashboard wrapper. Initialize the reporting context on first load.
+  renderKPIs();
  // Expose a small read-only test snapshot rather than internal mutable state.
- window.overviewPrototype={snapshot:()=>({asof:P.asof,wau:current.weekly.length,mau:current.monthly.length,previousWAU:current.prevW.length,previousMAU:current.prevM.length,frequency:current.buckets.slice(),weekly:current.chart.map(v=>({...v})),adoptionEligible:current.adoption.length,converted:current.adoption.filter(c=>c.converted).length,filteredUserCount:recordCandidates().length,drill:P.drill?{kind:P.drill.kind,key:P.drill.key,index:P.drill.index,tab:P.tab,tabs:recordTabs().map(t=>({key:t.key,label:t.label,count:t.count})),visibleCompanies:recordCandidates().reduce((n,u)=>n+u.count,0)}:null,journeyModules:moduleDefs.map(m=>({key:m.key,count:current.journey.filter(c=>c.modules?.includes(m.key)).length,steps:m.steps.map(s=>({key:s.key,count:current.journey.filter(c=>c.steps?.includes(s.key)).length}))})),page:P.page})};
+ window.overviewPrototype={snapshot:()=>!Array.isArray(current.weekly)?null:({asof:P.asof,wau:current.weekly.length,mau:current.monthly.length,previousWAU:current.prevW.length,previousMAU:current.prevM.length,frequency:current.buckets.slice(),weekly:current.chart.map(v=>({...v})),adoptionEligible:current.adoption.length,converted:current.adoption.filter(c=>c.converted).length,filteredUserCount:recordCandidates().length,drill:P.drill?{kind:P.drill.kind,key:P.drill.key,index:P.drill.index,tab:P.tab,tabs:recordTabs().map(t=>({key:t.key,label:t.label,count:t.count})),visibleCompanies:recordCandidates().reduce((n,u)=>n+u.count,0)}:null,journeyModules:moduleDefs.map(m=>({key:m.key,count:current.journey.filter(c=>c.modules?.includes(m.key)).length,steps:m.steps.map(s=>({key:s.key,count:current.journey.filter(c=>c.steps?.includes(s.key)).length}))})),page:P.page})};
 })();
 

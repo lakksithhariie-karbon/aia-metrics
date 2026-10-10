@@ -107,17 +107,17 @@ function creds(){
  const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
  return url&&key?{url,key}:null;
 }
-export async function readPublishedWorkflowSummary():Promise<WorkflowSummary|null>{
+export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<WorkflowSummary|null>{
  const credential=creds();
  if(!credential)return null;
  const response=await fetch(
-  credential.url+"/rest/v1/rpc/read_overview_workflow_charts_v1",{
+  credential.url+"/rest/v1/rpc/read_overview_workflow_charts_v4",{
    method:"POST",cache:"no-store",signal:AbortSignal.timeout(30_000),
    headers:{
     apikey:credential.key,Authorization:"Bearer "+credential.key,
     "Content-Type":"application/json","Cache-Control":"no-store",
    },
-   body:"{}",
+   body:JSON.stringify(snapshotId==null?{}:{p_snapshot_id:snapshotId}),
   },
  );
  if(!response.ok)throw new Error("overview_workflow_summary_http_"+response.status);
@@ -143,7 +143,7 @@ export async function readPublishedWorkflowSummary():Promise<WorkflowSummary|nul
    ||typeof row.limited_tracking!=="boolean"
    ||MODS.some(key=>(row[key] as number)>(row.total as number)))return null;
   weekly.push({
-   week_start:row.week_start,total:row.total,
+   week_start:row.week_start,total:row.total as number,
    ap:row.ap as number,ar:row.ar as number,
    transactions:row.transactions as number,
    limited_tracking:row.limited_tracking,
@@ -153,7 +153,7 @@ export async function readPublishedWorkflowSummary():Promise<WorkflowSummary|nul
  for(let i=0;i<MASKS.length;i++){
   const r=object(mix.rows[i]);
   if(!r||r.mask!==MASKS[i]||!count(r.current)||!count(r.previous))return null;
-  rows.push({mask:r.mask as WorkflowMask,current:r.current,previous:r.previous});
+  rows.push({mask:r.mask as WorkflowMask,current:r.current as number,previous:r.previous as number});
  }
  if(rows.reduce((t,r)=>t+r.current,0)!==mix.current_total
   ||rows.reduce((t,r)=>t+r.previous,0)!==mix.previous_total
@@ -191,7 +191,7 @@ export async function readWorkflowModuleUsers(params:{
  snapshotId:number;week:string;module:WorkflowModule;
  query:string;page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<WorkflowModuleUsers|null>{
- return rpc<WorkflowModuleUsers>("read_overview_workflow_module_users_v1",{
+ return rpc<WorkflowModuleUsers>("read_overview_workflow_module_users_v4",{
   p_snapshot_id:params.snapshotId,p_week:params.week,p_module:params.module,
   p_query:params.query,p_page:params.page,p_page_size:params.pageSize,
  },params.signal);
@@ -200,7 +200,7 @@ export async function readWorkflowMixCompanies(params:{
  snapshotId:number;period:WorkflowPeriod;mask:WorkflowMask;
  query:string;page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<WorkflowMixCompanies|null>{
- return rpc<WorkflowMixCompanies>("read_overview_workflow_mix_companies_v1",{
+ return rpc<WorkflowMixCompanies>("read_overview_workflow_mix_companies_v3",{
   p_snapshot_id:params.snapshotId,p_period:params.period,p_mask:params.mask,
   p_query:params.query,p_page:params.page,p_page_size:params.pageSize,
  },params.signal);
@@ -210,7 +210,7 @@ export async function readWorkflowCompanyDetail(params:{
  week?:string;module?:WorkflowModule;mask?:WorkflowMask;
  userId?:string;signal?:AbortSignal;
 }):Promise<WorkflowCompanyDetail|null>{
- return rpc<WorkflowCompanyDetail>("read_overview_workflow_company_v1",{
+ return rpc<WorkflowCompanyDetail>("read_overview_workflow_company_v3",{
   p_snapshot_id:params.snapshotId,p_scope:params.scope,p_company_id:params.companyId,
   p_week:params.week??"",p_module:params.module??"",p_mask:params.mask??"",
   p_user_id:params.userId??"",

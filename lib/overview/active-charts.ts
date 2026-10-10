@@ -38,18 +38,18 @@ function dateOnly(v: unknown): v is string {
   return typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 }
 
-export async function readPublishedOverviewActiveCharts(): Promise<OverviewActiveCharts | null> {
+export async function readPublishedOverviewActiveCharts(snapshotId?:number): Promise<OverviewActiveCharts | null> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
-  const response = await fetch(url + "/rest/v1/rpc/read_overview_active_charts_v1", {
+  const response = await fetch(url + "/rest/v1/rpc/read_overview_active_charts_v4", {
     method: "POST", cache: "no-store", signal: AbortSignal.timeout(25_000),
     headers: {
       apikey: key, Authorization: "Bearer " + key,
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
     },
-    body: "{}",
+    body: JSON.stringify(snapshotId == null ? {} : {p_snapshot_id:snapshotId}),
   });
   if (!response.ok) throw new Error("overview_charts_http_" + response.status);
   const result = obj(await response.json());

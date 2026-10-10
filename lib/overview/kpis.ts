@@ -1,6 +1,7 @@
 /** The published Overview snapshot anchors the event cutoff and source watermark.
- * The actual counts are recomputed from independent accounting-work events.
- * No KPI value falls back to the prototype fixture or sync-inclusive summary.
+ * v4 returns the exact v3 independent-work payload from its verified snapshot
+ * cache, or recalculates with v3 if the cache is missing or stale.
+ * No KPI value falls back to fixture or sync-inclusive metrics.
  */
 export interface OverviewUsageSnapshot {
   snapshotId: number;
@@ -33,13 +34,13 @@ function usageCount(value: unknown): { current: number; previous: number } | nul
   return current === null || previous === null ? null : { current, previous };
 }
 
-export async function readPublishedOverviewUsage(): Promise<OverviewUsageSnapshot | null> {
+export async function readPublishedOverviewUsage(requestedSnapshotId?:number): Promise<OverviewUsageSnapshot | null> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
 
   const response = await fetch(
-    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v1",
+    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v4",
     {
       method: "POST",
       cache: "no-store",
@@ -50,7 +51,7 @@ export async function readPublishedOverviewUsage(): Promise<OverviewUsageSnapsho
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
       },
-      body: "{}",
+      body: JSON.stringify(requestedSnapshotId == null ? {} : {p_snapshot_id:requestedSnapshotId}),
     },
   );
   if (!response.ok) {

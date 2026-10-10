@@ -34,7 +34,7 @@ export default function OverviewFriction({
  useEffect(()=>{
   const foot=document.getElementById("po-friction-foot");
   if(foot)foot.textContent=ready
-   ?"Company-level signals · Later success is not confirmed resolution"
+   ?"Company-level signals"
    :"Verified data unavailable for this reporting date";
  },[ready]);
  function open(issue:FrictionKey,segment:FrictionSegment,

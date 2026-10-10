@@ -18,67 +18,68 @@ type Definition = {
 export const overviewDefinitions: Record<OverviewInfoKey, Definition> = {
   wau: {
     title: "Weekly core-active users",
-    rule: "Count each distinct user with at least one independent qualifying accounting action in the last rolling 7 days. Compare with the preceding 7 days.",
-    example: "A person uploads three bills and edits a transaction. That's one weekly active user, even if they work across two companies.",
+    rule: "Distinct users with non-failed independent AP, AR or Transactions work in the last rolling 7 days. Accounting Sync does not count.",
+    example: "One user uploads five bills: 1 active user.",
   },
   mau: {
     title: "Monthly core-active users",
-    rule: "Count distinct users performing the same independent core actions over the last rolling 30 days. Compare with the preceding 30 days.",
-    example: "A user works on ten different days during the month. They still count as one monthly active user.",
+    rule: "Distinct users with non-failed independent core work in the last rolling 30 days. Same exclusions as WAU.",
+    example: "One user works on 10 days: 1 active user.",
   },
   stickiness: {
-    title: "Stickiness (WAU / MAU)",
-    rule: "Divide rolling 7-day core-active users by rolling 30-day core-active users. Both use identical eligibility rules and the same reporting cutoff.",
-    example: "150 weekly active users out of 500 monthly active users means 30% stickiness.",
+    title: "Stickiness",
+    rule: "Rolling 7-day active users ÷ rolling 30-day active users × 100.",
+    example: "150 weekly / 500 monthly = 30%.",
   },
   weekly: {
     title: "Weekly core-active users",
-    rule: "For each of the last 12 completed IST Monday–Sunday weeks, count each qualifying user once. 'First observed' means their first recorded core-work week; 'Returning' means they had a qualifying event in an earlier recorded week.",
-    example: "If 50 people worked this week and 8 were observed for the first time, the bar shows 8 first observed and 42 returning.",
-    note: "First observed is not signup. Tracking was incomplete during May–July 2026.",
+    rule: "Distinct independent core-active users per completed IST week (up to 12). First observed = first recorded active week; Returning = recorded earlier.",
+    example: "50 active, 8 first observed: 42 returning.",
+    note: "First observed is not signup. May–July 2026 tracking was incomplete.",
   },
   frequency: {
     title: "Core usage frequency",
-    rule: "Look at the last 4 completed IST Monday–Sunday weeks. Put each user who did independent core work into exactly one bucket: active in 1, 2, 3, or 4 of those weeks. Divide each bucket by all users active in this four-week window.",
-    example: "Someone works in week 1 and week 3 but not weeks 2 and 4. They belong in 'Exactly 2 weeks'.",
+    rule: "Count how many of the last 4 completed IST weeks each user did independent core work. Each user enters exactly one bucket.",
+    example: "Work in weeks 1 and 3 = Exactly 2 weeks.",
   },
   core_7d: {
     title: "7-day core adoption",
-    rule: "Of companies with a recorded successful Tally/Zoho integration and a full 28-day observation window, count those doing independent accounting work within 7 days of integration.",
-    example: "If 6 out of 10 eligible integrated companies do core work by day 7, adoption is 60%.",
+    rule: "Among companies integrated 28–56 days before the cutoff, count those doing independent core work within 7 days of integration ÷ the whole cohort.",
+    example: "6 of 10 mature integrations start work = 60%.",
+    note: "Missing integration events can exclude real customers.",
   },
   value_28d: {
     title: "28-day value conversion",
-    rule: "An eligible company must complete the sequence within 28 days: successful integration → qualifying training sync → independent core work on a later IST calendar day → another qualifying sync. Divide completed companies by the mature integration cohort.",
-    example: "Integration on day 0, training sync on day 1, core work on day 2 and closing sync on day 3 qualifies.",
-    note: "A single post-work sync alone is not this stricter value milestone.",
+    rule: "Among companies integrated 28–56 days ago, count those completing training sync (>0 items) → later-IST-day core work → closing sync within 28 days.",
+    example: "Day 1 sync → day 2 core work → day 3 sync: converted.",
+    note: "This is stricter than the journey's post-work sync stage.",
   },
   sustained_28d: {
     title: "28-day sustained adoption",
-    rule: "Of the same mature integration cohort, count companies with independent core work in at least 2 of the first 4 seven-day periods after integration.",
-    example: "Core work in week 1 and week 3 counts as sustained. Ten actions in week 1 alone do not.",
+    rule: "Among companies integrated 28–56 days ago, count those with core work in at least 2 of the first 4 integration-relative weeks.",
+    example: "Work in weeks 1 and 3 qualifies; twice in week 1 does not.",
   },
   journey: {
     title: "Integration journey",
-    rule: "Track the same mature integration cohort through successful integration → independent core work within 7 days → qualifying sync after that work, within 28 days. Next-step conversion uses the preceding stage; cumulative conversion uses all integrated companies.",
-    example: "10 integrated → 6 started → 4 synced: final next-step conversion is 4/6 = 66.7%, and cumulative conversion is 4/10 = 40%.",
-    note: "Module branches below the funnel can overlap; the three adoption outcomes are separate metrics.",
+    rule: "Companies integrated 28–56 days ago → first-week core work → sync after that work within 28 days. Compare each stage to the previous stage and full cohort.",
+    example: "10 integrated → 6 worked → 4 synced: 4/6 next-step, 4/10 total.",
+    note: "The final journey stage is not the 28-day value-conversion milestone.",
   },
   feature: {
     title: "Module usage over time",
-    rule: "Count distinct users doing independent core work in AP/Bills, AR/Invoices or Transactions in each of the last 12 completed IST weeks. One user can count in more than one module line.",
-    example: "Someone uploads bills and updates a transaction in the same week: one AP user and one Transactions user.",
+    rule: "Distinct users with non-failed independent AP, AR or Transactions work per completed IST week (up to 12).",
+    example: "Bills and Transactions work in one week counts once in each line.",
   },
   mix: {
     title: "Module combinations",
-    rule: "Group distinct core-active companies by their exact combination of AP, AR and Transactions over the last rolling 28 days. Each company belongs to one combination. Dots compare category shares with the preceding 28 days; the change is in percentage points.",
-    example: "If 3 of 10 active companies use AP + Transactions (but not AR), that category's share is 30%.",
+    rule: "Each independently core-active company belongs to one exact AP/AR/Transactions combination per rolling 28 days. Compare shares with the previous 28 days.",
+    example: "3 of 10 companies use AP + Transactions only = 30%.",
   },
   friction: {
     title: "Issues that need attention",
-    rule: "For each workflow, incidence = distinct companies recording a failed action or explicit revert to review ÷ companies attempting that workflow in the same rolling 28 days. 'Later success' means the same company recorded that workflow succeeding after its latest failure. 'Needs review' means no such later success was observed.",
-    example: "If 3 of 20 companies have a failed bill upload, incidence is 15%. If 2 later upload successfully, 1 has no observed follow-up.",
-    note: "A later success does not prove the original item was fixed. Reverting to review is intentional rework, not necessarily a product error.",
+    rule: "Incidence = companies with a recorded failure or review revert ÷ companies attempting that workflow in 28 days. Later success means another successful event in that company/workflow.",
+    example: "3 failed out of 20 companies = 15% incidence.",
+    note: "Later success is not a verified fix. Invoice bulk-edit failures are not in this table.",
   },
 };
 
@@ -173,9 +174,6 @@ export default function OverviewMetricInfo() {
         </div>
         {detail?.note ? <p className="po-overview-info-note">{detail.note}</p> : null}
       </div>
-      <footer className="po-overview-info-foot">
-        All live metrics use the published Supabase snapshot and exclude internal users.
-      </footer>
     </dialog>
   );
 }

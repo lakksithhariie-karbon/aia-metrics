@@ -37,6 +37,12 @@
   font-weight:650;
   letter-spacing:-.65px;
 }
+.rd-page-head .metrics-recording-caveat{
+  margin-top:5px;
+  color:#957f5b;
+  font-size:10px;
+  line-height:15px;
+}
 .rd-page-head>div:first-child p,
 .companies-title-block p{
   font-size:11px;

@@ -34,9 +34,19 @@ const months = [
 ];
 // Calendar-month filtering is deliberate: the supplied picker selected whole months.
 // No date math uses the viewer's locale or time zone.
-const SNAPSHOT_DATE='2026-10-04', CURRENT_MONTH='2026-10', LAST_COMPLETE_MONTH='2026-09';
+const SNAPSHOT_DATE='2026-10-04';
+const CURRENT_MONTH=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit'}).format(new Date());
+const [currentYear,currentMonthNumber]=CURRENT_MONTH.split('-').map(Number);
+const LAST_COMPLETE_MONTH=new Date(Date.UTC(currentYear,currentMonthNumber-2,1)).toISOString().slice(0,7);
 const MONTH_WINDOW_COUNT=6;
-let appliedRange={preset:'lifetime',start:null,end:null};
+// Shareable, server-rendered historical Overview date selections.
+const overviewQuery=new URLSearchParams(window.location.search);
+const qStart=overviewQuery.get('from'),qEnd=overviewQuery.get('to');
+const validOverviewMonth=s=>typeof s==='string'&&/^\d{4}-(0[1-9]|1[0-2])$/.test(s);
+let appliedRange=window.location.pathname==='/overview'
+  &&validOverviewMonth(qStart)&&validOverviewMonth(qEnd)&&qStart<=qEnd
+  ?{preset:overviewQuery.get('preset')||'custom',start:qStart,end:qEnd}
+  :{preset:'lifetime',start:null,end:null};
 let retentionView='weekly';
 let activationTotals={active:512,inactive:2210,total:2722,ttv:10.7,ttvN:512};
 let liveRetentionKpis=null,retentionKpiRequest=0;
@@ -772,7 +782,7 @@ function renderDatePicker(focusMonth=null){
  $('#start-month-field').classList.toggle('is-picking',pickerEdit==='start'||range.preset==='custom'&&!range.start);
  $('#end-month-field').classList.toggle('is-picking',awaitingEnd||pickerEdit==='end');
  $('#picker-year').textContent=pickerYear;
- $('#previous-year').disabled=pickerYear<=2020;$('#next-year').disabled=pickerYear>=2026;
+ $('#previous-year').disabled=pickerYear<=2026;$('#next-year').disabled=pickerYear>=currentYear;
  const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
  $('#month-grid').innerHTML=names.map((name,i)=>{
   const key=pickerYear+'-'+String(i+1).padStart(2,'0'),future=key>CURRENT_MONTH,current=key===CURRENT_MONTH;
@@ -805,12 +815,27 @@ function chooseMonth(key){
  }else{draftRange={preset:'custom',start:key,end:key};awaitingEnd=true;pickerEdit=null;}
  renderDatePicker(key);
 }
+function overviewReportingUrl(range){
+ if(range.preset==='lifetime')return '/overview';
+ const q=new URLSearchParams({from:range.start,to:range.end,preset:range.preset||'custom'});
+ return '/overview?'+q.toString();
+}
 function applyDateRange(){
  if(!draftRange||draftRange.preset!=='lifetime'&&!(draftRange.start&&draftRange.end))return;
+ if(window.location.pathname==='/overview'){
+   window.location.assign(overviewReportingUrl(draftRange));
+   return;
+ }
  appliedRange={...draftRange};closeDatePicker();renderDashboard();
- $('#range-live-status').textContent='Date range changed to '+rangeLabel(appliedRange)+'. All dashboard reports and drill-downs use this range.';
+ $('#range-live-status').textContent='Date range changed to '+rangeLabel(appliedRange)+'.';
 }
-function resetDateRange(){appliedRange=presetRange('lifetime');closeDatePicker(false);renderDashboard();$('#range-live-status').textContent='Date range reset to Lifetime.';}
+function resetDateRange(){
+ if(window.location.pathname==='/overview'){
+   window.location.assign('/overview');return;
+ }
+ appliedRange=presetRange('lifetime');closeDatePicker(false);renderDashboard();
+ $('#range-live-status').textContent='Date range reset to Lifetime.';
+}
 function initDatePicker(){
  $('#date-range-trigger').addEventListener('click',()=>datePickerOpen()?closeDatePicker():openDatePicker());
  $('#date-range-trigger').addEventListener('keydown',e=>{if(['ArrowDown','ArrowUp'].includes(e.key)){e.preventDefault();openDatePicker();}});
