@@ -34,7 +34,10 @@ const months = [
 ];
 // Calendar-month filtering is deliberate: the supplied picker selected whole months.
 // No date math uses the viewer's locale or time zone.
-const SNAPSHOT_DATE='2026-10-04', CURRENT_MONTH='2026-10', LAST_COMPLETE_MONTH='2026-09';
+const SNAPSHOT_DATE='2026-10-04';
+const CURRENT_MONTH=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit'}).format(new Date());
+const [currentYear,currentMonthNumber]=CURRENT_MONTH.split('-').map(Number);
+const LAST_COMPLETE_MONTH=new Date(Date.UTC(currentYear,currentMonthNumber-2,1)).toISOString().slice(0,7);
 const MONTH_WINDOW_COUNT=6;
 // Shareable, server-rendered historical Overview date selections.
 const overviewQuery=new URLSearchParams(window.location.search);
@@ -779,7 +782,7 @@ function renderDatePicker(focusMonth=null){
  $('#start-month-field').classList.toggle('is-picking',pickerEdit==='start'||range.preset==='custom'&&!range.start);
  $('#end-month-field').classList.toggle('is-picking',awaitingEnd||pickerEdit==='end');
  $('#picker-year').textContent=pickerYear;
- $('#previous-year').disabled=pickerYear<=2020;$('#next-year').disabled=pickerYear>=2026;
+ $('#previous-year').disabled=pickerYear<=2026;$('#next-year').disabled=pickerYear>=currentYear;
  const names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
  $('#month-grid').innerHTML=names.map((name,i)=>{
   const key=pickerYear+'-'+String(i+1).padStart(2,'0'),future=key>CURRENT_MONTH,current=key===CURRENT_MONTH;
