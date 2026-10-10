@@ -24,10 +24,10 @@ Older retention-summary/heatmap snapshot records last updated 8 Oct are not used
 | Weekly activity | 12 completed weeks | Each weekly count and First Observed/Returning split matched |
 | Usage frequency | 285 + 61 + 24 + 44 = 414 | All 4 buckets matched |
 | Module combinations | 434 current companies, 146 multi-module; 421 prior, 118 multi-module | Every module-combination cell matched raw event classification |
-| Adoption | 387 mature integrations; 250 first-week adopters; 79 value-converted; 60 sustained | All cohort outcome counts matched |
+| Adoption | 387 integrations in the mature rolling 28-day cohort (integrated 28–56 days before cutoff); 250 first-week adopters; 79 value-converted; 60 sustained | All cohort outcome counts matched |
 | Integration journey | 387 → 250 → 205 | Each stage matched its company fact population |
 | Issues that need attention | Five issue types, current and previous windows | 10/10 company-population counts matched |
-| Retention heatmap | 40 September–October cells | 0 count mismatches; 34 ineligible/incomplete cells |
+| Retention heatmap | 40 September–October cells | 0 mismatches, including 34 properly incomplete cells; 549 September core-active company-days exactly match raw events |
 | September churn | 97 churned / 144 eligible = 67.4% | Eligible and churned company counts matched |
 | Companies Oct integration cohort | 108 companies; AP 859, AR 19, Transactions 1,494, GST 23 | All four module totals matched raw events; zero company/user rollup differences |
 | Sample drill populations | AP users 103, AP+Transactions companies 109, adoption companies 250, issue companies 2 | Drill denominators matched parent charts |
@@ -44,6 +44,8 @@ Integration-based customer cohorts can be understated. The warehouse begins **1 
 
 **Needed:** Backfill confirmed integrations using authoritative product state, not inferred Accounting Sync alone. Historical cohort trends remain incomplete until then.
 
+The Overview mature integration cohort is a **rolling 28-day intake window, ending 28 days before as-of**, not all historical mature integrations. In that exact window, raw strictly eligible integration events identify **386 companies**, while the published cohort has **387**: one customer has a successful integration event recorded only by an internal staff email. This is a cross-page eligibility-rule difference, not a 324-company materialization loss.
+
 ### 2. Marked test companies enter customer metrics
 
 The directory's **is_test** attribute is not applied consistently:
@@ -55,6 +57,8 @@ The directory's **is_test** attribute is not applied consistently:
 - Mature adoption cohort **387**, with no marked tests at this cutoff
 
 **Needed:** Confirm reliable test labeling and decide whether customer analytics exclude test companies, then use the same policy everywhere.
+
+Companies also admits **9** companies whose first successful integration was observed only through internal-staff activity (1 May, 6 August, 1 September, 1 October). Retention uses a stricter non-internal integration rule. Decide whether staff-assisted customer integrations count; apply one documented policy across pages.
 
 ### 3. Companies treats failed attempts as usage
 
