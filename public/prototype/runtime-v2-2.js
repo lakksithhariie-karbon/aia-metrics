@@ -184,7 +184,20 @@
  let lastNativeKpiAsOf=null;
  function renderKPIs(){
   // The React-owned KPI strip never receives demo values from this runtime.
-  $('#po-page-context').innerHTML=icon('clock')+'<span>Rolling metrics end <strong style="font-weight:500;color:#677b97">'+cohortLabel(P.asof)+'</strong></span><span>·</span><button data-po-info="dates">Report windows explained</button>';
+  const status=$('#prototype-surface')?.dataset.overviewStatus||'current';
+  const includesGap=appliedRange.preset!=='lifetime'&&
+    appliedRange.start<='2026-07'&&appliedRange.end>='2026-05';
+  const unavailable=status==='unavailable';
+  const caveat=unavailable?'No verified data for this selection'
+    :appliedRange.preset!=='lifetime'&&appliedRange.end<'2026-05'
+      ?'Prior-to-March activity history is incomplete'
+      :includesGap?'May–July event tracking incomplete'
+      :status==='available'?'Reconstructed from recorded events':'';
+  $('#po-page-context').innerHTML=icon('clock')+
+    '<span>Reporting as of <strong style="font-weight:500;color:#677b97">'+
+      cohortLabel(P.asof)+'</strong></span><span>·</span>'+
+    '<button data-po-info="dates">How date ranges work</button>'+
+    (caveat?'<span class="po-quality-caption">· '+esc(caveat)+'</span>':'');
   if(lastNativeKpiAsOf!==P.asof){
    lastNativeKpiAsOf=P.asof;
    window.dispatchEvent(new CustomEvent('aia:overview-asof',{detail:{asOf:P.asof}}));
@@ -571,8 +584,8 @@ staff and non-client companies.</p></section>`},
   const heading=page==='overview'?$('#po-page-heading'):$('#retention-main .page-heading');heading.append($('.global-controls'));
   $('#dashboard-trigger>span').textContent=page==='overview'?'Product Overview':'Retention & Churn';
   const options=[['po-menu-item','overview'],['retention-menu-item','retention']];options.forEach(([id,p])=>{const el=$('#'+id),selected=page===p;el.classList.toggle('is-current',selected);el.setAttribute('aria-checked',String(selected));const check=$(':scope > svg',el);if(check)check.hidden=!selected;});
-  $('#date-range-popover .date-scope-note span').textContent=page==='overview'?'Rolling metrics end at the selected range end. Charts use completed weeks.':'Retention follows cohort dates. Churn includes completed months only.';
-  $('#date-range-popover .date-popover-heading span').textContent=page==='overview'?'Reporting date and chart/cohort range':'Applies across this dashboard';
+  $('#date-range-popover .date-scope-note span').textContent=page==='overview'?'End month sets the reporting cutoff. Start month limits weekly trends. All KPIs use their own rolling windows.':'Retention follows cohort dates. Churn includes completed months only.';
+  $('#date-range-popover .date-popover-heading span').textContent=page==='overview'?'Point-in-time reporting':'Applies across this dashboard';
   document.title=`AI Accountant | ${page==='overview'?'Product Overview v2':'Retention & Churn v6'}`;
   toggleDashboardMenu(false);hidePOTooltip();closeDatePicker(false);closeSelectMenu();window.scrollTo(0,0);
   requestAnimationFrame(page==='overview'?renderCharts:renderChurnChart);
