@@ -85,7 +85,7 @@
   font-weight:650;color:inherit;white-space:nowrap;
 }
 .ed-investigation-sort>span{font-size:11px;color:#b0bfd3}
-.ed-investigation-sort:hover,.ed-investigation-table th[aria-sort!="none"] .ed-investigation-sort{
+.ed-investigation-sort:hover,.ed-investigation-table th:not([aria-sort="none"]) .ed-investigation-sort{
   color:#3156bb;
 }
 .ed-investigation-row>td{
