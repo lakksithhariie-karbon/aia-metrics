@@ -83,8 +83,11 @@ export default async function OverviewPage({
   if(!consistent){
     console.error("overview-history-inconsistent",resolved.snapshotId);
   }
-  const selectedData=consistent ? snapshots : [null,null,null,null,null];
-  const [usage,charts,adoptionData,workflowData,frictionData]=selectedData;
+  const usage:OverviewUsageSnapshot|null=consistent?overviewKpis:null;
+  const charts:OverviewActiveCharts|null=consistent?overviewCharts:null;
+  const adoptionData:AdoptionSummary|null=consistent?adoption:null;
+  const workflowData:WorkflowSummary|null=consistent?workflow:null;
+  const frictionData:FrictionSummary|null=consistent?friction:null;
   const starting=resolved.startMonth;
   const chartWeeks=charts && starting
     ? {...charts,weekly:{rows:charts.weekly.rows.filter(row=>row.week_start>=starting+"-01")}}
