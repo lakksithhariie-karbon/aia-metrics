@@ -259,7 +259,7 @@ CREATE OR REPLACE FUNCTION public.overview_friction_company_facts_v2(p_snapshot_
  SET statement_timeout TO '35s'
 AS $function$
 WITH ev AS MATERIALIZED (
- SELECT * FROM public.overview_friction_events_v1(p_snapshot_id)
+ SELECT * FROM public.overview_friction_events_v2(p_snapshot_id)
 ),
 grouped AS (
  SELECT e.issue_key,e.period,e.company_id,
@@ -485,7 +485,7 @@ WITH published AS MATERIALIZED (
 ),
 facts AS MATERIALIZED (
   SELECT f.* FROM published p CROSS JOIN LATERAL
-  public.overview_adoption_company_facts_v1(p.id) AS f
+  public.overview_adoption_company_facts_v2(p.id) AS f
 ),
 counts AS (
   SELECT count(*)::integer AS integrated,
@@ -582,7 +582,7 @@ WITH p AS MATERIALIZED (
  LIMIT 1
 ),
 ev AS MATERIALIZED (
- SELECT e.* FROM p CROSS JOIN LATERAL public.overview_workflow_events_v1(p.id) e
+ SELECT e.* FROM p CROSS JOIN LATERAL public.overview_workflow_events_v2(p.id) e
 ),
 weeks AS(
  SELECT (p.this_week - gs.i*7)::date AS week_start
@@ -680,7 +680,7 @@ WITH p AS MATERIALIZED (
 ),
 facts AS MATERIALIZED(
  SELECT f.* FROM p CROSS JOIN LATERAL
- public.overview_friction_company_facts_v1(p.id) f
+ public.overview_friction_company_facts_v2(p.id) f
 ),
 issue_catalog AS (
  SELECT * FROM (VALUES
@@ -1466,7 +1466,7 @@ WITH published AS MATERIALIZED (
 ),
 facts AS MATERIALIZED (
  SELECT f.* FROM published p CROSS JOIN LATERAL
- public.overview_adoption_company_facts_v1(p.snapshot_id) f
+ public.overview_adoption_company_facts_v2(p.snapshot_id) f
 ),
 selection AS MATERIALIZED (
  SELECT f.*
@@ -1596,7 +1596,7 @@ WITH published AS MATERIALIZED (
 ),
 fact AS MATERIALIZED (
  SELECT f.* FROM published p CROSS JOIN LATERAL
- public.overview_adoption_company_facts_v1(p.id) f
+ public.overview_adoption_company_facts_v2(p.id) f
  WHERE f.company_id=p_company_id
 ),
 qualified AS MATERIALIZED (
@@ -1744,7 +1744,7 @@ scope AS (
 ),
 events AS MATERIALIZED(
  SELECT e.* FROM scope s
- CROSS JOIN LATERAL public.overview_workflow_events_v1(s.id) e
+ CROSS JOIN LATERAL public.overview_workflow_events_v2(s.id) e
  WHERE e.week_start=s.wk AND e.module=p_module
 ),
 per_company AS MATERIALIZED(
@@ -1845,7 +1845,7 @@ scope AS(
 ),
 events AS MATERIALIZED(
  SELECT e.* FROM scope s CROSS JOIN LATERAL
- public.overview_workflow_events_v1(s.id) e
+ public.overview_workflow_events_v2(s.id) e
  WHERE e.event_time>=s.start_at AND e.event_time<s.end_at
 ),
 groups AS MATERIALIZED (
@@ -1946,7 +1946,7 @@ scope AS(
 ),
 ev AS MATERIALIZED (
  SELECT e.* FROM scope s CROSS JOIN LATERAL
- public.overview_workflow_events_v1(s.id) e
+ public.overview_workflow_events_v2(s.id) e
  WHERE e.company_id=p_company_id
  AND e.event_time>=s.from_at AND e.event_time<s.to_at
 ),
@@ -2086,7 +2086,7 @@ scope AS MATERIALIZED(
 ),
 facts AS MATERIALIZED(
  SELECT f.* FROM scope s CROSS JOIN LATERAL
-  public.overview_friction_company_facts_v1(s.id) f
+  public.overview_friction_company_facts_v2(s.id) f
  WHERE f.issue_key=p_issue_key AND f.period=p_period
 ),
 population AS MATERIALIZED(
@@ -2117,7 +2117,7 @@ paged AS MATERIALIZED(
 ),
 ev AS MATERIALIZED(
  SELECT e.* FROM scope s CROSS JOIN LATERAL
- public.overview_friction_events_v1(s.id) e
+ public.overview_friction_events_v2(s.id) e
  WHERE e.issue_key=p_issue_key AND e.period=p_period
 ),
 users AS MATERIALIZED(
@@ -2190,7 +2190,7 @@ scope AS MATERIALIZED(
 ),
 fact AS MATERIALIZED(
  SELECT f.* FROM scope s CROSS JOIN LATERAL
- public.overview_friction_company_facts_v1(s.id) f
+ public.overview_friction_company_facts_v2(s.id) f
  WHERE f.issue_key=p_issue_key AND f.period=p_period AND f.company_id=p_company_id
  AND (
   p_segment='eligible'
@@ -2201,7 +2201,7 @@ fact AS MATERIALIZED(
 ),
 ev AS MATERIALIZED(
  SELECT e.* FROM scope s JOIN fact f ON true
- CROSS JOIN LATERAL public.overview_friction_events_v1(s.id) e
+ CROSS JOIN LATERAL public.overview_friction_events_v2(s.id) e
  WHERE e.issue_key=p_issue_key AND e.period=p_period AND e.company_id=p_company_id
 ),
 members AS MATERIALIZED(
