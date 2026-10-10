@@ -34,17 +34,16 @@ BEGIN
   WHERE kind='overview' AND scope_key='asof='||to_char(v_last,'YYYY-MM-DD')
   ORDER BY created_at DESC LIMIT 1;
   IF v_snapshot_id IS NULL THEN
-   v_snapshot_id:=nextval('metrics_private.overview_history_snapshot_id_seq');
    INSERT INTO public.product_snapshot(
-    id,kind,scope_key,payload,source_status,source_watermark_at,
+    kind,scope_key,payload,source_status,source_watermark_at,
     source_watermark_date,as_of_at,created_at,build_key
    ) VALUES(
-    v_snapshot_id,'overview','asof='||to_char(v_last,'YYYY-MM-DD'),
+    'overview','asof='||to_char(v_last,'YYYY-MM-DD'),
     jsonb_build_object('value',jsonb_build_object('active_users',
      jsonb_build_object('as_of',v_cutoff,'historical',true,'timezone','Asia/Kolkata'))),
     'ok',v_wm,(v_wm AT TIME ZONE 'Asia/Kolkata')::date,
     v_cutoff,now(),'verified-history-v1'
-   );
+   ) RETURNING id INTO v_snapshot_id;
   ELSE
    UPDATE public.product_snapshot SET
     payload=jsonb_build_object('value',jsonb_build_object('active_users',
