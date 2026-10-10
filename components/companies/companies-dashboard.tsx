@@ -527,7 +527,7 @@ export default function CompaniesDashboard() {
         >
           <div className="po-record-toolbar companies-command-bar">
             <div className="companies-toolbar-meta">
-              <strong>{number.format(data?.total ?? 0)} companies</strong>
+              <strong>{loading && !data ? "Loading companies…" : error && !data ? "Data unavailable" : number.format(data?.total ?? 0) + " companies"}</strong>
               <span>{label} cohort · updated {prettyDateTime(data?.source_watermark_at ?? null)}</span>
             </div>
             <div className="po-record-tools">
@@ -1054,7 +1054,7 @@ export default function CompaniesDashboard() {
                     className="icon-button"
                     type="button"
                     aria-label="Previous year"
-                    disabled={year <= 2020}
+                    disabled={year <= Number(minMonth.slice(0, 4))}
                     onClick={() => setYear(year - 1)}
                   >
                     <Icon name="left" />
