@@ -669,6 +669,9 @@ staff and non-client companies.</p></section>`},
    console.assert(current.prevM.length===292,'Prior 30-day fixture should reconcile');
   }
   setPage('overview');
+  // The base runtime already rendered before we installed this module's
+  // dashboard wrapper. Initialize the reporting context on first load.
+  renderKPIs();
  // Expose a small read-only test snapshot rather than internal mutable state.
  window.overviewPrototype={snapshot:()=>!Array.isArray(current.weekly)?null:({asof:P.asof,wau:current.weekly.length,mau:current.monthly.length,previousWAU:current.prevW.length,previousMAU:current.prevM.length,frequency:current.buckets.slice(),weekly:current.chart.map(v=>({...v})),adoptionEligible:current.adoption.length,converted:current.adoption.filter(c=>c.converted).length,filteredUserCount:recordCandidates().length,drill:P.drill?{kind:P.drill.kind,key:P.drill.key,index:P.drill.index,tab:P.tab,tabs:recordTabs().map(t=>({key:t.key,label:t.label,count:t.count})),visibleCompanies:recordCandidates().reduce((n,u)=>n+u.count,0)}:null,journeyModules:moduleDefs.map(m=>({key:m.key,count:current.journey.filter(c=>c.modules?.includes(m.key)).length,steps:m.steps.map(s=>({key:s.key,count:current.journey.filter(c=>c.steps?.includes(s.key)).length}))})),page:P.page})};
 })();
