@@ -56,6 +56,7 @@ function WeeklyChart({
   const width=useChartWidth(wrap);
   if(!ready||!chart) return <Unavailable reason="No matching published snapshot for the selected reporting date."/>;
   const rows=chart.weekly.rows;
+  if(!rows.length)return <Unavailable reason="No completed weeks in the selected reporting range."/>;
   const height=expanded?450:235,left=31,right=10,top=22,bottom=28;
   const plotW=width-left-right,plotH=height-top-bottom;
   const max=Math.max(50,Math.ceil(Math.max(...rows.map(x=>x.users))*1.08/50)*50);
@@ -363,10 +364,12 @@ export default function OverviewActiveUsage({
   useEffect(()=>{
     const weekly=document.getElementById("po-weekly-caption");
     const frequency=document.getElementById("po-frequency-caption");
-    if(weekly)weekly.textContent=ready&&charts
-      ? "12 completed weeks · "+labelDate(charts.weekly.rows[0].week_start)+
-        " to "+weekEnd(charts.weekly.rows[11].week_start)
-      : "Live data unavailable for this reporting date";
+    if(weekly)weekly.textContent=ready&&charts&&charts.weekly.rows.length
+      ? charts.weekly.rows.length+" completed weeks · "+
+        labelDate(charts.weekly.rows[0].week_start)+" to "+
+        weekEnd(charts.weekly.rows[charts.weekly.rows.length-1].week_start)
+      : ready ? "No completed weeks in selected reporting range" :
+        "Live data unavailable for this reporting date";
     if(frequency)frequency.textContent=ready&&charts
       ? labelDate(charts.frequency.window_start)+" – "+
         labelDate(new Date(Date.parse(charts.frequency.window_end+"T12:00:00Z")-86_400_000).toISOString().slice(0,10))+
