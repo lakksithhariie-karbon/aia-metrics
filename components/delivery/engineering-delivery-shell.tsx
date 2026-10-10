@@ -188,7 +188,7 @@ function WorkInFlight({data,open}:{
         <button type="button" className="ed-wip-blocked" onClick={()=>openStatus("Blocked/Onhold")}
           aria-label={num(blocked)+" blocked issues. View the matching Jira issues."}>
           <span className="ed-wip-blocked-dot" aria-hidden="true"/>
-          <strong>{num(blocked)}</strong><span>blocked</span><span aria-hidden="true">↗</span>
+          <strong>{num(blocked)}</strong><span>blocked</span>
         </button>
       </div>
       <div className="ed-wip-distribution" role="img"
@@ -199,7 +199,7 @@ function WorkInFlight({data,open}:{
           title={statusLabel(row.status_name)+": "+num(row.issue_count)+" issues, "+pct(row.pct)+" of open work"}/>)}
       </div>
       <div className="ed-wip-columns" aria-hidden="true">
-        <span>Status</span><span>Relative volume</span><span>Issues</span><span>Share</span><span/>
+        <span>Status</span><span>Relative volume</span><span>Issues</span><span>Share</span>
       </div>
       <div className="ed-wip-list" role="list" aria-label="Open Jira issues by status">
         {rows.map((row,index)=>{
@@ -221,7 +221,6 @@ function WorkInFlight({data,open}:{
               </span>
               <strong className="ed-wip-entry-count">{num(row.issue_count)}</strong>
               <span className="ed-wip-entry-percent">{pct(row.pct)}</span>
-              <span className="ed-wip-entry-arrow" aria-hidden="true">↗</span>
             </button>
           </div>;
         })}
@@ -271,7 +270,7 @@ function IssueTypes({data,open}:{data:DeliveryDashboard;open:(target:DrillTarget
             return <td key={t}>{count>0?(
               <button className="ed-cell-drill" type="button" onClick={()=>open({
                 key:"type:"+t,label:shortSprint(s.sprint_name)+" · "+t,sprintId:s.sprint_id,
-              })}>{num(count)} <span aria-hidden="true">↗</span></button>
+              })}>{num(count)}</button>
             ):<span className="ed-zero">0</span>}</td>;
           })}
         </tr>)}</tbody>

@@ -123,7 +123,7 @@ assert.match(modal,/Export CSV/);
 assert.match(modal,/evidence_request_failed/);
 assert.match(server,/read_jira_delivery_evidence_v2/);
 assert.match(server,/read_jira_delivery_issue_v1/);
-assert.match(issueModal,/Back to cohort/);
+assert.match(issueModal,/Back to issues/);
 assert.match(issueModal,/Status trail/);
 assert.match(issueModal,/service_levels/);
 assert.match(modalCss,/\.ed-investigation-modal/);
@@ -170,10 +170,29 @@ assert.match(overviewCards,/className="metric-card"/,
 assert.match(shell,/function MetricTile\(/);
 assert.match(shell,/return <div className="ed-metric-wrap">/);
 assert.match(modal,/value\?\.label\|\|target.label/,"Cohort title must follow published Jira definition.");
+assert.match(modal,/<p>Jira issues<\/p>/,
+  "Modal eyebrow is simply Jira issues, without a sync number.");
+assert.match(modal,/value&&pageCount>1\?<footer/,
+  "Retain numeric pagination for multipage issue lists.");
+assert.match(modal,/\{row\.issue_key\}<\/button>/,
+  "Plain SPEND ID button must still open the secondary investigation.");
+assert.doesNotMatch(modal,/className="ed-investigation-summary"|Cohort issues|Published sync|Published snapshot|Distinct Jira issues/,
+  "No redundant cohort/snapshot metadata in the primary modal.");
+assert.doesNotMatch(issueModal,/Back to cohort|Verified against Jira snapshot/,
+  "No internal metadata in secondary issue detail.");
+assert.doesNotMatch(modal,/\{row\.issue_key\} ↗/,
+  "No extra diagonal stroke beside Jira issue keys.");
+assert.doesNotMatch(shell,/ed-wip-entry-arrow|aria-hidden="true">↗/,
+  "No decorative links next to Engineering issue counts.");
+assert.doesNotMatch(modalCss,/\.ed-investigation-summary\{/,
+  "No stale CSS for the removed three-cell summary panel.");
+assert.match(css,/\.ed-aging-chart\{[^}]*flex:1 1 auto;gap:8px;grid-auto-rows:minmax\(44px,1fr\)/,
+  "Aging bands must fill the chart card, not leave a blank bottom.");
+
 assert.match(modal,/aria-hidden=\{!!detailKey\}/,"Primary modal must hide from accessibility tree while issue detail is open.");
 assert.match(issueModal,/querySelectorAll<HTMLElement>/,"Secondary investigation must contain keyboard focus.");
-assert.match(modalCss,/grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1fr\)/,
-  "Product-style numbered pagination must stay centered.");
+assert.match(modalCss,/\.ed-investigation-foot\.rd-modal-foot\{[\s\S]*?justify-content:center/,
+  "Product-style numbered pagination stays centered without debug metadata.");
 assert.match(modalCss,/\.ed-investigation-foot \.rd-pagination\{/);
 assert.match(modal,/function EvidenceSkeleton\(/);
 assert.match(modal,/loading\?<EvidenceSkeleton review=\{target.key==="stage:Code Review"\}\/>/);

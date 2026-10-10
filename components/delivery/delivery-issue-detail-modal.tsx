@@ -95,7 +95,7 @@ export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,sna
       }}>
       <header className="ed-issue-head">
         <div>
-          <button type="button" ref={backRef} className="ed-issue-back" onClick={onClose}>← Back to cohort</button>
+          <button type="button" ref={backRef} className="ed-issue-back" onClick={onClose}>← Back to issues</button>
           <h2 id="ed-issue-detail-title">{issueKey}</h2>
           <p>{issue?.summary||"Verified Jira issue details"}</p>
         </div>
@@ -154,7 +154,7 @@ export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,sna
                 <span>{display(item.description||item.type)}</span>
                 {item.issue_key&&/^SPEND-[0-9]+$/.test(item.issue_key)?<a
                   href={"https://karbonworks.atlassian.net/browse/"+encodeURIComponent(item.issue_key)}
-                  target="_blank" rel="noopener noreferrer">{item.issue_key} ↗</a>:
+                  target="_blank" rel="noopener noreferrer">{item.issue_key}</a>:
                   <span>{display(item.issue_key)}</span>}
               </li>)}
             </ul>:<p className="ed-issue-muted">No linked Jira issues published.</p>}
@@ -162,9 +162,8 @@ export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,sna
         </>}
       </div>
       <footer className="ed-issue-footer">
-        <span>Verified against Jira snapshot {snapshotId}</span>
         <a href={"https://karbonworks.atlassian.net/browse/"+encodeURIComponent(issueKey)}
-          target="_blank" rel="noopener noreferrer">Open in Jira ↗</a>
+          target="_blank" rel="noopener noreferrer">Open in Jira</a>
       </footer>
     </section>
   </div>;

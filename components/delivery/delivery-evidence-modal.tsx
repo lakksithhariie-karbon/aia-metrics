@@ -63,7 +63,6 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
   const [expanded,setExpanded]=useState<string|null>(null);
   const [detailKey,setDetailKey]=useState<string|null>(null);
   const [value,setValue]=useState<DeliveryEvidence|null>(null);
-  const [cohortTotal,setCohortTotal]=useState<number|null>(null);
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState(false);
   const [retry,setRetry]=useState(0);
@@ -76,8 +75,6 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
   const scopedFilters=useMemo(()=>({...filters,sprint:target.sprintId??filters.sprint}),
     [filters.sprint,filters.module,filters.sub_module,filters.severity,filters.assignee,target.sprintId]);
   const pageCount=Math.max(1,Math.ceil((value?.total??0)/size));
-  const pageStart=value?.total?((page-1)*size+1):0;
-  const pageEnd=value?Math.min(page*size,value.total):0;
 
   useEffect(()=>{
     const id=setTimeout(()=>setSearch(query.trim()),260);
@@ -110,7 +107,6 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
         result.direction!==direction||result.query!==search||
         result.rows.length>size)throw new Error("evidence_contract_mismatch");
       if(!controller.signal.aborted){
-        if(search==="")setCohortTotal(result.total);
         setValue(result);setLoading(false);
       }
     }).catch(()=>{
@@ -163,25 +159,20 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
         aria-labelledby="ed-cohort-title" aria-busy={loading}>
         <header className="rd-modal-head ed-investigation-head">
           <div>
-            <p>Cohort · Verified Jira snapshot {data.snapshot_id}</p>
+            <p>Jira issues</p>
             <h2 id="ed-cohort-title">{value?.label||target.label}</h2>
-            <span>{number.format(cohortTotal??(search?value?.source_count:value?.total)??data.core.metric_cohorts[target.key]?.n??0)} issues in the selected population</span>
+            <span>{value?number.format(value.total)+(search?" matching issues":" issues"):"Issue breakdown"}</span>
           </div>
           <button type="button" className="rd-close ed-investigation-close"
-            ref={closeRef} onClick={onClose} aria-label="Close issue cohort">×</button>
+            ref={closeRef} onClick={onClose} aria-label="Close issues">×</button>
         </header>
-        <div className="ed-investigation-summary">
-          <div><span>Cohort issues</span><strong>{number.format(cohortTotal??(search?value?.source_count:value?.total)??0)}</strong></div>
-          <div><span>Matching search</span><strong>{number.format(value?.total??0)}</strong></div>
-          <div><span>Published sync</span><strong>#{data.snapshot_id}</strong></div>
-        </div>
         <div className="rd-drill-toolbar ed-investigation-toolbar">
           <div className="rd-search ed-investigation-search">
             <svg viewBox="0 0 24 24" className="rd-icon" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
               <circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>
             </svg>
             <input value={query} placeholder="Search key, summary, assignee..."
-              aria-label="Search Jira issues in the entire cohort"
+              aria-label="Search Jira issues"
               onChange={event=>{setQuery(event.target.value);setPage(1);setExpanded(null);}}/>
             {query?<button type="button" onClick={()=>{setQuery("");setPage(1);}}
               aria-label="Clear search">×</button>:null}
@@ -192,8 +183,8 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
           </button>
         </div>
         <div className="ed-investigation-caption">
-          <span>Published Jira issue rows · {sort==="created_at"&&direction==="desc"?"Newest created first":"Sorted by "+sort.replace("_"," ")+" ("+direction+")"}</span>
-          {search?<span>Search applied across the entire cohort</span>:null}
+          <span>{sort==="created_at"&&direction==="desc"?"Newest created first":"Sorted by "+sort.replace("_"," ")+" ("+direction+")"}</span>
+          {exportError?<span role="alert" className="ed-export-error">{exportError}</span>:null}
         </div>
         <div className="rd-table-wrap ed-investigation-table-wrap" ref={scroll}>
           {error?<div className="ed-investigation-error" role="alert">
@@ -201,7 +192,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
             <button type="button" onClick={()=>setRetry(n=>n+1)}>Try again</button>
           </div>:loading?<EvidenceSkeleton review={target.key==="stage:Code Review"}/>:
           !value||!value.rows.length?<div className="ed-investigation-empty">
-            No matching issues in this cohort. Try changing the search.
+            No issues match your search. Try a different keyword.
           </div>:
           <table className="rd-activation-table ed-investigation-table">
             <thead><tr>
@@ -225,7 +216,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
                   <span aria-hidden="true">{opened?"⌄":"›"}</span></button></td>
                 <td><button type="button" className="ed-investigation-key"
                   title={"Open "+row.issue_key+" details"}
-                  onClick={event=>openIssue(row,event.currentTarget)}>{row.issue_key} ↗</button></td>
+                  onClick={event=>openIssue(row,event.currentTarget)}>{row.issue_key}</button></td>
                 <td>{date(row.created_at)}</td>
                 <td>{date(row.resolved_at)}</td>
                 <td>{show(row.severity)}</td>
@@ -264,14 +255,8 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
             })}</tbody>
           </table>}
         </div>
-        <footer className="rd-modal-foot rd-modal-foot-paginated ed-investigation-foot">
-          <div className="rd-table-summary">
-            <span>Distinct Jira issues · Published snapshot #{data.snapshot_id}</span>
-            <small>{value?"Showing "+number.format(pageStart)+"–"+number.format(pageEnd)+" of "+
-              number.format(value.total)+" matching issues":loading?"Loading verified cohort…":"No data available"}</small>
-            {exportError?<small role="alert" className="ed-export-error">{exportError}</small>:null}
-          </div>
-          {value&&pageCount>1?<nav className="rd-pagination" aria-label="Jira issue pages">
+        {value&&pageCount>1?<footer className="rd-modal-foot rd-modal-foot-paginated ed-investigation-foot">
+          <nav className="rd-pagination" aria-label="Jira issue pages">
             <button type="button" disabled={page<=1} aria-label="Previous page"
               onClick={()=>turnPage(page-1)}>‹</button>
             {pages(page,pageCount).map((item,index)=>item==="…"
@@ -280,8 +265,8 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
                 onClick={()=>turnPage(item)}>{item}</button>)}
             <button type="button" disabled={page>=pageCount} aria-label="Next page"
               onClick={()=>turnPage(page+1)}>›</button>
-          </nav>:null}
-        </footer>
+          </nav>
+        </footer>:null}
       </section>
     </div>
     {detailKey?<DeliveryIssueDetailModal issueKey={detailKey} cohortKey={target.key}
