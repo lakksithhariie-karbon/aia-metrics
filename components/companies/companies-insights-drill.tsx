@@ -4,7 +4,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import type {
   CompanyInsightCategory,
   CompanyInsightSlice,
-  CompaniesMonthlyInsights,
   ModuleBreakdownResponse,
   MonthModuleKey,
 } from "../../lib/companies/types";
@@ -140,10 +139,6 @@ function itemText(items: number | null): string {
   return items === null ? "Not instrumented" : nf.format(items) + " reported items";
 }
 
-function eventCount(insights: CompaniesMonthlyInsights, category: string): number {
-  return insights.categories.find(c => c.key === category)?.events ?? 0;
-}
-
 function SegmentBadge({ status }: { status: string | null }) {
   if (!status) return <span className="cid-muted">Not recorded</span>;
   const value = status.toLowerCase();
@@ -169,7 +164,6 @@ export default function CompaniesInsightsDrill({
   const slices = useMemo(() => insights?.slices ?? [], [insights]);
   const visibleCategories = category === "all"
     ? categories : categories.filter(item => item.key === category);
-  const maxCategory = Math.max(1, ...categories.map(item => item.events));
   const maxDay = Math.max(1, ...(insights?.days.map(item => item.events) ?? []));
   const isUser = userLabel !== null;
 
