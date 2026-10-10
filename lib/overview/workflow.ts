@@ -107,17 +107,17 @@ function creds(){
  const key=process.env.SUPABASE_SERVICE_ROLE_KEY;
  return url&&key?{url,key}:null;
 }
-export async function readPublishedWorkflowSummary():Promise<WorkflowSummary|null>{
+export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<WorkflowSummary|null>{
  const credential=creds();
  if(!credential)return null;
  const response=await fetch(
-  credential.url+"/rest/v1/rpc/read_overview_workflow_charts_v2",{
+  credential.url+"/rest/v1/rpc/read_overview_workflow_charts_v3",{
    method:"POST",cache:"no-store",signal:AbortSignal.timeout(30_000),
    headers:{
     apikey:credential.key,Authorization:"Bearer "+credential.key,
     "Content-Type":"application/json","Cache-Control":"no-store",
    },
-   body:"{}",
+   body:JSON.stringify(snapshotId==null?{}:{p_snapshot_id:snapshotId}),
   },
  );
  if(!response.ok)throw new Error("overview_workflow_summary_http_"+response.status);
@@ -191,7 +191,7 @@ export async function readWorkflowModuleUsers(params:{
  snapshotId:number;week:string;module:WorkflowModule;
  query:string;page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<WorkflowModuleUsers|null>{
- return rpc<WorkflowModuleUsers>("read_overview_workflow_module_users_v2",{
+ return rpc<WorkflowModuleUsers>("read_overview_workflow_module_users_v3",{
   p_snapshot_id:params.snapshotId,p_week:params.week,p_module:params.module,
   p_query:params.query,p_page:params.page,p_page_size:params.pageSize,
  },params.signal);
@@ -200,7 +200,7 @@ export async function readWorkflowMixCompanies(params:{
  snapshotId:number;period:WorkflowPeriod;mask:WorkflowMask;
  query:string;page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<WorkflowMixCompanies|null>{
- return rpc<WorkflowMixCompanies>("read_overview_workflow_mix_companies_v2",{
+ return rpc<WorkflowMixCompanies>("read_overview_workflow_mix_companies_v3",{
   p_snapshot_id:params.snapshotId,p_period:params.period,p_mask:params.mask,
   p_query:params.query,p_page:params.page,p_page_size:params.pageSize,
  },params.signal);
@@ -210,7 +210,7 @@ export async function readWorkflowCompanyDetail(params:{
  week?:string;module?:WorkflowModule;mask?:WorkflowMask;
  userId?:string;signal?:AbortSignal;
 }):Promise<WorkflowCompanyDetail|null>{
- return rpc<WorkflowCompanyDetail>("read_overview_workflow_company_v2",{
+ return rpc<WorkflowCompanyDetail>("read_overview_workflow_company_v3",{
   p_snapshot_id:params.snapshotId,p_scope:params.scope,p_company_id:params.companyId,
   p_week:params.week??"",p_module:params.module??"",p_mask:params.mask??"",
   p_user_id:params.userId??"",
