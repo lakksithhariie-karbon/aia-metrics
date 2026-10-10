@@ -63,7 +63,7 @@ export async function readActivationList(params: {
   signal?: AbortSignal;
 }): Promise<ActivationListResponse> {
   const payload = await rpc<ActivationListResponse | ActivationListResponse[]>(
-    "read_retention_activation_drill_page_v1",
+    "read_retention_activation_drill_page_v2",
     {
       p_from: params.from,
       p_to: params.to,
@@ -84,7 +84,7 @@ export async function readActivationCompanyDetail(params: {
   const payload = await rpc<
     ActivationCompanyDetail | ActivationCompanyDetail[]
   >(
-    "read_retention_activation_company_detail_v1",
+    "read_retention_activation_company_detail_v2",
     { p_company_id: params.companyId },
     params.signal,
   );
@@ -106,7 +106,7 @@ export async function readRetentionCellDrill(params: {
   const payload = await rpc<
     RetentionCellDrillResponse | RetentionCellDrillResponse[]
   >(
-    "read_retention_heatmap_cell_drill_v3",
+    "read_retention_heatmap_cell_drill_v4",
     {
       p_interval: params.interval,
       p_cohort_start: params.cohortStart,
@@ -134,7 +134,7 @@ export async function readRetentionChurnMonthDrill(params: {
   const payload = await rpc<
     RetentionChurnDrillResponse | RetentionChurnDrillResponse[]
   >(
-    "read_retention_churn_month_drill_v1",
+    "read_retention_churn_month_drill_v2",
     {
       p_month: params.month + "-01",
       p_segment: params.segment,
