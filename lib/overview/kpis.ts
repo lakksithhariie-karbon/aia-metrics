@@ -1,6 +1,7 @@
 /** The published Overview snapshot anchors the event cutoff and source watermark.
- * The actual counts are recomputed from independent accounting-work events.
- * No KPI value falls back to the prototype fixture or sync-inclusive summary.
+ * v4 returns the exact v3 independent-work payload from its verified snapshot
+ * cache, or recalculates with v3 if the cache is missing or stale.
+ * No KPI value falls back to fixture or sync-inclusive metrics.
  */
 export interface OverviewUsageSnapshot {
   snapshotId: number;
@@ -39,7 +40,7 @@ export async function readPublishedOverviewUsage(requestedSnapshotId?:number): P
   if (!url || !key) return null;
 
   const response = await fetch(
-    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v3",
+    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v4",
     {
       method: "POST",
       cache: "no-store",
