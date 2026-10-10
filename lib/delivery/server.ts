@@ -59,7 +59,7 @@ function validate(payload: DeliveryDashboard): DeliveryDashboard {
       !check("stale_7d",fc.stale_all) ||
       !check("stale_blocked",fc.stale_blocked) ||
       !check("blocked",fc.blocked_all) ||
-      !check("qa_queue",cohort.qa_queue.n) ||
+      !check("qa_queue",fc.qa_queue_count) ||
       payload.flow.wip_by_status.reduce((s,r)=>s+r.issue_count,0)!==fc.open_total) {
     throw new Error("jira_delivery_reconciliation_failed");
   }

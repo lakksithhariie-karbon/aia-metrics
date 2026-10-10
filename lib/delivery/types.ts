@@ -77,7 +77,7 @@ export type DeliveryDashboard = {
     metric_cohorts: Record<string, CohortSummary>;
   };
   flow: {
-    flow_counts: { open_total: number; stale_all: number; stale_blocked: number; blocked_all: number };
+    flow_counts: { open_total: number; stale_all: number; stale_blocked: number; blocked_all: number; qa_queue_count: number };
     wip_by_status: Array<{ status_name: string; issue_count: number; pct: number }>;
     stage_summary: FlowStageRow[];
     bug_health: {

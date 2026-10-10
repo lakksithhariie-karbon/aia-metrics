@@ -61,6 +61,15 @@ assert.match(server,/cache: "no-store"/);
 assert.match(api,/readDeliveryEvidence\(filters,key,snapshot,offset\)/);
 assert.match(sql,/jira_delivery_population_reconciliation_failed/);
 assert.match(sql,/jira_delivery_issue_type_scope_mismatch/);
+const snapshotSql = read("supabase/migrations/20261010_jira_delivery_snapshot_consistency_v1.sql");
+assert.equal((snapshotSql.match(/v_last_run IS DISTINCT FROM v_published/g)||[]).length,2,
+  "Both compact dashboard and issue evidence must reject partial Jira ingestion.");
+assert.match(snapshotSql,/qa_queue_count/);
+assert.match(server,/!check\("qa_queue",fc.qa_queue_count\)/,
+  "Server must verify QA population against independently counted issue rows.");
+assert.match(shell,/const reviewStage=data.flow.stage_summary.find/);
+assert.match(shell,/drillKey:reviewMatchesCohort\?metricAction\("code_review"\):undefined/);
+assert.match(page,/export const maxDuration = 45/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.read_jira_delivery_dashboard_v1/);
 assert.match(evidence,/jira_delivery_evidence_snapshot_mismatch/);
 assert.match(evidence,/REVOKE ALL ON FUNCTION public\.read_jira_delivery_evidence_v1/);

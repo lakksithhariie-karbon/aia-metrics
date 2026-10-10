@@ -12,6 +12,7 @@ export const metadata: Metadata = {
   description: "Verified Jira sprint delivery, attention, flow and engineering quality.",
 };
 export const dynamic = "force-dynamic";
+export const maxDuration = 45; // Jira validation and scoped flow queries need bounded headroom
 
 /** The shared Product grid is retained. The only data source is the
  * service-role-only Jira reporting facade; screenshot fixtures are forbidden. */
