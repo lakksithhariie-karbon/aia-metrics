@@ -146,6 +146,15 @@ async function postCompanies<T>(
   return payload as T;
 }
 
+// Small, time-bounded cache for reopened company drill-downs. Keep the
+// cache keyed by the full evidence scope so dates/users never mix.
+const breakdownCache = new Map<string, { value: ModuleBreakdownResponse; expiresAt: number }>();
+const BREAKDOWN_CACHE_MS = 30_000;
+
+function drillCacheKey(companyId: string, userId: string | null, module: MonthModuleKey, month: string): string {
+  return JSON.stringify([companyId, userId, module, month.slice(0, 7)]);
+}
+
 interface BreakdownTarget {
   company: CompanyUsageRow;
   user: CompanyUsageUser | null;
@@ -294,6 +303,13 @@ export default function CompaniesDashboard() {
   useEffect(() => {
     if (!target) return;
     const controller = new AbortController();
+    const key = drillCacheKey(target.company.id, target.user?.id ?? null, target.module, target.month);
+    const cached = breakdownCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      setBreakdown(cached.value);
+      setBreakdownLoading(false);
+      return () => controller.abort();
+    }
     setBreakdown(null);
     setBreakdownLoading(true);
     postCompanies<ModuleBreakdownResponse>(
@@ -306,8 +322,14 @@ export default function CompaniesDashboard() {
       },
       controller.signal,
     )
-      .then(setBreakdown)
-      .catch(() => setBreakdown(null))
+      .then(result => {
+        if (controller.signal.aborted) return;
+        // Bound memory and only store successful, complete responses.
+        if (breakdownCache.size >= 50) breakdownCache.delete(breakdownCache.keys().next().value!);
+        breakdownCache.set(key, { value: result, expiresAt: Date.now() + BREAKDOWN_CACHE_MS });
+        setBreakdown(result);
+      })
+      .catch(() => { if (!controller.signal.aborted) setBreakdown(null); })
       .finally(() => {
         if (!controller.signal.aborted) setBreakdownLoading(false);
       });
