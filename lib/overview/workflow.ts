@@ -128,11 +128,9 @@ export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<W
   ||typeof data.source_watermark_at!=="string"
   ||!Array.isArray(data.weekly)||data.weekly.length!==12)return null;
  const mix=object(data.mix);
- const currentTotal=count(mix?.current_total),previousTotal=count(mix?.previous_total);
- const currentMulti=count(mix?.current_multi),previousMulti=count(mix?.previous_multi);
- if(!mix||currentTotal===null||previousTotal===null
-  ||currentMulti===null||previousMulti===null
-  ||currentMulti>currentTotal||previousMulti>previousTotal
+ if(!mix||!count(mix.current_total)||!count(mix.previous_total)
+  ||!count(mix.current_multi)||!count(mix.previous_multi)
+  ||mix.current_multi>mix.current_total||mix.previous_multi>mix.previous_total
   ||!Array.isArray(mix.rows)||mix.rows.length!==8
   ||!["current_start","current_end","previous_start","previous_end"].every(
    key=>typeof mix[key]==="string"&&!Number.isNaN(Date.parse(mix[key] as string))
@@ -140,8 +138,8 @@ export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<W
  const weekly:WorkflowWeek[]=[];
  for(const item of data.weekly){
   const row=object(item);
-  if(!row||!date(row.week_start)||count(row.total)===null
-   ||MODS.some(key=>count(row[key])===null)
+  if(!row||!date(row.week_start)||!count(row.total)
+   ||MODS.some(key=>!count(row[key]))
    ||typeof row.limited_tracking!=="boolean"
    ||MODS.some(key=>(row[key] as number)>(row.total as number)))return null;
   weekly.push({
@@ -154,13 +152,13 @@ export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<W
  const rows:WorkflowMixRow[]=[];
  for(let i=0;i<MASKS.length;i++){
   const r=object(mix.rows[i]);
-  if(!r||r.mask!==MASKS[i]||count(r.current)===null||count(r.previous)===null)return null;
+  if(!r||r.mask!==MASKS[i]||!count(r.current)||!count(r.previous))return null;
   rows.push({mask:r.mask as WorkflowMask,current:r.current as number,previous:r.previous as number});
  }
- if(rows.reduce((t,r)=>t+r.current,0)!==currentTotal
-  ||rows.reduce((t,r)=>t+r.previous,0)!==previousTotal
-  ||rows.filter(r=>r.mask.replaceAll("0","").length>1).reduce((t,r)=>t+r.current,0)!==currentMulti
-  ||rows.filter(r=>r.mask.replaceAll("0","").length>1).reduce((t,r)=>t+r.previous,0)!==previousMulti)return null;
+ if(rows.reduce((t,r)=>t+r.current,0)!==mix.current_total
+  ||rows.reduce((t,r)=>t+r.previous,0)!==mix.previous_total
+  ||rows.filter(r=>r.mask.replaceAll("0","").length>1).reduce((t,r)=>t+r.current,0)!==mix.current_multi
+  ||rows.filter(r=>r.mask.replaceAll("0","").length>1).reduce((t,r)=>t+r.previous,0)!==mix.previous_multi)return null;
  return {
   snapshotId:data.snapshot_id,asOf:data.as_of,
   sourceWatermarkAt:data.source_watermark_at,
@@ -169,8 +167,8 @@ export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<W
   mix:{
    current_start:mix.current_start as string,current_end:mix.current_end as string,
    previous_start:mix.previous_start as string,previous_end:mix.previous_end as string,
-   current_total:currentTotal,previous_total:previousTotal,
-   current_multi:currentMulti,previous_multi:previousMulti,
+   current_total:mix.current_total,previous_total:mix.previous_total,
+   current_multi:mix.current_multi,previous_multi:mix.previous_multi,
    rows,
   },
  };
