@@ -129,7 +129,7 @@ export async function readPublishedFrictionSummary(snapshotId?:number):Promise<F
    ||(row.change_pp!==null&&(
     typeof row.change_pp!=="number"||!Number.isFinite(row.change_pp)
    )))return null;
-  if(current.incidence_pct===null||previous.incidence_pct===null)return null;
+  // Zero eligible workflows yield a meaningful unavailable rate, not a fatal error.
   seen.add(row.key);
   rows.push({
    key:row.key as FrictionKey,label:row.label,
