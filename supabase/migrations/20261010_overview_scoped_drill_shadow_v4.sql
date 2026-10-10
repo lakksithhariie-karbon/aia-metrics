@@ -47,7 +47,7 @@ WHERE e.event_time >= ((p.this_week-84)::timestamp AT TIME ZONE 'Asia/Kolkata')
   AND lower(btrim(coalesce(e.properties->>'status',''))) <> 'failed'
   AND NOT metrics_private.is_retention_internal_email_v2(e.email)
   AND EXISTS(SELECT 1 FROM public.client_company c WHERE c.company_id=e.company_id);
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.read_overview_workflow_module_users_v4(p_snapshot_id bigint, p_week text, p_module text, p_query text DEFAULT ''::text, p_page integer DEFAULT 1, p_page_size integer DEFAULT 10)
@@ -146,7 +146,7 @@ SELECT jsonb_build_object(
  ),'[]'::jsonb)
 )
 FROM scope s;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.overview_friction_events_scoped_v4(p_snapshot_id bigint, p_issue_key text, p_period text)
@@ -218,7 +218,7 @@ SELECT n.company_id,n.distinct_id,n.email,n.event_time,n.period,n.issue_key,
       ELSE n.status='success' END AS is_success,
  n.event_name,n.status,n.activity_type,n.action
 FROM classified n WHERE n.issue_key=p_issue_key AND n.period=p_period;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.overview_friction_company_facts_scoped_v4(p_snapshot_id bigint, p_issue_key text, p_period text)
@@ -259,7 +259,7 @@ SELECT g.issue_key,g.period,g.company_id,
 FROM grouped g
 LEFT JOIN follow f ON f.issue_key=g.issue_key AND f.period=g.period
  AND f.company_id=g.company_id;
-$function$
+$function$;
 
 
 CREATE OR REPLACE FUNCTION public.read_overview_friction_companies_v4(p_snapshot_id bigint, p_issue_key text, p_period text DEFAULT 'current'::text, p_segment text DEFAULT 'affected'::text, p_query text DEFAULT ''::text, p_page integer DEFAULT 1, p_page_size integer DEFAULT 8)
@@ -356,7 +356,7 @@ SELECT jsonb_build_object(
  ),'[]'::jsonb)
 )
 FROM scope s;
-$function$
+$function$;
 
 
 REVOKE ALL ON FUNCTION public.overview_workflow_events_week_v4(bigint,date) FROM PUBLIC, anon, authenticated;
