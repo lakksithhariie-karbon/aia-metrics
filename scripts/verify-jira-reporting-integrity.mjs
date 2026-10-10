@@ -5,7 +5,7 @@ const names = ["v_issue_normalized","v_sprint_drilldown","v_issue_flow_state","v
 for (const name of names) assert.ok(sql.includes("CREATE OR REPLACE VIEW jira."+name+" AS"),"Missing audited Jira reader "+name);
 assert.match(sql,/count\(\*\) FILTER \(WHERE is_done\) AS done_now/);
 assert.match(sql,/tomb\.deleted_at <= \(SELECT cutoff_at FROM publication\)/);
-assert.match(sql,/FROM jira\.v_metric_cohorts_active_v1 mc/);
+assert.match(sql,/from jira\.v_metric_cohorts_active_v1 mc/i);
 assert.match(sql,/jira_open_work_parity_failed/);
 assert.match(sql,/jira_done_now_parity_failed/);
 assert.match(sql,/jira_open_cohort_parity_failed/);
