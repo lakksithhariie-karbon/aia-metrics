@@ -107,7 +107,7 @@ export async function readRetentionDashboardV4(params: {
   const payload = await rpc<
     RetentionDashboardV4Response | RetentionDashboardV4Response[]
   >(
-    "read_retention_dashboard_v4",
+    "read_retention_dashboard_v5",
     {
       p_from: params.from,
       p_to: params.to,
