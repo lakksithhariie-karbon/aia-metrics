@@ -87,4 +87,64 @@ export interface ModuleBreakdownResponse {
   total: number;
   item_total: number | null;
   rows: ModuleBreakdownRow[];
+  insights: CompaniesMonthlyInsights;
+}
+
+/** Additional facets for the Companies drill. Every count reconciles to v2. */
+export type CompanyInsightCategory =
+  | "status" | "ledger" | "type_change" | "upload" | "entity"
+  | "vendor_mismatch" | "reconciliation" | "configuration" | "invoice_edit" | "other";
+
+export interface CompanyInsightSlice {
+  category: CompanyInsightCategory;
+  event: string;
+  type: string | null;
+  subtype: string | null;
+  entity_type: string | null;
+  transaction_type: string | null;
+  action: string | null;
+  status: string | null;
+  source: string | null;
+  file_type: string | null;
+  resolution_type: string | null;
+  events: number;
+  items: number | null;
+  instrumented: number;
+  latest_at: string | null;
+}
+
+export interface CompanyInsightUser {
+  id: string;
+  label: string;
+  events: number;
+  active_days: number;
+  first_at: string | null;
+  last_at: string | null;
+  counts: Record<CompanyInsightCategory, number> | Record<string, number>;
+}
+
+export interface CompaniesMonthlyInsights {
+  contract: "companies_monthly_drill_insights_v1";
+  company_id: string;
+  company_name: string;
+  module: MonthModuleKey;
+  month: string;
+  user_key: string | null;
+  window_start: string;
+  window_end: string;
+  source_watermark_at: string;
+  total: number;
+  item_total: number | null;
+  instrumented_events: number;
+  active_users: number;
+  active_days: number;
+  unattributed_events: number;
+  first_at: string | null;
+  last_at: string | null;
+  user_groups_total: number;
+  categories: Array<{ key: CompanyInsightCategory; events: number; items: number | null; instrumented: number }>;
+  slices: CompanyInsightSlice[];
+  users: CompanyInsightUser[];
+  days: Array<{ date: string; events: number; users: number }>;
+  sources: Array<{ source: string; events: number }>;
 }
