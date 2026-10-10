@@ -8,6 +8,10 @@
  * existing Product Metrics card shells.
  */
 .ed-shell{min-height:100dvh;background:#fff}
+/* The single Engineering page occupies the same white selector position as a
+   Product dashboard, but does not advertise an empty dropdown. */
+.app-dashboard-current-section{cursor:default;user-select:none}
+
 .ed-page{padding-bottom:48px!important}
 .ed-page>.ed-page-head{
   display:flex;
