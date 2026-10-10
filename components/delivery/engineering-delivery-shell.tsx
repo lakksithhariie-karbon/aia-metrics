@@ -404,7 +404,21 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
   const gap=first.committed-first.committed_done;
   const q=data.quality.metric_updates;
   const codeReview=data.flow.metric_updates.code_review;
+  // The published code_review cohort defaults to the active sprint even when
+  // an older sprint is chosen. The stage view IS selected-sprint scoped.
+  // Use stage facts for the displayed value, and enable issue evidence only
+  // when the cohort refers to that same stage population and median.
+  const reviewStage=data.flow.stage_summary.find(row=>
+    row.sprint_id===first.sprint_id && row.stage==="Code Review");
+  const reviewCount=reviewStage?.issues_in_stage??null;
+  const reviewHours=reviewStage?.median_hours??null;
+  const reviewMatchesCohort=typeof reviewHours==="number" &&
+    typeof codeReview?.value==="number" &&
+    Math.abs(reviewHours-codeReview.value)<=0.11 &&
+    reviewCount===cohort("code_review");
   const isHistorical=first.state!=="active";
+  const pastPlannedEnd=first.state==="active" &&
+    Date.parse(first.end_date)<Date.parse(data.synced_at);
   const sprintMetrics:Metric[]=[
     {id:"commitment",label:(first.state==="active"?"Active":"Selected")+" sprint · "+first.sprint_name,
       value:pct(first.commitment_completion_pct),caption:num(first.committed_done)+" of "+num(first.committed)+" committed issues completed",
@@ -481,10 +495,11 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       evidence:"View UAT decision evidence",
       definition:"Median hours from UAT entry to a recorded exit decision, displayed in days (hours divided by 24). Incomplete/open windows are excluded.",
       source:"jira.v_resolution_medians / qa_turnaround cohort",drillKey:metricAction("qa_turnaround")},
-    {id:"code_review",label:"Code review",value:hrs(codeReview?.value),caption:"Median stage dwell · "+shortSprint(first.sprint_name),
-      evidence:"View "+num(cohort("code_review"))+" review stays",
-      definition:"Median measured Code Review status dwell in the selected sprint's stage records. It is not developer productivity or time spent typing code.",
-      source:"jira.v_sprint_stage_summary / code_review cohort",drillKey:metricAction("code_review"),sprintId:filters.sprint},
+    {id:"code_review",label:"Code review",value:hrs(reviewHours),caption:"Median stage dwell · "+shortSprint(first.sprint_name),
+      evidence:reviewMatchesCohort?"View "+num(reviewCount)+" review stays":num(reviewCount)+" measured stays · drill not available for this scope",
+      definition:"Median measured Code Review status dwell for the selected sprint. This is not developer productivity. Issue evidence is offered only when the source cohort matches the same sprint and median.",
+      source:"jira.v_sprint_stage_summary / matched code_review evidence only",
+      drillKey:reviewMatchesCohort?metricAction("code_review"):undefined,sprintId:filters.sprint},
   ];
   const sourceAgeMs=Date.now()-Date.parse(data.synced_at);
   const isStale=sourceAgeMs>36*3600*1000 || sourceAgeMs<0;
@@ -505,6 +520,10 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       {isHistorical?<p className="ed-historical-warning" role="status">
         Historical sprint selected. Completion reflects the <strong>current status</strong> of its issues,
         not a reconstructed sprint-close snapshot.
+      </p>:null}
+      {pastPlannedEnd?<p className="ed-historical-warning" role="status">
+        Jira still marks this sprint active although its planned end date has passed.
+        Completion reflects the current issue state.
       </p>:null}
       {isStale?<p className="ed-historical-warning" role="status">
         The latest verified Jira sync is older than 36 hours. Metrics remain labeled with their source cutoff.
