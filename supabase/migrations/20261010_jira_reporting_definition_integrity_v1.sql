@@ -552,7 +552,7 @@ begin
   left join agg a on a.key = b.key
   order by b.key;
 end;
-$function$
+$function$;
 
 -- Fail closed if any current-state view still contains deleted issue evidence.
 DO $jira_checks$
