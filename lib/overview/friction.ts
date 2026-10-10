@@ -106,7 +106,7 @@ async function rpc<T>(name:string,body:Record<string,unknown>,signal?:AbortSigna
  return await r.json() as T|null;
 }
 export async function readPublishedFrictionSummary(snapshotId?:number):Promise<FrictionSummary|null>{
- const raw=obj(await rpc<unknown>("read_overview_friction_v3",snapshotId==null?{}:{p_snapshot_id:snapshotId}));
+ const raw=obj(await rpc<unknown>("read_overview_friction_v4",snapshotId==null?{}:{p_snapshot_id:snapshotId}));
  if(!raw||raw.contract!=="observed_company_friction_v1"
   ||!natural(raw.snapshot_id)||typeof raw.as_of!=="string"
   ||Number.isNaN(Date.parse(raw.as_of))

@@ -111,7 +111,7 @@ export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<W
  const credential=creds();
  if(!credential)return null;
  const response=await fetch(
-  credential.url+"/rest/v1/rpc/read_overview_workflow_charts_v3",{
+  credential.url+"/rest/v1/rpc/read_overview_workflow_charts_v4",{
    method:"POST",cache:"no-store",signal:AbortSignal.timeout(30_000),
    headers:{
     apikey:credential.key,Authorization:"Bearer "+credential.key,

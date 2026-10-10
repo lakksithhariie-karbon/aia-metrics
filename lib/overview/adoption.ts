@@ -113,7 +113,7 @@ async function rpc<T>(name:string,body:Record<string,unknown>,signal?:AbortSigna
   return await response.json() as T|null;
 }
 export async function readPublishedAdoptionSummary(requestedSnapshotId?:number):Promise<AdoptionSummary|null>{
-  const raw=asObject(await rpc<unknown>("read_overview_adoption_journey_v3",requestedSnapshotId == null ? {} : {p_snapshot_id:requestedSnapshotId}));
+  const raw=asObject(await rpc<unknown>("read_overview_adoption_journey_v4",requestedSnapshotId == null ? {} : {p_snapshot_id:requestedSnapshotId}));
   if(!raw||raw.contract!=="mature_independent_adoption_v1")return null;
   const snapshotId=count(raw.snapshot_id),total=count(raw.total);
   const outcomes=checkCounts(raw.outcomes,OUTCOME_KEYS);
