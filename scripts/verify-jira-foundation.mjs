@@ -8,8 +8,10 @@ const help = read("supabase/functions/jira-sync/README.md");
 
 assert.match(fn,/function authorizeCronRequest\(req: Request\)/);
 assert.match(fn,/req\.method !== "POST"/);
-assert.match(fn,/Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/);
-assert.match(fn,/equalSecret\(actual, expected\)/);
+assert.match(fn,/claims\?\.role !== "service_role"/);
+assert.match(fn,/jwt\.split\("\."\)/);
+assert.doesNotMatch(fn,/Deno\.env\.get\("SUPABASE_SERVICE_ROLE_KEY"\)/,
+  "Built-in and Vault service-role JWTs can be different: rely on verified claims");
 assert.ok(fn.indexOf("authorizeCronRequest(req)") < fn.indexOf("const sql = postgres("),
   "Fail-closed authorization must precede DB and Jira access.");
 assert.match(sql,/distinct on \(r\.payload#>>'\{fields,project,key\}'\)/);

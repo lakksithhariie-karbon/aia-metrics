@@ -12,7 +12,7 @@ This directory is the authoritative source for the **existing** Supabase `jira-s
 
 ## Security requirements
 
-The function requires `POST` with the **exact** Supabase service-role JWT as its bearer token before executing any database or Jira work. Deploy with `verify_jwt=true`. The existing pg_cron jobs already send the service-role JWT from Supabase Vault. Deploy only after confirming the built-in `SUPABASE_SERVICE_ROLE_KEY` resolves to the same role/key generation as the Vault credential. If that cannot be verified, keep the staged fix unpromoted until the credential is aligned.
+The function requires `POST` with a **Supabase gateway-verified JWT whose role is `service_role`** before executing any database or Jira work. **Always deploy with `verify_jwt=true`.** The existing pg_cron jobs already supply the service-role JWT stored in Supabase Vault. The `jira-sync` handler decodes the role only after gateway signature verification; it does not accept ordinary user JWTs or unauthenticated requests. Do not compare the JWT to the built-in `SUPABASE_SERVICE_ROLE_KEY`: valid legacy Vault service-role JWTs may differ from that environment value.
 
 Do not commit credentials, Jira tokens, vault values or API headers to GitHub, public variables or logs. Jira credentials remain Supabase Edge Function secrets.
 

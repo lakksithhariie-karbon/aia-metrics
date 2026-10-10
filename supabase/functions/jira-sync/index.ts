@@ -601,36 +601,36 @@ async function runSync(sql: postgres.Sql, setStage: (stage: Stage) => void): Pro
 }
 
 /**
- * Cron is configured with the project service-role JWT in Vault.
- * The old jira-sync deployment had verify_jwt=false and accepted all callers.
- * Require the exact server service-role token BEFORE opening a database
- * connection, contacting Jira, or creating a sync_log record.
+ * This endpoint is invoked by pg_cron using a service-role JWT from Vault.
+ * Supabase's Edge gateway must first verify the signature/expiry
+ * (verify_jwt=true at deploy time). Decode only to enforce the role:
+ * an otherwise valid user JWT is NOT allowed to run a privileged Jira sync.
  *
- * Do not echo any authorization headers or environment secrets in responses.
- * Timing-safe comparison avoids exposing the first differing byte.
+ * Do not compare to SUPABASE_SERVICE_ROLE_KEY: a project's built-in key may
+ * differ from the legacy, still-valid Vault service-role JWT.
+ * Never log or echo the token or its claims.
  */
-function equalSecret(left: string, right: string): boolean {
-  const encoder = new TextEncoder();
-  const a = encoder.encode(left);
-  const b = encoder.encode(right);
-  let difference = a.length ^ b.length;
-  const longest = Math.max(a.length, b.length);
-  for (let i = 0; i < longest; i++) difference |= (a[i] ?? 0) ^ (b[i] ?? 0);
-  return difference === 0;
-}
-
 function authorizeCronRequest(req: Request): Response | null {
   if (req.method !== "POST") {
     return json({ ok: false, error: "method_not_allowed" }, 405);
   }
-  const expected = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  if (!expected) {
-    console.error("jira-sync: service role configuration unavailable");
-    return json({ ok: false, error: "sync_auth_unavailable" }, 503);
-  }
   const header = req.headers.get("authorization") ?? "";
-  const actual = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!actual || !equalSecret(actual, expected)) {
+  if (!header.startsWith("Bearer ")) {
+    return json({ ok: false, error: "unauthorized" }, 401);
+  }
+  try {
+    const jwt = header.slice(7).trim();
+    const parts = jwt.split(".");
+    if (parts.length !== 3 || !parts[1] || !parts[2]) {
+      return json({ ok: false, error: "unauthorized" }, 401);
+    }
+    const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = payload + "=".repeat((4 - (payload.length % 4)) % 4);
+    const claims = JSON.parse(atob(padded));
+    if (claims?.role !== "service_role") {
+      return json({ ok: false, error: "unauthorized" }, 401);
+    }
+  } catch {
     return json({ ok: false, error: "unauthorized" }, 401);
   }
   return null;
