@@ -128,8 +128,8 @@ export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<W
   ||typeof data.source_watermark_at!=="string"
   ||!Array.isArray(data.weekly)||data.weekly.length!==12)return null;
  const mix=object(data.mix);
- if(!mix||!count(mix.current_total)||!count(mix.previous_total)
-  ||!count(mix.current_multi)||!count(mix.previous_multi)
+ if(!mix||count(mix.current_total)===null||count(mix.previous_total)===null
+  ||count(mix.current_multi)===null||count(mix.previous_multi)===null
   ||mix.current_multi>mix.current_total||mix.previous_multi>mix.previous_total
   ||!Array.isArray(mix.rows)||mix.rows.length!==8
   ||!["current_start","current_end","previous_start","previous_end"].every(
@@ -138,7 +138,7 @@ export async function readPublishedWorkflowSummary(snapshotId?:number):Promise<W
  const weekly:WorkflowWeek[]=[];
  for(const item of data.weekly){
   const row=object(item);
-  if(!row||!date(row.week_start)||!count(row.total)
+  if(!row||!date(row.week_start)||count(row.total)===null
    ||MODS.some(key=>!count(row[key]))
    ||typeof row.limited_tracking!=="boolean"
    ||MODS.some(key=>(row[key] as number)>(row.total as number)))return null;
