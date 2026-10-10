@@ -193,13 +193,15 @@ function defaultRange(month = lastCompleteMonth()): MonthRange {
   return { preset: "last", start: month, end: month };
 }
 
+const FIRST_RECORDED_MONTH = "2026-03";
+
 function presetRange(preset: MonthRange["preset"]): MonthRange {
   const end = lastCompleteMonth();
   if (preset === "lifetime") return { preset, start: end, end };
   if (preset === "last") return { preset, start: end, end };
   if (preset === "custom") return { preset, start: end, end };
   const count = Number(preset);
-  return { preset, start: shiftMonth(end, 1 - count), end };
+  return { preset, start: shiftMonth(end, 1 - count) < FIRST_RECORDED_MONTH ? FIRST_RECORDED_MONTH : shiftMonth(end, 1 - count), end };
 }
 
 async function post<T>(url: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
@@ -413,7 +415,7 @@ function DatePicker({
   useEffect(() => setDraft(range), [range]);
 
   const chooseMonth = (key: string) => {
-    if (key > current) return;
+    if (key > current || key < FIRST_RECORDED_MONTH) return;
     if (!awaitingEnd) {
       setDraft({ preset: "custom", start: key, end: key });
       setAwaitingEnd(true);
@@ -458,7 +460,7 @@ function DatePicker({
           <div className="rd-date-head">
             <div>
               <strong>Date range</strong>
-              <span>Applies to the KPI cards and retention cohorts</span>
+              <span>Recorded cohorts from March 2026. May–July telemetry is incomplete.</span>
             </div>
             <button type="button" onClick={() => setOpen(false)} aria-label="Close date picker">
               <Icon name="close" />
@@ -509,7 +511,7 @@ function DatePicker({
               <div className="rd-month-head">
                 <strong>{year}</strong>
                 <div>
-                  <button type="button" onClick={() => setYear(value => value - 1)} aria-label="Previous year">
+                  <button type="button" disabled={year <= 2026} onClick={() => setYear(value => value - 1)} aria-label="Previous year">
                     <Icon name="left" />
                   </button>
                   <button
@@ -533,7 +535,7 @@ function DatePicker({
                     <button
                       type="button"
                       key={key}
-                      disabled={key > current}
+                      disabled={key > current || key < FIRST_RECORDED_MONTH}
                       className={
                         (selected ? "in-range " : "") +
                         (key === draft.start || key === draft.end ? "endpoint " : "") +
