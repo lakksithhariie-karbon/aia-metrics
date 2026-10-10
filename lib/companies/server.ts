@@ -86,7 +86,7 @@ export interface ListParams {
 
 export async function listCompanies(params: ListParams): Promise<CompanyUsageResponse> {
   const payload = await rpc<CompanyUsageResponse | CompanyUsageResponse[]>(
-    "read_companies_monthly_grid",
+    "read_companies_monthly_grid_v2",
     {
       p_from: params.from,
       p_to: params.to,
@@ -145,7 +145,7 @@ export async function companyBreakdown(
         window_end: string | null;
       }>
     >(
-      "read_companies_monthly_breakdown",
+      "read_companies_monthly_breakdown_v2",
       {
         p_company_id: params.company_id,
         p_module: params.module,
