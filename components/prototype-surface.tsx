@@ -31,12 +31,16 @@ export function PrototypeSurface({
   adoption,
   workflow,
   friction,
+  historicalStatus = "current",
+  historyRangeStart = null,
 }: {
   overviewKpis: OverviewUsageSnapshot | null;
   overviewCharts: OverviewActiveCharts | null;
   adoption: AdoptionSummary | null;
   workflow: WorkflowSummary | null;
   friction: FrictionSummary | null;
+  historicalStatus?: "current" | "available" | "unavailable";
+  historyRangeStart?: string | null;
 }) {
   const [baseReady, setBaseReady] = useState(false);
   const [frictionTarget, setFrictionTarget] = useState<HTMLElement | null>(null);
@@ -115,6 +119,8 @@ export function PrototypeSurface({
       <div
         id="prototype-surface"
         data-overview-as-of={overviewKpis?.asOfDate ?? ""}
+        data-overview-status={historicalStatus}
+        data-overview-range-start={historyRangeStart??""}
         style={{ display: "contents" }}
         dangerouslySetInnerHTML={{ __html: markup }}
       />
