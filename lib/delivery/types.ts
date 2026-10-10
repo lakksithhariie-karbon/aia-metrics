@@ -111,6 +111,7 @@ export type DeliveryEvidenceItem = {
   assignee: string | null;
   created_at: string | null;
   resolved_at: string | null;
+  stage_hours?: number | null;
 };
 export type DeliveryEvidence = {
   contract: "jira_delivery_evidence_v1";

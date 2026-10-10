@@ -351,12 +351,12 @@ function EvidenceDialog({target,data,filters,onClose}:{target:DrillTarget;data:D
         loading?<p className="ed-table-meta">Querying the published Jira snapshot…</p>:
         !result?.rows.length?<p className="ed-table-meta">No matching issues in this scope.</p>:
         <table className="ed-report-table ed-evidence-table">
-          <thead><tr><th>Jira issue</th><th>Summary</th><th>Status</th><th>Priority</th><th>Module</th><th>Assignee</th></tr></thead>
+          <thead><tr><th>Jira issue</th><th>Summary</th><th>Status</th>{target.key==="stage:Code Review"?<th>Review dwell</th>:null}<th>Priority</th><th>Module</th><th>Assignee</th></tr></thead>
           <tbody>{result.rows.map((row,index)=><tr key={row.issue_key+"-"+index}>
             <th scope="row"><a href={"https://karbonworks.atlassian.net/browse/"+encodeURIComponent(row.issue_key)}
                 target="_blank" rel="noopener noreferrer">{row.issue_key} ↗</a></th>
             <td title={row.summary??""}>{row.summary||"Untitled Jira issue"}</td>
-            <td>{empty(row.status)}</td><td>{empty(row.priority)}</td>
+            <td>{empty(row.status)}</td>{target.key==="stage:Code Review"?<td>{hrs(row.stage_hours)}</td>:null}<td>{empty(row.priority)}</td>
             <td>{empty(row.module)}</td><td>{empty(row.assignee)}</td>
           </tr>)}</tbody>
         </table>}
@@ -403,19 +403,13 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
   const throughput=data.core.sprint_throughput.find(x=>x.sprint_id===first.sprint_id);
   const gap=first.committed-first.committed_done;
   const q=data.quality.metric_updates;
-  const codeReview=data.flow.metric_updates.code_review;
-  // The published code_review cohort defaults to the active sprint even when
-  // an older sprint is chosen. The stage view IS selected-sprint scoped.
-  // Use stage facts for the displayed value, and enable issue evidence only
-  // when the cohort refers to that same stage population and median.
+  // Code Review is always calculated for the displayed sprint's stage
+  // history. The dedicated issue evidence is independently reconciled to
+  // that same median and population, including historical sprint filters.
   const reviewStage=data.flow.stage_summary.find(row=>
     row.sprint_id===first.sprint_id && row.stage==="Code Review");
   const reviewCount=reviewStage?.issues_in_stage??null;
   const reviewHours=reviewStage?.median_hours??null;
-  const reviewMatchesCohort=typeof reviewHours==="number" &&
-    typeof codeReview?.value==="number" &&
-    Math.abs(reviewHours-codeReview.value)<=0.11 &&
-    reviewCount===cohort("code_review");
   const isHistorical=first.state!=="active";
   const pastPlannedEnd=first.state==="active" &&
     Date.parse(first.end_date)<Date.parse(data.synced_at);
@@ -496,10 +490,10 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       definition:"Median hours from UAT entry to a recorded exit decision, displayed in days (hours divided by 24). Incomplete/open windows are excluded.",
       source:"jira.v_resolution_medians / qa_turnaround cohort",drillKey:metricAction("qa_turnaround")},
     {id:"code_review",label:"Code review",value:hrs(reviewHours),caption:"Median stage dwell · "+shortSprint(first.sprint_name),
-      evidence:reviewMatchesCohort?"View "+num(reviewCount)+" review stays":num(reviewCount)+" measured stays · drill not available for this scope",
-      definition:"Median measured Code Review status dwell for the selected sprint. This is not developer productivity. Issue evidence is offered only when the source cohort matches the same sprint and median.",
-      source:"jira.v_sprint_stage_summary / matched code_review evidence only",
-      drillKey:reviewMatchesCohort?metricAction("code_review"):undefined,sprintId:filters.sprint},
+      evidence:"View "+num(reviewCount)+" measured issue durations",
+      definition:"Median accumulated time in Code Review per issue, for the displayed sprint. Issues can revisit review; their recorded stage intervals are summed. The evidence median and population are independently reconciled before display.",
+      source:"jira.v_sprint_stage_summary / exact Code Review stage-history evidence",
+      drillKey:reviewCount!==null?"stage:Code Review":undefined,sprintId:first.sprint_id},
   ];
   const sourceAgeMs=Date.now()-Date.parse(data.synced_at);
   const isStale=sourceAgeMs>36*3600*1000 || sourceAgeMs<0;

@@ -68,7 +68,10 @@ assert.match(snapshotSql,/qa_queue_count/);
 assert.match(server,/!check\("qa_queue",fc.qa_queue_count\)/,
   "Server must verify QA population against independently counted issue rows.");
 assert.match(shell,/const reviewStage=data.flow.stage_summary.find/);
-assert.match(shell,/drillKey:reviewMatchesCohort\?metricAction\("code_review"\):undefined/);
+const stageSql=read("supabase/migrations/20261010_jira_delivery_stage_evidence_v1.sql");
+assert.match(stageSql,/jira_delivery_stage_evidence_parity_mismatch/);
+assert.match(stageSql,/v_last_run IS DISTINCT FROM v_published/);
+assert.match(shell,/drillKey:reviewCount!==null\?"stage:Code Review":undefined/);
 assert.match(page,/export const maxDuration = 45/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.read_jira_delivery_dashboard_v1/);
 assert.match(evidence,/jira_delivery_evidence_snapshot_mismatch/);
