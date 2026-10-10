@@ -46,24 +46,24 @@ export const overviewDefinitions: Record<OverviewInfoKey, Definition> = {
   },
   core_7d: {
     title: "7-day core adoption",
-    rule: "Companies doing independent core work within 7 days of recorded integration ÷ integrated companies with a complete 28-day observation window.",
+    rule: "Among companies integrated 28–56 days before the cutoff, count those doing independent core work within 7 days of integration ÷ the whole cohort.",
     example: "6 of 10 mature integrations start work = 60%.",
     note: "Missing integration events can exclude real customers.",
   },
   value_28d: {
     title: "28-day value conversion",
-    rule: "Mature integrations completing training sync (>0 items), core work on a later IST day, then a closing sync (>0 items), all within 28 days.",
+    rule: "Among companies integrated 28–56 days ago, count those completing training sync (>0 items) → later-IST-day core work → closing sync within 28 days.",
     example: "Day 1 sync → day 2 core work → day 3 sync: converted.",
     note: "This is stricter than the journey's post-work sync stage.",
   },
   sustained_28d: {
     title: "28-day sustained adoption",
-    rule: "Mature integrations with independent core work in at least 2 of their first 4 integration-relative weeks ÷ all mature integrations.",
+    rule: "Among companies integrated 28–56 days ago, count those with core work in at least 2 of the first 4 integration-relative weeks.",
     example: "Work in weeks 1 and 3 qualifies; twice in week 1 does not.",
   },
   journey: {
     title: "Integration journey",
-    rule: "Mature integrations → core work within 7 days → qualifying sync after that work, within 28 days. Each stage reports previous-stage and total-cohort conversion.",
+    rule: "Companies integrated 28–56 days ago → first-week core work → sync after that work within 28 days. Compare each stage to the previous stage and full cohort.",
     example: "10 integrated → 6 worked → 4 synced: 4/6 next-step, 4/10 total.",
     note: "The final journey stage is not the 28-day value-conversion milestone.",
   },
