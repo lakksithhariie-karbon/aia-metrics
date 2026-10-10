@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactMenuSelect from "../ui/compact-menu-select";
+import DeliveryEvidenceModal from "./delivery-evidence-modal";
 import type { ReactNode } from "react";
 import type {
-  DeliveryDashboard, DeliveryEvidence, DeliveryFilters,
+  DeliveryDashboard, DeliveryFilters,
   FlowStageRow, SprintRow, ThroughputRow,
 } from "../../lib/delivery/types";
 
@@ -457,104 +458,6 @@ function DefinitionDialog({metric,onClose}:{metric:Metric;onClose:()=>void}){
     </section>
   </div>;
 }
-function EvidenceTableSkeleton({showReviewDwell}:{showReviewDwell:boolean}){
-  // Mirror the real issue table's columns while keeping all placeholder rows
-  // hidden from assistive technology. The live region announces loading.
-  return <table className="ed-report-table ed-evidence-table ed-evidence-skeleton-table" aria-hidden="true">
-    <thead><tr><th>Jira issue</th><th>Summary</th><th>Status</th>
-      {showReviewDwell?<th>Review dwell</th>:null}
-      <th>Priority</th><th>Module</th><th>Assignee</th></tr></thead>
-    <tbody>{Array.from({length:9},(_,index)=><tr key={index}>
-      <th scope="row"><span className="ed-skeleton-line ed-skeleton-key"/></th>
-      <td><span className="ed-skeleton-line ed-skeleton-summary-main"/>
-        <span className="ed-skeleton-line ed-skeleton-summary-detail"/></td>
-      <td><span className="ed-skeleton-line ed-skeleton-status"/></td>
-      {showReviewDwell?<td><span className="ed-skeleton-line ed-skeleton-duration"/></td>:null}
-      <td><span className="ed-skeleton-line ed-skeleton-priority"/></td>
-      <td><span className="ed-skeleton-line ed-skeleton-module"/></td>
-      <td><span className="ed-skeleton-line ed-skeleton-assignee"/></td>
-    </tr>)}</tbody>
-  </table>;
-}
-function EvidenceDialog({target,data,filters,onClose}:{target:DrillTarget;data:DeliveryDashboard;filters:DeliveryFilters;onClose:()=>void}){
-  const [offset,setOffset]=useState(0);
-  const [result,setResult]=useState<DeliveryEvidence|null>(null);
-  const [loading,setLoading]=useState(true);
-  const [error,setError]=useState(false);
-  const firstButton=useRef<HTMLButtonElement>(null);
-  useEffect(()=>{
-    firstButton.current?.focus({preventScroll:true});
-    const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape")onClose();};
-    document.addEventListener("keydown",onKey);
-    return ()=>document.removeEventListener("keydown",onKey);
-  },[onClose]);
-  useEffect(()=>{
-    const controller=new AbortController();
-    fetch("/api/delivery/evidence",{
-      method:"POST",cache:"no-store",signal:controller.signal,
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        key:target.key,snapshot_id:data.snapshot_id,offset,
-        filters:{...filters,sprint:target.sprintId??filters.sprint},
-      }),
-    }).then(async response=>{
-      if(!response.ok)throw new Error("evidence_request_failed");
-      return (await response.json()) as DeliveryEvidence;
-    }).then(value=>{
-      if(value.contract!=="jira_delivery_evidence_v1"||
-         value.snapshot_id!==data.snapshot_id||value.key!==target.key) {
-        throw new Error("evidence_contract_mismatch");
-      }
-      setResult(value);setError(false);setLoading(false);
-    }).catch(err=>{
-      if(controller.signal.aborted)return;
-      console.error("delivery_evidence_read",err instanceof Error?err.message:"unknown");
-      setResult(null);setError(true);setLoading(false);
-    });
-    return ()=>controller.abort();
-  },[target.key,target.sprintId,data.snapshot_id,filters.sprint,filters.module,filters.sub_module,filters.severity,filters.assignee,offset]);
-  const next=()=>{setLoading(true);setResult(null);setOffset(x=>x+40);};
-  const previous=()=>{setLoading(true);setResult(null);setOffset(x=>Math.max(0,x-40));};
-  return <div className="ed-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)onClose();}}>
-    <section className="ed-evidence-dialog" role="dialog" aria-modal="true" aria-labelledby="ed-evidence-title" aria-busy={loading}>
-      <header><div><span>VERIFIED JIRA ISSUE EVIDENCE · SYNC {data.snapshot_id}</span>
-        <h2 id="ed-evidence-title">{target.label}</h2></div>
-        <button ref={firstButton} type="button" aria-label="Close issue evidence" onClick={onClose}>×</button></header>
-      <div className="ed-evidence-summary">
-        {loading?<><span className="ed-screenreader-only" role="status">Loading Jira issue evidence…</span>
-          <div className="ed-evidence-skeleton-summary" aria-hidden="true">
-            <span className="ed-skeleton-line ed-skeleton-summary-count"/>
-            <span className="ed-skeleton-line ed-skeleton-summary-page"/>
-          </div></>:error?"Evidence temporarily unavailable":
-        <>{num(result?.total)} matching issues{result && result.source_count!==result.total?
-          " · "+num(result.source_count)+" reported metric events / cycles":""}
-          {" · "}Rows {num(result&&result.total?offset+1:0)}–{num(Math.min(offset+40,result?.total??0))}
-        </>}
-      </div>
-      <div className="ed-evidence-table-shell">
-        {error?<p role="alert" className="ed-error">Couldn’t verify the selected issue population. No unverified rows are shown.</p>:
-        loading?<EvidenceTableSkeleton showReviewDwell={target.key==="stage:Code Review"}/>:
-        !result?.rows.length?<p className="ed-table-meta">No matching issues in this scope.</p>:
-        <table className="ed-report-table ed-evidence-table">
-          <thead><tr><th>Jira issue</th><th>Summary</th><th>Status</th>{target.key==="stage:Code Review"?<th>Review dwell</th>:null}<th>Priority</th><th>Module</th><th>Assignee</th></tr></thead>
-          <tbody>{result.rows.map((row,index)=><tr key={row.issue_key+"-"+index}>
-            <th scope="row"><a href={"https://karbonworks.atlassian.net/browse/"+encodeURIComponent(row.issue_key)}
-                target="_blank" rel="noopener noreferrer">{row.issue_key} ↗</a></th>
-            <td title={row.summary??""}>{row.summary||"Untitled Jira issue"}</td>
-            <td>{empty(row.status)}</td>{target.key==="stage:Code Review"?<td>{hrs(row.stage_hours)}</td>:null}<td>{empty(row.priority)}</td>
-            <td>{empty(row.module)}</td><td>{empty(row.assignee)}</td>
-          </tr>)}</tbody>
-        </table>}
-      </div>
-      <footer className="ed-evidence-footer">
-        <span>Jira issue keys open in Atlassian · No unverified data</span>
-        <div><button disabled={loading||offset===0} onClick={previous} type="button">Previous</button>
-        <button disabled={loading||!result||offset+40>=result.total} onClick={next} type="button">Next 40</button></div>
-      </footer>
-    </section>
-  </div>;
-}
-
 export default function EngineeringDeliveryShell({data,filters,error}:{
   data:DeliveryDashboard|null;filters:DeliveryFilters;error:string|null;
 }){
@@ -726,6 +629,6 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       </footer>
     </main>
     {info?<DefinitionDialog metric={info} onClose={()=>setInfo(null)}/>:null}
-    {drill?<EvidenceDialog target={drill} data={data} filters={filters} onClose={()=>setDrill(null)}/>:null}
+    {drill?<DeliveryEvidenceModal target={drill} data={data} filters={filters} onClose={()=>setDrill(null)}/>:null}
   </>;
 }

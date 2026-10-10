@@ -1,0 +1,256 @@
+/* Engineering issue investigation reuses Product Overview / Retention modal
+ * structure (rd-modal, rd-modal-head, rd-drill-toolbar, rd-activation-table,
+ * rd-table-wrap, rd-modal-foot, rd-pagination, rd-search). This stylesheet
+ * contains only the Engineering-specific layout and the secondary detail UI.
+ * Neither Product CSS nor Product components are changed.
+ */
+.ed-investigation-modal{
+  width:min(1220px,calc(100vw - 36px));
+  height:min(805px,calc(100dvh - 32px));
+  min-height:0;max-height:calc(100dvh - 32px);
+  display:flex;flex-direction:column;
+  background:#fff;
+}
+.rd-modal-head.ed-investigation-head{
+  height:auto;min-height:89px;padding:18px 20px;
+  gap:18px;
+}
+.ed-investigation-head>div{min-width:0}
+.ed-investigation-head h2{font-size:21px;line-height:27px;letter-spacing:-.4px}
+.ed-investigation-head>div>span{font-size:10px;color:#8a98ae}
+.ed-investigation-close{font-size:23px;line-height:1}
+.ed-investigation-summary{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  min-height:74px;flex:0 0 auto;margin:12px 20px 0;
+  border:1px solid #e3e8f0;border-radius:7px;
+  background:#fbfcfe;
+}
+.ed-investigation-summary>div{
+  display:flex;flex-direction:column;justify-content:center;gap:4px;
+  padding:10px 15px;min-width:0;
+}
+.ed-investigation-summary>div+div{border-left:1px solid #e7ecf3}
+.ed-investigation-summary span{color:#8c9ab0;font-size:9px}
+.ed-investigation-summary strong{color:#354965;font-size:19px;font-weight:660;font-variant-numeric:tabular-nums}
+.ed-investigation-toolbar.rd-drill-toolbar{min-height:60px;padding:11px 20px 7px}
+.ed-investigation-search.rd-search{
+  width:min(365px,calc(100% - 140px));height:36px;
+}
+.ed-investigation-search.rd-search svg{width:16px;min-width:16px;color:#8395ad}
+.ed-investigation-search input{font-size:10.5px}
+.ed-investigation-search button{font-size:17px;line-height:1}
+.ed-investigation-export{
+  display:inline-flex;align-items:center;justify-content:center;
+  gap:8px;min-height:34px;padding:0 13px;
+  border:1px solid #dce4ef;border-radius:6px;
+  background:#fff;color:#536784;font-size:10px;font-weight:610;
+}
+.ed-investigation-export:not(:disabled):hover{
+  color:#3057bf;background:#f5f8ff;border-color:#b9caf1;
+}
+.ed-investigation-export:disabled{opacity:.48;cursor:not-allowed}
+.ed-investigation-caption{
+  display:flex;justify-content:space-between;align-items:center;
+  gap:12px;flex:0 0 auto;padding:1px 20px 12px;
+  font-size:9.5px;color:#8b99ac;
+}
+.ed-investigation-table-wrap.rd-table-wrap{
+  flex:1 1 auto;min-height:0;overflow:auto;
+  margin:0 20px 3px;border:1px solid #e1e6ee;
+  border-radius:6px;scrollbar-width:thin;
+}
+.ed-investigation-table.rd-activation-table{
+  width:100%;min-width:910px;table-layout:fixed;
+  border-spacing:0;border-collapse:separate;
+  font-size:10px;
+}
+.ed-investigation-table thead th{
+  position:sticky;top:0;z-index:3;
+  height:37px;padding:0 9px;text-align:left;
+  border-right:0;border-bottom:1px solid #dfe5ed;
+  color:#8190a6;background:#f8fafc;
+}
+.ed-investigation-table th:first-child{width:38px}
+.ed-investigation-table th:nth-child(2){width:118px}
+.ed-investigation-table th:nth-child(3),.ed-investigation-table th:nth-child(4){width:129px}
+.ed-investigation-table th:nth-child(5){width:63px}
+.ed-investigation-table th:nth-child(6){width:108px}
+.ed-investigation-table th:nth-child(7){width:87px}
+.ed-investigation-table th:nth-child(8){width:164px}
+.ed-investigation-table th:nth-child(n+2){text-align:left}
+.ed-investigation-table .ed-investigation-sort{
+  display:flex;align-items:center;gap:4px;
+  width:100%;height:36px;padding:0;text-align:left;
+  font-size:9px;text-transform:uppercase;letter-spacing:.25px;
+  font-weight:650;color:inherit;white-space:nowrap;
+}
+.ed-investigation-sort>span{font-size:11px;color:#b0bfd3}
+.ed-investigation-sort:hover,.ed-investigation-table th[aria-sort!="none"] .ed-investigation-sort{
+  color:#3156bb;
+}
+.ed-investigation-row>td{
+  height:43px;padding:0 9px!important;
+  white-space:nowrap;border-bottom:1px solid #edf0f5;
+  color:#53647c;font-size:10px;
+  text-align:left!important;
+}
+.ed-investigation-row:hover>td,.ed-investigation-row.is-expanded>td{background:#f8faff}
+.ed-investigation-expander.rd-expander{
+  width:24px;height:24px;margin:auto;
+  border:1px solid transparent;border-radius:5px;
+  color:#8192ad;font-size:18px;font-weight:420;
+}
+.ed-investigation-row.is-expanded .ed-investigation-expander{border-color:#d6e0f0;background:#fff}
+.ed-investigation-key{
+  display:inline-flex;align-items:center;
+  padding:4px 0;font-size:10.5px;font-weight:680;
+  white-space:nowrap;color:#3157b6;
+}
+.ed-investigation-key:hover{text-decoration:underline}
+.ed-investigation-status{color:#4b5c74;font-size:10px}
+.ed-investigation-expanded>td{
+  padding:0!important;border-bottom:1px solid #e7ecf4;
+  background:#fbfcff!important;
+}
+.ed-investigation-row-detail{
+  margin:0 10px 10px 38px;
+  border:1px solid #e5eaf2;border-radius:6px;
+  background:#fff;overflow:hidden;
+}
+.ed-investigation-summary-text{padding:13px 14px}
+.ed-investigation-summary-text>span,
+.ed-investigation-field-grid>div>span{
+  display:block;color:#8d99ab;font-size:9px;
+  line-height:15px;text-transform:uppercase;letter-spacing:.25px;
+}
+.ed-investigation-summary-text p{
+  margin:5px 0 0;color:#374a66;line-height:18px;font-size:11px;
+  white-space:normal;overflow-wrap:anywhere;
+}
+.ed-investigation-field-grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  border-top:1px solid #e9edf3;
+}
+.ed-investigation-field-grid>div{
+  min-width:0;padding:10px 13px;
+  border-right:1px solid #e9edf3;border-bottom:1px solid #e9edf3;
+}
+.ed-investigation-field-grid>div:nth-child(3n){border-right:0}
+.ed-investigation-field-grid>div strong{
+  display:block;font-weight:590;color:#475a73;font-size:10px;
+  margin-top:3px;overflow-wrap:anywhere;
+}
+.ed-investigation-detail-link{
+  padding:10px 14px;color:#315abc;font-size:10px;font-weight:620;
+}
+.ed-investigation-detail-link:hover{text-decoration:underline}
+.ed-investigation-foot.rd-modal-foot{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:16px;flex:0 0 auto;min-height:59px;padding:10px 20px;
+  border-top:1px solid #e7ecf3;
+}
+.ed-investigation-foot .rd-table-summary{
+  display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:0;
+}
+.ed-investigation-foot .rd-table-summary>span{font-size:9px;color:#718199}
+.ed-investigation-foot .rd-table-summary small{font-size:9px;color:#9aa5b6}
+.ed-investigation-foot .rd-pagination{flex-wrap:wrap;justify-content:flex-end}
+.ed-export-error{color:#b45352!important}
+.ed-investigation-error,.ed-investigation-empty{
+  min-height:200px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:10px;padding:24px;color:#8996aa;font-size:11px;text-align:center;
+}
+.ed-investigation-error button{
+  padding:8px 13px;border:1px solid #cedaf0;border-radius:5px;
+  color:#315bbd;font-size:10px;
+}
+.ed-investigation-skeleton tbody tr{height:47px}
+.ed-investigation-skeleton td{height:47px;padding:0 10px!important}
+.ed-investigation-skeleton .ed-skeleton-line{height:10px}
+.ed-investigation-skeleton th:nth-child(n+2){color:#91a0b5}
+
+/* Second-level issue detail: Product's investigation style and hierarchy. */
+.ed-secondary-overlay{z-index:3600;background:rgba(20,31,51,.45)}
+.ed-issue-dialog{
+  display:flex;flex-direction:column;overflow:hidden;
+  width:min(1130px,calc(100vw - 36px));
+  height:min(775px,calc(100dvh - 32px));
+  border:1px solid #dce3ed;border-radius:9px;background:#fff;
+  color:#354762;box-shadow:0 25px 90px rgba(22,36,61,.28);
+}
+.ed-issue-head{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:16px 20px 17px;border-bottom:1px solid #e5e9f1;
+  gap:14px;flex:0 0 auto;
+}
+.ed-issue-head h2{font-size:21px;line-height:27px;margin:8px 0 2px;letter-spacing:-.35px}
+.ed-issue-head p{font-size:10px;color:#7b8a9f;margin:0;line-height:16px}
+.ed-issue-back{font-size:10px;color:#73849c;padding:2px 0}
+.ed-issue-back:hover{color:#3157c6}
+.ed-issue-close{display:grid;place-items:center;width:31px;height:31px;
+  flex:0 0 31px;border:1px solid #dfe6ef;border-radius:5px;font-size:23px;color:#71819a}
+.ed-issue-close:hover{background:#f5f7fa;color:#3157b9}
+.ed-issue-scroll{padding:14px 20px 18px;overflow:auto;flex:1 1 auto;scrollbar-width:thin}
+.ed-issue-field-pills{display:flex;flex-wrap:wrap;gap:6px;padding-bottom:14px}
+.ed-issue-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;
+  border:1px solid #e2e7ef;border-radius:5px;background:#f8f9fc}
+.ed-issue-pill small{color:#8491a4;font-size:9px}
+.ed-issue-pill strong{font-size:10px;color:#394b67;font-weight:650}
+.ed-issue-section{padding:16px 0;border-top:1px solid #e5ebf3}
+.ed-issue-section h3{margin:0 0 12px;color:#718097;font-size:10px;
+  letter-spacing:.5px;text-transform:uppercase;font-weight:680}
+.ed-issue-section h3 small{color:#a0adbf;font-weight:450}
+.ed-issue-levels{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.ed-issue-levels>div{display:flex;flex-direction:column;gap:6px;
+  border:1px solid #e5eaf2;background:#f7f9fc;border-radius:5px;padding:11px;min-width:0}
+.ed-issue-levels span{color:#8493a9;font-size:9px;text-transform:uppercase}
+.ed-issue-levels strong{font-size:13px;color:#435572;font-weight:620}
+.ed-issue-caveat{margin:8px 0 0;color:#98a5b6;font-size:9px}
+.ed-issue-trail-wrap{overflow-x:auto;border:1px solid #e3e8ef;border-radius:6px}
+.ed-issue-trail-table{border-collapse:collapse;width:100%;font-size:11px}
+.ed-issue-trail-table th,.ed-issue-trail-table td{
+  padding:10px 11px;border-bottom:1px solid #ebeff4;text-align:left
+}
+.ed-issue-trail-table th{font-weight:600}
+.ed-issue-trail-table thead th{background:#f8fafc;color:#7b8ba2;text-transform:uppercase;font-size:9px}
+.ed-issue-trail-table tr:last-child>*{border-bottom:0}
+.ed-issue-trail-table td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+.ed-issue-muted{font-size:10px;color:#8c9ab0;margin:0;line-height:18px}
+.ed-issue-comments{display:grid;gap:10px}
+.ed-issue-comments>div{border:1px solid #e4e9f2;border-radius:6px;padding:11px 12px}
+.ed-issue-comments header{display:flex;justify-content:space-between;gap:12px;
+  color:#91a0b3;font-size:9px}
+.ed-issue-comments header strong{color:#526786;font-weight:650}
+.ed-issue-comments p{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0;font-size:10px;line-height:17px}
+.ed-issue-links{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.ed-issue-links li{display:flex;justify-content:space-between;gap:14px;
+  align-items:center;padding:8px 10px;border:1px solid #e8edf3;border-radius:5px;font-size:10px}
+.ed-issue-links a{color:#315ac5;text-decoration:none}
+.ed-issue-links a:hover{text-decoration:underline}
+.ed-issue-footer{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:12px 20px;border-top:1px solid #e5eaf2;flex:0 0 auto;font-size:9px;color:#90a0b4}
+.ed-issue-footer a{color:#3158c3;font-size:11px}
+.ed-issue-footer a:hover{text-decoration:underline}
+.ed-issue-loading{display:grid;gap:18px;padding:16px}
+.ed-issue-unavailable{display:grid;gap:14px;place-items:center;min-height:170px;color:#8a9aae;font-size:10px}
+.ed-issue-unavailable button{color:#315ac0;font-size:11px;padding:7px 12px;border:1px solid #cbd8eb;border-radius:5px}
+@media(max-width:800px){
+  .ed-investigation-modal,.ed-issue-dialog{width:calc(100vw - 18px);height:calc(100dvh - 18px);max-height:calc(100dvh - 18px)}
+  .ed-investigation-summary{margin:10px 12px 0}
+  .ed-investigation-toolbar.rd-drill-toolbar{padding:12px}
+  .ed-investigation-caption{padding:4px 12px 10px}
+  .ed-investigation-table-wrap.rd-table-wrap{margin:0 12px 3px}
+  .ed-investigation-foot.rd-modal-foot{padding:10px 12px;flex-wrap:wrap}
+  .ed-issue-levels{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ed-issue-scroll{padding:14px}
+}
+@media(max-width:510px){
+  .ed-investigation-head h2{font-size:16px;line-height:21px}
+  .ed-investigation-summary strong{font-size:16px}
+  .ed-investigation-summary>div{padding:9px 7px}
+  .ed-investigation-search.rd-search{width:100%}
+  .ed-investigation-export{min-height:33px;margin-left:auto}
+  .ed-investigation-toolbar.rd-drill-toolbar{flex-wrap:wrap}
+  .ed-issue-field-pills{gap:4px}
+}

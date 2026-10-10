@@ -113,14 +113,41 @@ export type DeliveryEvidenceItem = {
   resolved_at: string | null;
   stage_hours?: number | null;
 };
+export type DeliveryEvidenceSort = "issue_key" | "created_at" | "resolved_at" | "severity" | "status" | "priority" | "assignee";
 export type DeliveryEvidence = {
-  contract: "jira_delivery_evidence_v1";
+  contract: "jira_delivery_evidence_v2";
   key: string;
   label: string;
   snapshot_id: number;
   total: number;
+  cohort_total?: number;
   source_count: number;
+  query: string;
+  sort: string;
+  direction: "asc" | "desc";
   offset: number;
   limit: number;
   rows: DeliveryEvidenceItem[];
+};
+
+export type DeliveryIssueDetail = {
+  contract: "jira_delivery_issue_v1";
+  snapshot_id: number;
+  cohort_key: string;
+  issue: DeliveryEvidenceItem & {
+    updated_at: string | null;
+    status_category: string | null;
+    stale: boolean;
+    blocked: boolean;
+  };
+  service_levels: {
+    first_response_hours: number | null;
+    eta_deviation_hours: number | null;
+    reopen_count: number;
+    qa_signoff_cycles: number | null;
+    qa_rejected_cycles: number | null;
+  };
+  status_trail: Array<{ status: string; entered_at: string; dwell_hours: number | null }>;
+  comments: Array<{ author: string; created_at: string; text: string }>;
+  links: Array<{ type: string | null; direction: string | null; description: string | null; issue_key: string | null }>;
 };

@@ -6,6 +6,7 @@ import type { DeliveryDashboard, DeliveryFilters } from "../../lib/delivery/type
 import "../retention/retention.css";
 import "../metrics-page-grid.css";
 import "./delivery.css";
+import "./delivery-investigation.css";
 
 export const metadata: Metadata = {
   title: "AI Accountant | Engineering & Delivery",

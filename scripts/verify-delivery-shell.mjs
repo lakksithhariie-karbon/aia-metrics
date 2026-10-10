@@ -83,7 +83,7 @@ for (const id of [
 }
 for (const component of [
   "WorkInFlight","PlannedVsDone","IssueTypes","FlowHealth",
-  "BacklogTrend","BugAging","EvidenceDialog","DefinitionDialog","FilterBar",
+  "BacklogTrend","BugAging","DefinitionDialog","FilterBar",
 ]) assert.ok(shell.includes("<"+component), "Missing live view "+component);
 for (const term of [
   "data.core.sprint_discipline","data.core.sprint_throughput",
@@ -97,7 +97,45 @@ assert.match(server,/jira_delivery_sprint_reconciliation_failed/);
 assert.match(server,/jira_delivery_issue_types_reconciliation_failed/);
 assert.match(server,/SUPABASE_SERVICE_ROLE_KEY/);
 assert.match(server,/cache: "no-store"/);
-assert.match(api,/readDeliveryEvidence\(filters,key,snapshot,offset\)/);
+assert.match(api,/readDeliveryEvidence\(filters,key,snapshot,offset,limit,query/);
+const cohortV2 = read("supabase/migrations/20261011_jira_delivery_investigation_v2.sql");
+const issueSQL = cohortV2;
+const modal = read("components/delivery/delivery-evidence-modal.tsx");
+const issueModal = read("components/delivery/delivery-issue-detail-modal.tsx");
+const modalCss = read("app/delivery/delivery-investigation.css");
+const issueRoute = read("app/api/delivery/issue/route.ts");
+assert.match(page,/delivery-investigation.css/);
+assert.match(shell,/<DeliveryEvidenceModal target=\{drill\}/);
+assert.match(modal,/className="rd-modal rd-activation-modal ed-investigation-modal"/);
+assert.match(modal,/className="rd-modal-head ed-investigation-head"/);
+assert.match(modal,/className="rd-drill-toolbar ed-investigation-toolbar"/);
+assert.match(modal,/className="rd-table-wrap ed-investigation-table-wrap"/);
+assert.match(modal,/className="rd-activation-table ed-investigation-table"/);
+assert.match(modal,/className="rd-modal-foot rd-modal-foot-paginated ed-investigation-foot"/);
+assert.match(modal,/className="rd-pagination"/);
+assert.match(modal,/className="rd-expander ed-investigation-expander"/);
+assert.match(modal,/className="rd-search ed-investigation-search"/);
+assert.match(modal,/className="ed-investigation-row-detail"/);
+assert.match(modal,/ed-investigation-field-grid/);
+assert.match(modal,/DeliveryIssueDetailModal/);
+assert.match(modal,/const size=10/);
+assert.match(modal,/Export CSV/);
+assert.match(modal,/evidence_request_failed/);
+assert.match(server,/read_jira_delivery_evidence_v2/);
+assert.match(server,/read_jira_delivery_issue_v1/);
+assert.match(issueModal,/Back to cohort/);
+assert.match(issueModal,/Status trail/);
+assert.match(issueModal,/service_levels/);
+assert.match(modalCss,/\.ed-investigation-modal/);
+assert.match(modalCss,/\.ed-secondary-overlay/);
+assert.match(cohortV2,/v_last_run IS DISTINCT FROM v_published/);
+assert.match(cohortV2,/jira_delivery_stage_evidence_parity_mismatch/);
+assert.match(cohortV2,/row_number\(\) OVER/);
+assert.match(server,/jira_delivery_issue_outside_cohort/);
+assert.match(issueSQL,/jira_issue_snapshot_mismatch/);
+assert.match(issueRoute,/readDeliveryIssue/);
+assert.doesNotMatch(modal,/<select\b|Querying the published Jira snapshot/);
+
 assert.match(sql,/jira_delivery_population_reconciliation_failed/);
 assert.match(sql,/jira_delivery_issue_type_scope_mismatch/);
 const snapshotSql = read("supabase/migrations/20261010_jira_delivery_snapshot_consistency_v1.sql");
@@ -131,20 +169,12 @@ assert.match(overviewCards,/className="metric-card"/,
   "Product Overview remains the reference for full-card drill triggers.");
 assert.match(shell,/function MetricTile\(/);
 assert.match(shell,/return <div className="ed-metric-wrap">/);
-assert.match(shell,/function EvidenceTableSkeleton\(/,
-  "Drill-down loading must render real table-shaped skeleton rows.");
-assert.match(shell,/loading\?<EvidenceTableSkeleton showReviewDwell=\{target.key==="stage:Code Review"\}\/>/,
-  "Both standard and Code Review loading must use the table skeleton.");
-assert.match(shell,/ed-evidence-skeleton-summary/,"Loading summary must have skeleton placeholders.");
-assert.match(shell,/className="ed-screenreader-only" role="status"/,
-  "Loading must remain announced to assistive technology.");
-assert.match(shell,/aria-busy=\{loading\}/,"Evidence dialog should be busy while loading.");
-assert.doesNotMatch(shell,/Querying the published Jira snapshot|Loading issue evidence…/,
-  "Do not display tiny loading copy in place of an issue table.");
-assert.match(css,/\.ed-evidence-dialog\{height:min\(760px,calc\(100dvh - 36px\)\)\}/,
-  "Evidence dialog must not resize substantially when issue rows load.");
-assert.match(css,/@media\(prefers-reduced-motion:reduce\)\{/,
-  "Skeleton animations must respect reduced-motion preference.");
+assert.match(modal,/function EvidenceSkeleton\(/);
+assert.match(modal,/loading\?<EvidenceSkeleton review=\{target.key==="stage:Code Review"\}\/>/);
+assert.match(issueModal,/ed-issue-loading/);
+assert.match(modalCss,/\.ed-investigation-skeleton/);
+assert.doesNotMatch(shell,/function EvidenceDialog|function EvidenceTableSkeleton/);
+assert.doesNotMatch(modal,/Querying the published Jira snapshot|Loading issue evidence…/);
 assert.match(shell,/className="metric-card ed-metric"/);
 assert.match(shell,/onClick=\{openCard\}/);
 assert.match(shell,/aria-haspopup="dialog"/);

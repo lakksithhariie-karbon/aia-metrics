@@ -1,4 +1,4 @@
-import type { DeliveryDashboard, DeliveryEvidence, DeliveryFilters } from "./types";
+import type { DeliveryDashboard, DeliveryEvidence, DeliveryEvidenceSort, DeliveryIssueDetail, DeliveryFilters } from "./types";
 
 /**
  * The same Vercel server-only environment used by Product Metrics.
@@ -121,29 +121,106 @@ export async function readDeliveryDashboard(filters: DeliveryFilters): Promise<D
   return validate(await rpc<DeliveryDashboard>("read_jira_delivery_dashboard_v1",args(filters)));
 }
 
+export const VALID_EVIDENCE_SORTS: DeliveryEvidenceSort[] = [
+  "issue_key","created_at","resolved_at","severity","status","priority","assignee",
+];
+const databaseSort:Record<DeliveryEvidenceSort,string>={
+  issue_key:"key",created_at:"created",resolved_at:"resolved",
+  severity:"severity",status:"status",priority:"priority",assignee:"assignee",
+};
+
 export async function readDeliveryEvidence(
-  filters: DeliveryFilters,
-  key: string,
-  snapshotId: number,
-  offset: number,
-  limit=40,
-): Promise<DeliveryEvidence> {
-  if (!count(snapshotId)||key.length>90 || !key.trim() ||
-      !count(offset)||offset>25000||!count(limit)||limit<1||limit>50) {
-    throw new Error("jira_delivery_evidence_invalid_request");
-  }
-  const value=await rpc<DeliveryEvidence>("read_jira_delivery_evidence_v1",{
-    ...args(filters), p_key:key, p_snapshot_id:snapshotId,
-    p_offset:offset,p_limit:limit,
+  filters: DeliveryFilters,key:string,snapshotId:number,offset:number,
+  limit:number,search="",sort:DeliveryEvidenceSort="created_at",
+  direction:"asc"|"desc"="desc",exportAll=false,
+):Promise<DeliveryEvidence>{
+  if(!count(snapshotId)||key.length>90||!key.trim()||
+     !count(offset)||offset>25000||
+     !count(limit)||limit<1||limit>(exportAll?7000:50)||
+     !VALID_EVIDENCE_SORTS.includes(sort)||
+     (direction!=="asc"&&direction!=="desc")||search.length>120||
+     (exportAll&&offset!==0))throw Error("jira_delivery_invalid_evidence_request");
+  const result=await rpc<DeliveryEvidence>("read_jira_delivery_evidence_v2",{
+    ...args(filters),p_key:key,p_snapshot_id:snapshotId,p_offset:offset,
+    p_limit:limit,p_query:search,p_sort:databaseSort[sort],p_direction:direction,
   });
-  if(value.contract!=="jira_delivery_evidence_v1" ||
-     value.key!==key || value.snapshot_id!==snapshotId ||
-     !count(value.total)||!count(value.source_count)||
-     value.offset!==offset||value.limit!==limit ||
-     !Array.isArray(value.rows) || value.rows.length>limit ||
-     value.rows.some(r=>typeof r.issue_key!=="string"||
-       !/^SPEND-[0-9]+$/.test(r.issue_key))) {
-    throw new Error("jira_delivery_evidence_contract_invalid");
+  if(result.contract!=="jira_delivery_evidence_v2"||result.key!==key||
+     result.snapshot_id!==snapshotId||result.query!==search||
+     result.sort!==databaseSort[sort]||result.direction!==direction||
+     !count(result.total)||!count(result.source_count)||
+     result.offset!==offset||result.limit!==limit||
+     !Array.isArray(result.rows)||result.rows.length>limit||
+     result.rows.length!==Math.max(0,Math.min(limit,result.total-offset))||
+     result.rows.some(row=>typeof row.issue_key!=="string"||
+       !/^SPEND-[0-9]+$/.test(row.issue_key))){
+    throw Error("jira_delivery_evidence_contract_invalid");
   }
-  return value;
+  if(exportAll&&result.rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
+  return result;
+}
+
+type RawIssueRecord = Record<string,unknown> & {
+  contract:string;snapshot_id:number;issue_key:string;
+  summary?:string|null;status?:string|null;issue_type?:string|null;
+  priority?:string|null;severity?:string|null;module?:string|null;
+  sub_module?:string|null;assignee?:string|null;
+  created_at?:string|null;resolved_at?:string|null;updated_at?:string|null;
+  service_levels?:DeliveryIssueDetail["service_levels"];
+  status_trail?:DeliveryIssueDetail["status_trail"];
+  comments?:Array<{author:string|null;created_at:string;body:string}>;
+  links?:Array<{direction:string|null;relationship:string|null;issue_key:string|null}>;
+};
+
+export async function readDeliveryIssue(
+  filters:DeliveryFilters,cohortKey:string,issueKey:string,snapshotId:number,
+):Promise<DeliveryIssueDetail>{
+  if(!count(snapshotId)||cohortKey.length>90||!cohortKey.trim()||
+     !/^SPEND-[0-9]{1,12}$/.test(issueKey)){
+    throw Error("jira_delivery_issue_invalid_request");
+  }
+  // The deployed Jira detail reader is service-role-only, but the browser-facing
+  // route must also prohibit arbitrary issue-key enumeration. Scope the
+  // lookup to the exact verified cohort before returning any detailed data.
+  const membership=await readDeliveryEvidence(
+    filters,cohortKey,snapshotId,0,50,issueKey,"issue_key","asc");
+  if(!membership.rows.some(row=>row.issue_key===issueKey)){
+    throw Error("jira_delivery_issue_outside_cohort");
+  }
+  const raw=await rpc<RawIssueRecord>("read_jira_delivery_issue_v1",{
+    p_issue_key:issueKey,p_snapshot_id:snapshotId,
+  });
+  if(raw.contract!=="jira_delivery_issue_v1"||
+     raw.snapshot_id!==snapshotId||raw.issue_key!==issueKey||
+     !Array.isArray(raw.status_trail)||!Array.isArray(raw.comments)||
+     !Array.isArray(raw.links)||raw.comments.length>30||raw.links.length>50){
+    throw Error("jira_delivery_issue_contract_invalid");
+  }
+  const isOpen=!["done","resolved","closed"].includes((raw.status||"").toLowerCase());
+  return {
+    contract:"jira_delivery_issue_v1",
+    snapshot_id:snapshotId,cohort_key:cohortKey,
+    issue:{
+      issue_key:issueKey,summary:raw.summary??null,status:raw.status??null,
+      issue_type:raw.issue_type??null,priority:raw.priority??null,
+      severity:raw.severity??null,module:raw.module??null,
+      sub_module:raw.sub_module??null,assignee:raw.assignee??null,
+      created_at:raw.created_at??null,resolved_at:raw.resolved_at??null,
+      updated_at:raw.updated_at??null,status_category:null,
+      stale:isOpen&&!!raw.updated_at &&
+        Date.now()-Date.parse(raw.updated_at)>7*86400000,
+      blocked:raw.status==="Blocked/Onhold",
+    },
+    service_levels:raw.service_levels??{
+      first_response_hours:null,eta_deviation_hours:null,reopen_count:0,
+      qa_signoff_cycles:null,qa_rejected_cycles:null,
+    },
+    status_trail:raw.status_trail,
+    comments:raw.comments.map(row=>({
+      author:row.author??"Unspecified",created_at:row.created_at,text:row.body??"",
+    })),
+    links:raw.links.map(row=>({
+      type:row.relationship,description:row.relationship,
+      direction:row.direction,issue_key:row.issue_key,
+    })),
+  };
 }
