@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import CompactMenuSelect from "../ui/compact-menu-select";
 import type { ReactNode } from "react";
 import type {
   DeliveryDashboard, DeliveryEvidence, DeliveryFilters,
@@ -105,81 +106,127 @@ function FilterBar({data,filters}:{
 }){
   const router=useRouter();
   const applyFilter=(name:keyof DeliveryFilters,value:string)=>{
-    // Preserve all other active filters; URL is the source of truth.
+    // Keep the existing URL-filter contract. A menu selection applies
+    // immediately and retains all other filter dimensions.
     const query=new URLSearchParams(window.location.search);
-    if(value) query.set(name,value);
+    if(value)query.set(name,value);
     else query.delete(name);
     const search=query.toString();
     router.replace("/delivery"+(search?"?"+search:""),{scroll:false});
   };
-  return <div key={JSON.stringify(filters)} className="ed-filters" role="group" aria-label="Jira delivery filters">
-    <label className="ed-filter-label"><span>Sprint</span>
-      <select name="sprint" defaultValue={filters.sprint??""} onChange={event=>applyFilter("sprint",event.target.value)}>
-        <option value="">All sprints</option>
-        {data.options.sprints.map(s=><option key={s.sprint_id} value={s.sprint_id}>
-          {shortSprint(s.sprint_name)} · {s.state}
-        </option>)}
-      </select>
-    </label>
-    <label className="ed-filter-label"><span>Module</span>
-      <select name="module" defaultValue={filters.module??""} onChange={event=>applyFilter("module",event.target.value)}>
-        <option value="">All modules</option>
-        <option value="__untagged__">Untagged</option>
-        {data.options.modules.map(x=><option key={x} value={x}>{x}</option>)}
-      </select>
-    </label>
-    <label className="ed-filter-label"><span>Sub-module</span>
-      <select name="sub_module" defaultValue={filters.sub_module??""} onChange={event=>applyFilter("sub_module",event.target.value)}>
-        <option value="">All sub-modules</option>
-        <option value="__untagged__">Untagged</option>
-        {data.options.sub_modules.map(x=><option key={x} value={x}>{x}</option>)}
-      </select>
-    </label>
-    <label className="ed-filter-label"><span>Severity</span>
-      <select name="severity" defaultValue={filters.severity??""} onChange={event=>applyFilter("severity",event.target.value)}>
-        <option value="">All severities</option>
-        <option value="Untagged">Untagged</option>
-        {data.options.severities.map(x=><option key={x} value={x}>{x}</option>)}
-      </select>
-    </label>
-    <label className="ed-filter-label"><span>Assignee</span>
-      <select name="assignee" defaultValue={filters.assignee??""} onChange={event=>applyFilter("assignee",event.target.value)}>
-        <option value="">All assignees</option>
-        {data.options.assignees.map(x=><option key={x} value={x}>{x}</option>)}
-      </select>
-    </label>
+  // Reuse the exact Product/Retention CompactMenuSelect control. Stable option
+  // arrays prevent keyboard focus from jumping when React rerenders.
+  const sprintOptions=useMemo(()=>[
+    {value:"",label:"All sprints"},
+    ...data.options.sprints.map(s=>({
+      value:String(s.sprint_id),label:shortSprint(s.sprint_name)+" · "+s.state,
+    })),
+  ],[data.options.sprints]);
+  const moduleOptions=useMemo(()=>[
+    {value:"",label:"All modules"},{value:"__untagged__",label:"Untagged"},
+    ...data.options.modules.map(x=>({value:x,label:x})),
+  ],[data.options.modules]);
+  const submoduleOptions=useMemo(()=>[
+    {value:"",label:"All sub-modules"},{value:"__untagged__",label:"Untagged"},
+    ...data.options.sub_modules.map(x=>({value:x,label:x})),
+  ],[data.options.sub_modules]);
+  const severityOptions=useMemo(()=>[
+    {value:"",label:"All severities"},{value:"Untagged",label:"Untagged"},
+    ...data.options.severities.map(x=>({value:x,label:x})),
+  ],[data.options.severities]);
+  const assigneeOptions=useMemo(()=>[
+    {value:"",label:"All assignees"},
+    ...data.options.assignees.map(x=>({value:x,label:x})),
+  ],[data.options.assignees]);
+  return <div className="ed-filters" role="group" aria-label="Jira delivery filters">
+    <div className="ed-filter-label"><span>Sprint</span>
+      <CompactMenuSelect value={filters.sprint===null?"":String(filters.sprint)}
+        options={sprintOptions} onChange={value=>applyFilter("sprint",value)}
+        ariaLabel="Filter by sprint" className="ed-delivery-filter-select"/>
+    </div>
+    <div className="ed-filter-label"><span>Module</span>
+      <CompactMenuSelect value={filters.module??""}
+        options={moduleOptions} onChange={value=>applyFilter("module",value)}
+        ariaLabel="Filter by module" className="ed-delivery-filter-select"/>
+    </div>
+    <div className="ed-filter-label"><span>Sub-module</span>
+      <CompactMenuSelect value={filters.sub_module??""}
+        options={submoduleOptions} onChange={value=>applyFilter("sub_module",value)}
+        ariaLabel="Filter by sub-module" className="ed-delivery-filter-select"/>
+    </div>
+    <div className="ed-filter-label"><span>Severity</span>
+      <CompactMenuSelect value={filters.severity??""}
+        options={severityOptions} onChange={value=>applyFilter("severity",value)}
+        ariaLabel="Filter by severity" className="ed-delivery-filter-select"/>
+    </div>
+    <div className="ed-filter-label"><span>Assignee</span>
+      <CompactMenuSelect value={filters.assignee??""}
+        options={assigneeOptions} onChange={value=>applyFilter("assignee",value)}
+        ariaLabel="Filter by assignee" className="ed-delivery-filter-select"/>
+    </div>
     <a href="/delivery" className="ed-reset">Reset</a>
   </div>;
 }
 function WorkInFlight({data,open}:{
   data:DeliveryDashboard;open:(target:DrillTarget)=>void;
 }){
-  const counts=data.flow.wip_by_status;
-  return <Surface title="Work in flight" subtitle={num(data.flow.flow_counts.open_total)+" open issues by current Jira status"}>
-    <div className="ed-table-shell ed-table-grow" role="region" tabIndex={0} aria-label="Current open issues by status">
-      <table className="ed-report-table ed-status-table">
-        <thead><tr><th>Status</th><th>Open issues</th><th>Share of queue</th><th>Signal</th></tr></thead>
-        <tbody>{counts.map(row=>{
-          const label=row.status_name==="Blocked/Onhold"?"Blocked / On hold":row.status_name;
-          const alert=row.status_name==="Blocked/Onhold";
-          return <tr key={row.status_name} className={alert?"ed-row-attention":""}>
-            <th scope="row"><button className="ed-cell-drill" type="button" onClick={()=>open({
-              key:"status:"+row.status_name,label:label,sprintId:data.selected_sprint_id,
-            })}>{label} <span aria-hidden="true">↗</span></button></th>
-            <td>{num(row.issue_count)}</td>
-            <td><span className="ed-share">
-              <span className="ed-share-track" aria-hidden="true">
-                <span style={{width:Math.max(0,Math.min(100,row.pct))+"%"}}/>
-              </span><span>{pct(row.pct)}</span>
-            </span></td>
-            <td className={alert?"ed-signal-alert":""}>
-              {alert?"Needs action":row.status_name==="To Do"?"Queue":row.status_name==="Reopen"?"Rework":"In progress"}
-            </td>
-          </tr>;
-        })}</tbody>
-      </table>
+  const rows=[...data.flow.wip_by_status].sort((a,b)=>b.issue_count-a.issue_count);
+  const total=data.flow.flow_counts.open_total;
+  const largest=Math.max(1,...rows.map(row=>row.issue_count));
+  const blocked=data.flow.flow_counts.blocked_all;
+  const palette=["#3d64cf","#6888e3","#85a1eb","#a3b6e9","#b9c8eb","#cad4e8","#d5dce9"];
+  const statusLabel=(status:string)=>status==="Blocked/Onhold"?"Blocked / On hold":status;
+  const openStatus=(status:string)=>open({
+    key:"status:"+status,label:statusLabel(status),sprintId:data.selected_sprint_id,
+  });
+  return <Surface title="Work in flight" subtitle="Current status distribution · counts and proportions from the same verified Jira population">
+    <div className="ed-wip-content">
+      <div className="ed-wip-overview">
+        <div className="ed-wip-total"><strong>{num(total)}</strong>
+          <span>open issues</span><small>across {num(rows.length)} statuses</small></div>
+        <button type="button" className="ed-wip-blocked" onClick={()=>openStatus("Blocked/Onhold")}
+          aria-label={num(blocked)+" blocked issues. View the matching Jira issues."}>
+          <span className="ed-wip-blocked-dot" aria-hidden="true"/>
+          <strong>{num(blocked)}</strong><span>blocked</span><span aria-hidden="true">↗</span>
+        </button>
+      </div>
+      <div className="ed-wip-distribution" role="img"
+        aria-label={"Distribution of "+num(total)+" open issues by Jira status"}>
+        {rows.map((row,index)=><span key={row.status_name}
+          className={"ed-wip-segment"+(row.status_name==="Blocked/Onhold"?" is-blocked":"")}
+          style={{width:Math.max(0,row.pct)+"%",backgroundColor:row.status_name==="Blocked/Onhold"?"#d77d72":palette[index%palette.length]}}
+          title={statusLabel(row.status_name)+": "+num(row.issue_count)+" issues, "+pct(row.pct)+" of open work"}/>)}
+      </div>
+      <div className="ed-wip-columns" aria-hidden="true">
+        <span>Status</span><span>Relative volume</span><span>Issues</span><span>Share</span><span/>
+      </div>
+      <div className="ed-wip-list" role="list" aria-label="Open Jira issues by status">
+        {rows.map((row,index)=>{
+          const blockedRow=row.status_name==="Blocked/Onhold";
+          const name=statusLabel(row.status_name);
+          return <div role="listitem" key={row.status_name}>
+            <button type="button" className={"ed-wip-entry"+(blockedRow?" is-blocked":"")}
+              onClick={()=>openStatus(row.status_name)}
+              title={name+": "+num(row.issue_count)+" open issues ("+pct(row.pct)+" of all open work). Open the matching Jira issues."}
+              aria-label={name+": "+num(row.issue_count)+" open issues, "+pct(row.pct)+" of queue. View Jira issues."}>
+              <span className="ed-wip-entry-name">
+                <i className="ed-wip-dot" aria-hidden="true"
+                  style={{backgroundColor:blockedRow?"#d77d72":palette[index%palette.length]}}/>
+                {name}
+              </span>
+              <span className="ed-wip-entry-track" aria-hidden="true">
+                <span style={{width:(row.issue_count/largest*100)+"%",
+                  backgroundColor:blockedRow?"#d77d72":palette[index%palette.length]}}/>
+              </span>
+              <strong className="ed-wip-entry-count">{num(row.issue_count)}</strong>
+              <span className="ed-wip-entry-percent">{pct(row.pct)}</span>
+              <span className="ed-wip-entry-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>;
+        })}
+      </div>
+      <p className="ed-wip-footer">All {num(total)} open issues are assigned to exactly one current Jira status. Select a row to inspect the underlying issues.</p>
     </div>
-    <p className="ed-table-meta">Every row opens its matching Jira issue population. Statuses total {num(data.flow.flow_counts.open_total)}.</p>
   </Surface>;
 }
 function PlannedVsDone({data}: {data:DeliveryDashboard}){
@@ -259,37 +306,135 @@ function FlowHealth({data,sprint}:{data:DeliveryDashboard;sprint:SprintRow}){
   </Surface>;
 }
 function BacklogTrend({data}:{data:DeliveryDashboard}){
-  const series=data.flow.backlog_trend.filter(x=>Number.isFinite(x.open_eod)).slice(-20);
-  const width=840,height=175,left=38,right=15,top=18,bottom=29;
-  const values=series.map(s=>s.open_eod),lo=Math.min(...values,0),hi=Math.max(...values,1);
-  const vertical=Math.max(1,hi-lo);
-  const x=(i:number)=>left+(i/Math.max(1,series.length-1))*(width-left-right);
-  const y=(v:number)=>top+(1-(v-lo)/vertical)*(height-top-bottom);
-  const path=series.map((s,i)=>(i===0?"M":"L")+x(i).toFixed(1)+","+y(s.open_eod).toFixed(1)).join(" ");
-  return <Surface title="Backlog trajectory" subtitle="Weekly end-of-week open issues · Published Jira reporting series" half>
-    <div className="ed-trend-wrap">
-      {series.length>1?<svg viewBox={"0 0 "+width+" "+height} role="img" aria-label={"Backlog starts at "+values[0]+" and ends at "+values[values.length-1]+" open issues"}>
-        {[0,.5,1].map(f=><g key={f}><line x1={left} y1={y(lo+(hi-lo)*f)} x2={width-right} y2={y(lo+(hi-lo)*f)}
-            stroke="#e4eaf2" strokeWidth="1"/><text x={left-7} y={y(lo+(hi-lo)*f)+4} textAnchor="end" fontSize="12" fill="#8b9aae">{num(Math.round(lo+(hi-lo)*f))}</text></g>)}
-        <path d={path} fill="none" stroke="#416de8" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round"/>
-        {series.map((s,i)=><circle key={s.week_start} cx={x(i)} cy={y(s.open_eod)} r="3" fill="#416de8">
-          <title>{`${date(s.week_start)}: ${num(s.open_eod)} open issues`}</title></circle>)}
-        <text x={left} y={height-5} fill="#8b9aae" fontSize="12">{date(series[0].week_start)}</text>
-        <text x={width-right} y={height-5} fill="#8b9aae" fontSize="12" textAnchor="end">{date(series[series.length-1].week_start)}</text>
-      </svg>:<p className="ed-table-meta">Not enough reporting weeks.</p>}
-      <p className="ed-trend-meta">{series.length} weekly points · Most recent week {series.length?num(series[series.length-1].open_eod):"—"} open</p>
+  const [active,setActive]=useState<number|null>(null);
+  const series=[...data.flow.backlog_trend].filter(row=>Number.isFinite(row.open_eod))
+    .sort((a,b)=>a.week_start.localeCompare(b.week_start)).slice(-20);
+  const n=series.length;
+  const latest=n?series[n-1]:null;
+  const change=n>=2?series[n-1].open_eod-series[0].open_eod:null;
+  const width=760,height=218,left=43,right=14,top=20,bottom=32;
+  const values=series.map(row=>row.open_eod);
+  const vMin=n?Math.min(...values):0,vMax=n?Math.max(...values):1;
+  const range=Math.max(1,vMax-vMin);
+  const lo=n?Math.max(0,Math.floor((Math.min(...values)-range*.14)/25)*25):0;
+  const hi=n?Math.max(lo+25,Math.ceil((Math.max(...values)+range*.14)/25)*25):25;
+  const plotBottom=height-bottom;
+  const x=(index:number)=>left+index/Math.max(1,n-1)*(width-left-right);
+  const y=(value:number)=>top+(1-(value-lo)/(hi-lo))*(plotBottom-top);
+  const path=series.map((row,index)=>(index===0?"M":"L")+x(index).toFixed(1)+","+y(row.open_eod).toFixed(1)).join(" ");
+  const area=n>1?path+" L"+x(n-1).toFixed(1)+","+plotBottom+" L"+x(0).toFixed(1)+","+plotBottom+" Z":"";
+  const marked=active===null?null:series[active];
+  const hitWidth=(width-left-right)/Math.max(1,n-1);
+  const ticks=n>=4?[0,Math.floor((n-1)/2),n-1]:n>=2?[0,n-1]:[];
+  const changeText=(value:number)=>value>0?"+"+num(value):num(value);
+  return <Surface title="Backlog trajectory"
+    subtitle="End-of-week open issues · last 20 reported weeks" half>
+    <div className="ed-trend-layout">
+      <div className="ed-trend-summary">
+        <div><span>Latest reported backlog</span>
+          <strong>{num(latest?.open_eod)}<small>open issues</small></strong></div>
+        <span className={"ed-trend-change"+(change!==null&&change>0?" is-increase":"")}>
+          {change===null?"Not enough weeks":changeText(change)+" since first shown week"}
+        </span>
+      </div>
+      {n>=2?<div className="ed-trend-plot" role="group" tabIndex={0}
+          aria-label={"Weekly open backlog across "+n+" weeks. Focus, then use left and right arrow keys to inspect."}
+          onFocus={()=>setActive(index=>index===null?n-1:index)}
+          onBlur={()=>setActive(null)}
+          onMouseLeave={()=>setActive(null)}
+          onKeyDown={event=>{
+            if(event.key==="ArrowLeft"||event.key==="ArrowRight"){
+              event.preventDefault();
+              setActive(index=>Math.min(n-1,Math.max(0,(index??n-1)+(event.key==="ArrowLeft"?-1:1))));
+            }
+          }}>
+        <svg viewBox={"0 0 "+width+" "+height} role="img"
+          aria-label={"Open issues rose or fell across the displayed weeks, from "+
+            num(series[0].open_eod)+" to "+num(series[n-1].open_eod)}>
+          <defs>
+            <linearGradient id="ed-backlog-area" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4974e8" stopOpacity=".18"/>
+              <stop offset="100%" stopColor="#4974e8" stopOpacity=".015"/>
+            </linearGradient>
+          </defs>
+          {[0,.5,1].map(f=>{
+            const value=lo+(hi-lo)*f;
+            return <g key={f}>
+              <line x1={left} x2={width-right} y1={y(value)} y2={y(value)}
+                stroke="#e7ecf4" strokeWidth="1"/>
+              <text x={left-9} y={y(value)+4} textAnchor="end"
+                fontSize="11" fill="#8b99ad">{num(Math.round(value))}</text>
+            </g>;
+          })}
+          <path d={area} fill="url(#ed-backlog-area)"/>
+          <path d={path} fill="none" stroke="#416de8" strokeWidth="2.8"
+            strokeLinejoin="round" strokeLinecap="round"/>
+          {active!==null&&marked?<g>
+            <line x1={x(active)} x2={x(active)} y1={top} y2={plotBottom}
+              stroke="#9db2df" strokeDasharray="4 5" strokeWidth="1"/>
+            <circle cx={x(active)} cy={y(marked.open_eod)} r="5"
+              fill="#fff" stroke="#315fda" strokeWidth="3"/>
+          </g>:null}
+          <circle cx={x(n-1)} cy={y(series[n-1].open_eod)} r="3.5"
+            fill="#315fda" stroke="#fff" strokeWidth="1.5"/>
+          {series.map((row,index)=><rect key={row.week_start}
+            x={Math.max(left,x(index)-hitWidth/2)} y={top}
+            width={Math.min(hitWidth,width-right-Math.max(left,x(index)-hitWidth/2))}
+            height={plotBottom-top} fill="transparent"
+            onMouseEnter={()=>setActive(index)}
+            onPointerMove={()=>setActive(index)} aria-hidden="true"/>)}
+          {ticks.map((index,i)=><text key={index} x={x(index)} y={height-8}
+            textAnchor={i===0?"start":i===ticks.length-1?"end":"middle"}
+            fontSize="11" fill="#8595ad">{date(series[index].week_start)}</text>)}
+        </svg>
+        {active!==null&&marked?<div className="ed-chart-tooltip ed-trend-tooltip"
+          role="tooltip"
+          style={{left:Math.min(82,Math.max(18,x(active)/width*100))+"%"}}>
+          <strong>Week of {date(marked.week_start)}</strong>
+          <span><b>{num(marked.open_eod)}</b> open issues</span>
+          <small>{num(marked.created)} created · {num(marked.resolved)} resolved</small>
+          <small>Net movement: {changeText(marked.net_movement)}</small>
+        </div>:null}
+      </div>:<p className="ed-chart-empty">Not enough published weeks to plot the backlog trend.</p>}
+      <p className="ed-trend-note">Focus the chart and use ← → to inspect each week.</p>
     </div>
   </Surface>;
 }
 function BugAging({data}:{data:DeliveryDashboard}){
+  const [active,setActive]=useState<number|null>(null);
   const rows=data.flow.bug_health.age_histogram;
-  return <Surface title="Open bug aging" subtitle="Age since Jira issue creation · Completes to the open bug total" half>
+  const total=data.flow.bug_health.open_bugs;
+  const median=data.flow.bug_health.median_age_days;
+  return <Surface title="Open bug aging"
+    subtitle="Time since Jira issue creation · current non-deleted bug backlog" half>
     <div className="ed-aging">
-      {rows.map(row=><div className="ed-aging-row" key={row.bucket}>
-        <span>{row.bucket}</span><span className="ed-aging-track"><i style={{width:Math.max(1,row.pct)+"%"}}/></span>
-        <strong>{num(row.count)}</strong><small>{pct(row.pct)}</small>
-      </div>)}
-      <p>{num(data.flow.bug_health.open_bugs)} open bugs · Median age {decimal(data.flow.bug_health.median_age_days)} days</p>
+      <div className="ed-aging-summary">
+        <div><span>Open bugs</span><strong>{num(total)}</strong></div>
+        <div><span>Median age</span><strong>{decimal(median)}<small> days</small></strong></div>
+      </div>
+      <div className="ed-aging-chart" role="group" aria-label="Open bug aging by time since creation">
+        {rows.map((row,index)=><div className="ed-aging-row" key={row.bucket}
+          tabIndex={0} role="group"
+          aria-label={row.bucket+": "+num(row.count)+" open bugs, "+pct(row.pct)+" of the total"}
+          onMouseEnter={()=>setActive(index)}
+          onMouseLeave={()=>setActive(null)}
+          onFocus={()=>setActive(index)}
+          onBlur={()=>setActive(null)}>
+          <span className="ed-aging-label">{row.bucket}</span>
+          <span className="ed-aging-track" aria-hidden="true">
+            <i style={{width:Math.max(0,Math.min(100,row.pct))+"%"}}/>
+          </span>
+          <strong>{num(row.count)}</strong>
+          <small>{pct(row.pct)}</small>
+          {active===index?<div className="ed-chart-tooltip ed-aging-tooltip"
+              id="ed-aging-tooltip" role="tooltip">
+            <strong>{row.bucket}</strong>
+            <span>{num(row.count)} open bugs</span>
+            <small>{pct(row.pct)} of the current bug backlog</small>
+          </div>:null}
+        </div>)}
+      </div>
+      <p className="ed-aging-note">Hover or focus a range to inspect its count and share.</p>
     </div>
   </Surface>;
 }

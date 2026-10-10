@@ -58,6 +58,19 @@ assert.doesNotMatch(css,/ed-metric-readout|ed-five-kpis|ed-metric-caption|ed-met
   "Do not copy Product card styling into a smaller grey Engineering lookalike.");
 assert.match(css,/bottom:12px/,"Metric info icons must match Product's bottom-right position.");
 assert.match(css,/\.ed-collection\{/);
+assert.match(shell,/function WorkInFlight\(/);
+assert.match(shell,/const total=data.flow.flow_counts.open_total/);
+assert.match(shell,/const blocked=data.flow.flow_counts.blocked_all/);
+assert.match(shell,/const rows=\[\.\.\.data.flow.wip_by_status\]/);
+assert.match(shell,/className="ed-wip-list" role="list"/);
+assert.match(shell,/key:"status:"\+status/);
+assert.match(shell,/row.issue_count\/largest\*100/,
+  "Relative volume must be proportional to source counts.");
+assert.match(shell,/row.pct/,
+  "Shares must come from the audited source, not invented chart values.");
+assert.match(css,/\.ed-wip-distribution\{/);
+assert.match(css,/\.ed-wip-entry:focus-visible\{/);
+
 for (const section of ["Sprint delivery","Attention","Delivery","Flow","Quality"]) {
   assert.ok(shell.includes('title="'+section+'"'), "Missing section "+section);
 }
@@ -98,8 +111,21 @@ const stageSql=read("supabase/migrations/20261010_jira_delivery_stage_evidence_v
 assert.match(stageSql,/jira_delivery_stage_evidence_parity_mismatch/);
 assert.match(stageSql,/v_last_run IS DISTINCT FROM v_published/);
 assert.match(shell,/drillKey:reviewCount!==null\?"stage:Code Review":undefined/);
-assert.match(shell,/<title>\{\x60\$\{date\(s\.week_start\)\}: \$\{num\(s\.open_eod\)\} open issues\x60\}<\/title>/,
-  "SVG tooltip title must be a single text expression to avoid hydration errors.");
+assert.match(shell,/function BacklogTrend\(/);
+assert.match(shell,/id="ed-backlog-area"/);
+assert.match(shell,/role="tooltip"/);
+assert.match(shell,/aria-label=\{"Weekly open backlog across "/);
+assert.match(shell,/event.key==="ArrowLeft"/);
+assert.match(shell,/onMouseEnter=\{\(\)=>setActive\(index\)\}/);
+assert.match(shell,/data.flow.backlog_trend/);
+assert.match(shell,/data.flow.bug_health.age_histogram/);
+assert.match(shell,/function BugAging\(/);
+assert.match(shell,/ed-aging-tooltip/);
+assert.match(css,/\.ed-chart-tooltip\{/);
+assert.match(css,/\.ed-trend-plot:focus-visible\{/);
+assert.match(css,/\.ed-aging-row:focus-visible\{/);
+assert.doesNotMatch(shell,/ed-trend-wrap|ed-status-table|ed-share-track/,
+  "The old chart and legacy Work-in-flight table must not return.");
 assert.match(page,/export const maxDuration = 45/);
 assert.match(overviewCards,/className="metric-card"/,
   "Product Overview remains the reference for full-card drill triggers.");
@@ -123,11 +149,18 @@ assert.match(shell,/className="metric-card ed-metric"/);
 assert.match(shell,/onClick=\{openCard\}/);
 assert.match(shell,/aria-haspopup="dialog"/);
 assert.match(shell,/<InfoIcon label=\{metric.label\} onClick=\{\(\)=>onInfo\(metric\)\}\/>/);
-assert.match(shell,/onChange=\{event=>applyFilter\("sprint",event.target.value\)\}/);
-for (const key of ["module","sub_module","severity","assignee"]) {
-  assert.ok(shell.includes('onChange={event=>applyFilter("'+key+'",event.target.value)}'),
-    "Filter must update immediately: " + key);
+assert.match(shell,/import CompactMenuSelect from "..\/ui\/compact-menu-select"/);
+assert.equal((shell.match(/<CompactMenuSelect\b/g)||[]).length,5,
+  "Every Jira filter must reuse the Product/Retention custom dropdown.");
+assert.doesNotMatch(shell,/<select\b|<option\b/,
+  "Native browser dropdowns are not accepted in Engineering filters.");
+for (const key of ["sprint","module","sub_module","severity","assignee"]) {
+  assert.ok(shell.includes('onChange={value=>applyFilter("'+key+'",value)}'),
+    "Custom filter must apply immediately and preserve the current URL: " + key);
 }
+assert.match(css,/\.ed-delivery-filter-select \.compact-menu-select-menu\{/);
+assert.match(css,/max-height:min\(295px,calc\(100dvh - 135px\)\)/,
+  "Long module and assignee lists must scroll inside the Product dropdown.");
 assert.match(shell,/router.replace\("\/delivery"\+/,
   "Selecting a filter must navigate immediately.");
 assert.match(shell,/className="ed-reset">Reset<\/a>/);
