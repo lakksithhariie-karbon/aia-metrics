@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ProductMetricsHeader from "../product-metrics-header";
+import CompaniesInsightsDrill from "./companies-insights-drill";
 import MetricsInfoDialog, {
   MetricsInfoButton,
   metricsInfoDefinitions,
@@ -1185,175 +1186,15 @@ export default function CompaniesDashboard() {
         aria-labelledby="companies-breakdown-title"
         onClose={onDialogClose}
       >
-        <div className="companies-breakdown-layout">
-          <header className="dialog-header">
-            <div>
-              <p className="dialog-eyebrow">
-                {target
-                  ? `${shortMonth(target.month)} · ${moduleLabel(target.module)}`
-                  : "Module usage"}
-              </p>
-              <h2
-                className="dialog-title"
-                id="companies-breakdown-title"
-              >
-                {target?.company.name ??
-                  "Usage breakdown"}
-              </h2>
-              <p className="dialog-subtitle">
-                {target?.user
-                  ? `${target.user.email} · `
-                  : "Company total · "}
-                {target
-                  ? `${shortMonth(target.month)} calendar-month usage`
-                  : ""}
-              </p>
-            </div>
-            <button
-              className="close-button"
-              type="button"
-              aria-label="Close usage breakdown"
-              onClick={closeBreakdown}
-            >
-              <Icon name="close" />
-            </button>
-          </header>
-
-          <div className="companies-breakdown-summary">
-            <span>
-              <strong>
-                {breakdownLoading
-                  ? "…"
-                  : number.format(breakdown?.total ?? 0)}
-              </strong>{" "}
-              events
-            </span>
-            {breakdown?.item_total != null ? (
-              <span>
-                <strong>
-                  {number.format(breakdown.item_total)}
-                </strong>{" "}
-                affected items reported by instrumented events
-              </span>
-            ) : (
-              <span>
-                No instrumented item volume for this selection
-              </span>
-            )}
-          </div>
-
-          <div
-            className="companies-breakdown-wrap"
-            role="region"
-            tabIndex={0}
-            aria-label="Module event breakdown"
-          >
-            {breakdownLoading ? (
-              <div className="companies-loading">
-                Loading event breakdown…
-              </div>
-            ) : !breakdown ? (
-              <div className="companies-error">
-                <div>
-                  <strong>Breakdown unavailable</strong>
-                  <span>
-                    The secure data bridge is unavailable. No
-                    fallback data is shown.
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <table className="companies-breakdown-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Event / subtype</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" className="numeric">
-                      Events
-                    </th>
-                    <th scope="col" className="numeric">
-                      Affected items
-                    </th>
-                    <th scope="col">
-                      Latest activity
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {breakdown.rows.length ? (
-                    breakdown.rows.map((row, index) => (
-                      <tr
-                        key={`${row.event}-${row.subtype}-${row.status}-${index}`}
-                      >
-                        <td>
-                          {row.event}
-                          {row.subtype ? (
-                            <span className="companies-breakdown-subtype">
-                              {row.subtype}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td>
-                          {row.status ? (
-                            <span
-                              className={`companies-breakdown-status ${row.status.toLowerCase() === "failed" ? "failed" : ""}`}
-                            >
-                              {row.status}
-                            </span>
-                          ) : (
-                            "–"
-                          )}
-                        </td>
-                        <td className="numeric">
-                          {number.format(row.count)}
-                        </td>
-                        <td className="numeric">
-                          {row.items == null ? (
-                            <span title="Item volume is not instrumented for this event.">
-                              –
-                            </span>
-                          ) : (
-                            number.format(row.items)
-                          )}
-                        </td>
-                        <td>
-                          {prettyDateTime(row.latest_at)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={5}>
-                        <div className="po-empty">
-                          <strong>
-                            No events in this module
-                          </strong>
-                          <span>
-                            This is a real zero for this
-                            company/user and calendar month.
-                          </span>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <footer className="companies-breakdown-foot">
-            <span>
-              {breakdown?.window_start
-                ? `${prettyDateTime(breakdown.window_start)} → ${prettyDateTime(breakdown.window_end)}`
-                : target
-                  ? shortMonth(target.month)
-                  : ""}
-            </span>
-            <span>
-              {target?.user ? "User scope" : "Company scope"}
-            </span>
-          </footer>
-        </div>
+        <CompaniesInsightsDrill
+          companyName={target?.company.name ?? "Company activity"}
+          userLabel={target?.user?.email ?? null}
+          month={target?.month ?? currentMonthIST() + "-01"}
+          module={target?.module ?? "transactions"}
+          loading={breakdownLoading}
+          breakdown={breakdown}
+          onClose={closeBreakdown}
+        />
       </dialog>
 
       {monthlyInfoOpen ? (
