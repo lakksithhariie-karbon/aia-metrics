@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack --hostname 0.0.0.0 --port 8953",
+    "prebuild": "node scripts/verify-overview-drill-contract.mjs",
     "build": "next build --webpack",
+    "test:overview-drills": "node scripts/verify-overview-drill-contract.mjs",
     "start": "next start --hostname 0.0.0.0 --port 8953",
     "typecheck": "tsc --noEmit",
     "typecheck:edge": "tsc --noEmit --strict --skipLibCheck --target es2022 --module esnext --moduleResolution bundler --lib es2022,dom supabase/functions/companies-dashboard/edge-check.d.ts supabase/functions/companies-dashboard/index.ts"
