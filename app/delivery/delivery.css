@@ -19,12 +19,6 @@
 .ed-titleline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .ed-titleline h1{margin:0;color:#202a3b;font-size:26px;line-height:33px;letter-spacing:-.65px;font-weight:650}
 .ed-page-copy>p{margin:4px 0 0;color:#8794a7;font-size:11px;line-height:17px}
-.ed-reference-badge{
-  display:inline-flex;align-items:center;min-height:23px;
-  padding:0 8px;border-radius:5px;
-  color:#6f80a4;background:#f4f7fe;border:1px solid #dce5f8;
-  font-size:9px;font-weight:600;white-space:nowrap;
-}
 .ed-filters{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .ed-filter-static{
   display:inline-flex;align-items:center;justify-content:space-between;
@@ -45,6 +39,7 @@
 }
 .ed-sprint-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}
 .ed-five-kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+.ed-metric-wrap{position:relative;min-width:0;width:100%}
 .ed-metric.metric-card{
   grid-column:auto;width:100%;min-width:0;
   height:155px;min-height:155px;
@@ -53,9 +48,10 @@
   text-align:left;overflow:hidden;
   border:1px solid #e0e5ee;border-left:2px solid #bfd0f5;
   border-radius:6px;background:#f7f8fb;box-shadow:none;
-  color:#25334a;cursor:default;
+  color:#25334a;cursor:pointer;
 }
-.ed-metric.metric-card:hover{border-color:#e0e5ee;border-left-color:#bfd0f5}
+.ed-metric.metric-card:hover{border-color:#9aafee;border-left-color:#2d5ce1;background:#fdfdff}
+.ed-metric.metric-card:focus-visible{outline:2px solid #8eaafa;outline-offset:2px}
 .ed-metric-featured.metric-card{background:#eef3ff;border-left-color:#2d5ce1}
 .ed-metric-label{
   flex:0 0 auto;min-width:0;width:100%;
@@ -76,16 +72,10 @@
   color:#7f8c9f;font-size:9.5px;line-height:14px;
 }
 .ed-metric-caption-attention{color:#b05652}
-.ed-metric-bottom{
-  width:100%;margin-top:auto;padding-top:8px;
-  font-size:9px;font-weight:590;line-height:12px;
-  color:#3d63d2;
-}
 .ed-five-kpis .ed-metric.metric-card{height:155px;min-height:155px;padding:16px 14px 13px}
 .ed-five-kpis .ed-metric-label{font-size:10px}
 .ed-five-kpis .ed-metric-readout strong{font-size:29px}
 .ed-five-kpis .ed-metric-caption{font-size:9px}
-.ed-five-kpis .ed-metric-bottom{font-size:8.8px}
 .ed-collection{
   display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
   gap:var(--metrics-page-gap,24px);
@@ -208,8 +198,8 @@
   .ed-filters{gap:6px}
   .ed-filter-static{height:32px;font-size:9px;min-width:84px}
   .ed-sprint-kpis,.ed-five-kpis{grid-template-columns:1fr;gap:12px}
-  .ed-sprint-kpis>.ed-metric.metric-card,
-  .ed-five-kpis>.ed-metric.metric-card{height:143px;min-height:143px}
+  .ed-sprint-kpis>.ed-metric-wrap>.ed-metric.metric-card,
+  .ed-five-kpis>.ed-metric-wrap>.ed-metric.metric-card{height:143px;min-height:143px}
   .ed-report-heading.report-header{padding:17px 15px 12px}
   .ed-table-shell{width:calc(100% - 30px);max-width:calc(100% - 30px);margin-left:15px;margin-right:15px}
   .ed-flow-summary{padding:0 15px 14px}
@@ -221,7 +211,7 @@
 
 
 /* Live Jira filter controls: same height, density and page gutter as Product.
-   Only submitted query parameters change scope, never local KPI arithmetic. */
+   Each selection navigates immediately; metric arithmetic remains server-owned. */
 .ed-filters{row-gap:7px}
 .ed-filter-label{position:relative;display:flex;flex-direction:column;gap:3px;min-width:102px;flex:1 1 102px}
 .ed-filter-label>span{
@@ -238,22 +228,14 @@
 .ed-filter-label select:focus-visible{
   outline:2px solid #a0b6ef;outline-offset:2px;border-color:#a0b6ef;
 }
-.ed-apply,.ed-clear{
+.ed-reset{
   display:inline-flex;align-items:center;justify-content:center;height:33px;
   flex:0 0 auto;padding:0 12px;border-radius:5px;font-size:10px;
   font-weight:600;text-decoration:none;margin-top:14px;
+  color:#6d80a3;background:#fff;border:1px solid #dfe5ee;
 }
-.ed-apply{color:#fff;background:#2b54ca;border:1px solid #2b54ca}
-.ed-apply:hover{background:#2346ac}
-.ed-clear{color:#6d80a3;background:#fff;border:1px solid #dfe5ee}
-.ed-clear:hover{background:#f5f7fb}
-.ed-live-badge{color:#355b98;background:#eff5ff;border-color:#dae7fb}
-.ed-stale-badge{color:#945e34;background:#fff7ee;border-color:#f1d6ba}
-.ed-historical-warning{
-  grid-column:1/-1;color:#97764b;background:#fffcf6;
-  border:1px solid #f1e7d8;border-radius:6px;
-  font-size:10px;line-height:16px;margin:0;padding:9px 13px;
-}
+.ed-reset:hover{background:#f5f7fb}
+.ed-reset:focus-visible{outline:2px solid #8eaafa;outline-offset:2px}
 .ed-info-button{
   position:absolute;right:9px;top:8px;width:27px;height:27px;
   display:grid;place-items:center;padding:0;border:1px solid transparent;
@@ -264,18 +246,9 @@
 }
 .ed-metric-label{padding-right:17px;line-height:17px;min-height:17px}
 .ed-metric-featured .ed-metric-label{color:#466391}
-.ed-drill-link{
-  display:inline-flex;align-items:center;gap:6px;
-  max-width:100%;padding:2px 0;text-align:left;
-  background:transparent;border:0;color:#2f5dd1;
-  font-size:9px;line-height:13px;font-weight:640;
-  cursor:pointer;text-decoration:none;
-}
-.ed-drill-link:hover{text-decoration:underline;color:#214db8}
-.ed-drill-link:focus-visible,.ed-cell-drill:focus-visible{
+.ed-cell-drill:focus-visible{
   outline:2px solid #96b2f0;outline-offset:3px;
 }
-.ed-drill-link>span{font-size:12px;flex:0 0 auto}
 .ed-cell-drill{
   display:inline-flex;align-items:center;gap:5px;
   min-width:0;padding:1px 2px;border:0;background:transparent;
@@ -408,8 +381,7 @@
   .ed-metric-label{font-size:10.5px}
   .ed-filter-label{flex:1 1 calc(50% - 10px)}
   .ed-filter-label:first-child,.ed-filter-label:nth-child(3),.ed-filter-label:nth-child(5){min-width:0}
-  .ed-apply{margin-top:14px}
-  .ed-clear{margin-top:14px}
+  .ed-reset{margin-top:14px}
   .ed-evidence-dialog>header,.ed-definition-dialog>header{padding:16px}
   .ed-evidence-summary{padding:11px 16px}
   .ed-definition-body{padding:16px}

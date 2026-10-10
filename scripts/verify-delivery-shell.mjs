@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
 const page = read("app/delivery/page.tsx");
 const shell = read("components/delivery/engineering-delivery-shell.tsx");
+const overviewCards = read("components/overview/overview-kpi-strip.tsx");
 const css = read("app/delivery/delivery.css");
 const grid = read("app/metrics-page-grid.css");
 const server = read("lib/delivery/server.ts");
@@ -73,6 +74,25 @@ assert.match(stageSql,/jira_delivery_stage_evidence_parity_mismatch/);
 assert.match(stageSql,/v_last_run IS DISTINCT FROM v_published/);
 assert.match(shell,/drillKey:reviewCount!==null\?"stage:Code Review":undefined/);
 assert.match(page,/export const maxDuration = 45/);
+assert.match(overviewCards,/className="metric-card"/,
+  "Product Overview remains the reference for full-card drill triggers.");
+assert.match(shell,/function MetricTile\(/);
+assert.match(shell,/return <div className="ed-metric-wrap">/);
+assert.match(shell,/className=\{"metric-card ed-metric"/);
+assert.match(shell,/onClick=\{openCard\}/);
+assert.match(shell,/aria-haspopup="dialog"/);
+assert.match(shell,/<InfoIcon label=\{metric.label\} onClick=\{\(\)=>onInfo\(metric\)\}\/>/);
+assert.match(shell,/onChange=\{event=>applyFilter\("sprint",event.target.value\)\}/);
+for (const key of ["module","sub_module","severity","assignee"]) {
+  assert.ok(shell.includes('onChange={event=>applyFilter("'+key+'",event.target.value)}'),
+    "Filter must update immediately: " + key);
+}
+assert.match(shell,/router.replace\("\/delivery"\+/,
+  "Selecting a filter must navigate immediately.");
+assert.match(shell,/className="ed-reset">Reset<\/a>/);
+assert.doesNotMatch(shell,/ed-drill-link|ed-metric-bottom|className="ed-apply"|>Clear<\/a>|ed-reference-badge|ed-historical-warning|Published sync \{data.snapshot_id\}/);
+assert.doesNotMatch(css,/\.ed-apply\b|\.ed-clear\b|\.ed-reference-badge\b|\.ed-historical-warning\b|\.ed-drill-link\b/);
+assert.match(css,/\.ed-metric\.metric-card:focus-visible/);
 assert.match(sql,/REVOKE ALL ON FUNCTION public\.read_jira_delivery_dashboard_v1/);
 assert.match(evidence,/jira_delivery_evidence_snapshot_mismatch/);
 assert.match(evidence,/REVOKE ALL ON FUNCTION public\.read_jira_delivery_evidence_v1/);

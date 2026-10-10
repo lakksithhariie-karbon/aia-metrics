@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import type {
   DeliveryDashboard, DeliveryEvidence, DeliveryFilters,
@@ -17,7 +18,6 @@ type Metric = {
   value: string;
   unit?: string;
   caption: string;
-  evidence: string;
   definition: string;
   source: string;
   drillKey?: string;
@@ -74,29 +74,46 @@ function InfoIcon({label,onClick}:{label:string;onClick:()=>void}){
 function MetricTile({metric,onInfo,onDrill}:{
   metric:Metric;onInfo:(m:Metric)=>void;onDrill:(target:DrillTarget)=>void;
 }){
-  return <article className={"metric-card ed-metric"+(metric.highlighted?" ed-metric-featured":"")}>
-    <div className="ed-metric-label">{metric.label}</div>
+  const openCard=()=>{
+    if(metric.drillKey){
+      onDrill({key:metric.drillKey,label:metric.label,sprintId:metric.sprintId??null});
+    } else {
+      onInfo(metric);
+    }
+  };
+  // Match Product Overview: full-card native button, separate help control.
+  // Neither nested buttons nor extra CTA links are needed.
+  return <div className="ed-metric-wrap">
+    <button type="button"
+      className={"metric-card ed-metric"+(metric.highlighted?" ed-metric-featured":"")}
+      onClick={openCard}
+      aria-haspopup="dialog"
+      aria-label={metric.label+": "+metric.value+(metric.drillKey?". View matching Jira issues.":". View metric definition.")}>
+      <span className="ed-metric-label">{metric.label}</span>
+      <span className="ed-metric-readout">
+        <strong>{metric.value}</strong>
+        {metric.unit?<span>{metric.unit}</span>:null}
+      </span>
+      <span className={"ed-metric-caption"+(metric.attention?" ed-metric-caption-attention":"")}>{metric.caption}</span>
+    </button>
     <InfoIcon label={metric.label} onClick={()=>onInfo(metric)}/>
-    <div className="ed-metric-readout">
-      <strong>{metric.value}</strong>
-      {metric.unit?<span>{metric.unit}</span>:null}
-    </div>
-    <p className={"ed-metric-caption"+(metric.attention?" ed-metric-caption-attention":"")}>{metric.caption}</p>
-    <div className="ed-metric-bottom">
-      {metric.drillKey?(
-        <button type="button" className="ed-drill-link" onClick={()=>onDrill({
-          key:metric.drillKey!,label:metric.label,sprintId:metric.sprintId??null,
-        })}>{metric.evidence}<span aria-hidden="true">↗</span></button>
-      ):<span>{metric.evidence}</span>}
-    </div>
-  </article>;
+  </div>;
 }
 function FilterBar({data,filters}:{
   data:DeliveryDashboard;filters:DeliveryFilters;
 }){
-  return <form key={JSON.stringify(filters)} className="ed-filters" method="GET" action="/delivery" aria-label="Jira delivery filters">
+  const router=useRouter();
+  const applyFilter=(name:keyof DeliveryFilters,value:string)=>{
+    // Preserve all other active filters; URL is the source of truth.
+    const query=new URLSearchParams(window.location.search);
+    if(value) query.set(name,value);
+    else query.delete(name);
+    const search=query.toString();
+    router.replace("/delivery"+(search?"?"+search:""),{scroll:false});
+  };
+  return <div key={JSON.stringify(filters)} className="ed-filters" role="group" aria-label="Jira delivery filters">
     <label className="ed-filter-label"><span>Sprint</span>
-      <select name="sprint" defaultValue={filters.sprint??""}>
+      <select name="sprint" defaultValue={filters.sprint??""} onChange={event=>applyFilter("sprint",event.target.value)}>
         <option value="">All sprints</option>
         {data.options.sprints.map(s=><option key={s.sprint_id} value={s.sprint_id}>
           {shortSprint(s.sprint_name)} · {s.state}
@@ -104,35 +121,34 @@ function FilterBar({data,filters}:{
       </select>
     </label>
     <label className="ed-filter-label"><span>Module</span>
-      <select name="module" defaultValue={filters.module??""}>
+      <select name="module" defaultValue={filters.module??""} onChange={event=>applyFilter("module",event.target.value)}>
         <option value="">All modules</option>
         <option value="__untagged__">Untagged</option>
         {data.options.modules.map(x=><option key={x} value={x}>{x}</option>)}
       </select>
     </label>
     <label className="ed-filter-label"><span>Sub-module</span>
-      <select name="sub_module" defaultValue={filters.sub_module??""}>
+      <select name="sub_module" defaultValue={filters.sub_module??""} onChange={event=>applyFilter("sub_module",event.target.value)}>
         <option value="">All sub-modules</option>
         <option value="__untagged__">Untagged</option>
         {data.options.sub_modules.map(x=><option key={x} value={x}>{x}</option>)}
       </select>
     </label>
     <label className="ed-filter-label"><span>Severity</span>
-      <select name="severity" defaultValue={filters.severity??""}>
+      <select name="severity" defaultValue={filters.severity??""} onChange={event=>applyFilter("severity",event.target.value)}>
         <option value="">All severities</option>
         <option value="Untagged">Untagged</option>
         {data.options.severities.map(x=><option key={x} value={x}>{x}</option>)}
       </select>
     </label>
     <label className="ed-filter-label"><span>Assignee</span>
-      <select name="assignee" defaultValue={filters.assignee??""}>
+      <select name="assignee" defaultValue={filters.assignee??""} onChange={event=>applyFilter("assignee",event.target.value)}>
         <option value="">All assignees</option>
         {data.options.assignees.map(x=><option key={x} value={x}>{x}</option>)}
       </select>
     </label>
-    <button type="submit" className="ed-apply">Apply</button>
-    <a href="/delivery" className="ed-clear">Clear</a>
-  </form>;
+    <a href="/delivery" className="ed-reset">Reset</a>
+  </div>;
 }
 function WorkInFlight({data,open}:{
   data:DeliveryDashboard;open:(target:DrillTarget)=>void;
@@ -397,7 +413,6 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
     return <main className="rd-page ed-page"><div className="ed-error ed-global-error">
       No audited sprint is available for the current filter.</div></main>;
   }
-  const source="Jira SPEND · published sync "+data.snapshot_id;
   const cohort=(key:string)=>c[key]?.n??null;
   const metricAction=(key:string)=>c[key]?.n!=null?key:undefined;
   const throughput=data.core.sprint_throughput.find(x=>x.sprint_id===first.sprint_id);
@@ -410,28 +425,25 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
     row.sprint_id===first.sprint_id && row.stage==="Code Review");
   const reviewCount=reviewStage?.issues_in_stage??null;
   const reviewHours=reviewStage?.median_hours??null;
-  const isHistorical=first.state!=="active";
-  const pastPlannedEnd=first.state==="active" &&
-    Date.parse(first.end_date)<Date.parse(data.synced_at);
   const sprintMetrics:Metric[]=[
     {id:"commitment",label:(first.state==="active"?"Active":"Selected")+" sprint · "+first.sprint_name,
       value:pct(first.commitment_completion_pct),caption:num(first.committed_done)+" of "+num(first.committed)+" committed issues completed",
-      evidence:"View "+num(cohort("commit_s45"))+" delivered issues",
+
       definition:"Completed committed issues divided by all originally committed direct sprint issues. Commitment uses the sprint-start plus two-day cutoff; removed-before-cutoff items are excluded.",
       source:"jira.v_sprint_discipline · verified sprint cohort",highlighted:true,
       drillKey:metricAction("commit_s45"),sprintId:filters.sprint,attention:true},
     {id:"commitment_gap",label:"Committed work not delivered",
       value:num(gap),unit:"issues",caption:"Committed by cutoff · currently not Done",
-      evidence:"View "+num(gap)+" incomplete committed issues",
+
       definition:"Original committed direct sprint issues minus those currently Done. The issue population matches the sprint discipline removal cutoff.",
       source:"jira.v_sprint_discipline + filtered sprint issue evidence",drillKey:"commitment_gap",sprintId:filters.sprint},
     {id:"mid_sprint",label:"Mid-sprint additions",value:num(first.added_mid_sprint),unit:"issues",
-      caption:pct(first.mid_sprint_add_pct)+" of current sprint scope",evidence:"View "+num(cohort("adds_s45"))+" added issues",
+      caption:pct(first.mid_sprint_add_pct)+" of current sprint scope",
       definition:"Direct sprint issues created after the sprint-start plus two-day commitment cutoff, within the published sprint population.",
       source:"jira.v_sprint_discipline / adds_s45 published cohort",drillKey:metricAction("adds_s45"),sprintId:filters.sprint},
     {id:"throughput",label:"Throughput",value:num(throughput?.throughput),unit:"completed",
       caption:num(throughput?.first_done_after_start)+" first completed after sprint start",
-      evidence:"View "+num(cohort("throughput_s45"))+" completed issue records",
+
       definition:"Distinct Jira issues first completed during the sprint reporting window. This is a throughput measure, not the count currently Done in sprint scope.",
       source:"jira.v_sprint_throughput / throughput_s45 published cohort",
       drillKey:metricAction("throughput_s45"),sprintId:filters.sprint},
@@ -439,27 +451,27 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
   const fc=data.flow.flow_counts;
   const attention:Metric[]=[
     {id:"stale",label:"Stale work",value:num(fc.stale_all),unit:"issues",
-      caption:"Open issues not updated for 7+ days",evidence:"View "+num(cohort("stale_7d"))+" stale issues",
+      caption:"Open issues not updated for 7+ days",
       definition:"Open issues whose last Jira update is older than seven days. Deleted Jira issues are excluded.",
       source:"jira.v_issue_flow_state / stale_7d cohort",drillKey:metricAction("stale_7d")},
     {id:"stale_blocked",label:"Stale and blocked",value:num(fc.stale_blocked),unit:"issues",
       caption:"Blocked status and stale for 7+ days",
-      evidence:"View "+num(cohort("stale_blocked"))+" issues",
+
       definition:"Open issues with status Blocked/Onhold and no Jira update in the past seven days.",
       source:"jira.v_flow_counts / stale_blocked cohort",drillKey:metricAction("stale_blocked")},
     {id:"l1",label:"Open L1 bugs",value:num(cohort("open_l1_s45")),unit:"bugs",
       caption:"Open issues classified L1 · untagged retained elsewhere",
-      evidence:"View "+num(cohort("open_l1_s45"))+" L1 bugs",
+
       definition:"Not-Done Jira bug issues explicitly tagged with severity L1. Issues missing severity remain in total open bugs, not this segment.",
       source:"jira.v_metric_cohorts_active_v1 / open_l1_s45",drillKey:metricAction("open_l1_s45")},
     {id:"qa_queue",label:"QA queue",value:num(fc.open_total>=0?cohort("qa_queue"):null),unit:"open",
       caption:"Open issues awaiting UAT, testing or staging exit",
-      evidence:"View "+num(cohort("qa_queue"))+" issue records",
+
       definition:"Open issues currently in UAT, Testing or Staging, matching the audited QA queue population.",
       source:"jira.v_qa_queue / qa_queue cohort",drillKey:metricAction("qa_queue")},
     {id:"blocked",label:"Blocked",value:num(fc.blocked_all),unit:"issues",
       caption:pct(fc.open_total?fc.blocked_all/fc.open_total*100:null)+" of current open work",
-      evidence:"View "+num(cohort("blocked"))+" blocked issues",
+
       definition:"Open Jira issues currently in Blocked/Onhold. Denominator is all currently open, non-deleted issues.",
       source:"jira.v_flow_counts / blocked cohort",drillKey:metricAction("blocked"),attention:true},
   ];
@@ -468,60 +480,44 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
   const quality:Metric[]=[
     {id:"bugs",label:"Open bug backlog",value:num(bugAging.open_bugs),unit:"open bugs",
       caption:"Median age "+decimal(bugAging.median_age_days)+"d",
-      evidence:"View "+num(cohort("open_bugs"))+" open bugs",
+
       definition:"Jira issues of type Bug not in Done status, excluding Jira-deleted issues. Median age is measured from creation.",
       source:"jira.v_bug_health / open_bugs cohort",drillKey:metricAction("open_bugs"),highlighted:true},
     {id:"reopen",label:"Reopen rate",value:pct(qReopen?.value),caption:num(qReopen?.n)+" of "+num(qReopen?.denominator)+" closes · latest observed month",
-      evidence:"View "+num(cohort("reopen_latest"))+" reopened issues",
+
       definition:"Reopened issues relative to the published closed-issue denominator for the latest measured month. Historical status changes are used.",
       source:"jira.get_filtered_dashboard_quality_submodule / reopen_latest cohort",drillKey:metricAction("reopen_latest")},
     {id:"qa_reject",label:"QA rejection",value:pct(qReject?.value,2),caption:num(qReject?.n)+" rejected cycles of "+num(qReject?.denominator)+" decisions",
-      evidence:"View affected Jira issue records",
+
       definition:"Rejected UAT cycles divided by accepted plus rejected UAT decisions. The rate counts decisions; the issue drill lists distinct affected issue records.",
       source:"jira.v_qa_rejection_org / qa_rejection cohort",drillKey:metricAction("qa_rejection")},
     {id:"bug_resolution",label:"Bug resolution",value:decimal(qResolution?.value,2)+"d",
       caption:"Median created → resolved · "+num(qResolution?.n)+" bugs",
-      evidence:"View resolved bug evidence",
+
       definition:"Median elapsed days from Jira bug creation to its published resolved timestamp, using the filtered resolved-bug population.",
       source:"jira.v_resolution_medians / bug_resolution cohort",drillKey:metricAction("bug_resolution")},
     {id:"qa_turn",label:"QA turnaround",value:decimal(qTurn?.value!=null?qTurn.value/24:null,1)+"d",
       caption:"Median UAT stay · "+num(qTurn?.n)+" measured",
-      evidence:"View UAT decision evidence",
+
       definition:"Median hours from UAT entry to a recorded exit decision, displayed in days (hours divided by 24). Incomplete/open windows are excluded.",
       source:"jira.v_resolution_medians / qa_turnaround cohort",drillKey:metricAction("qa_turnaround")},
     {id:"code_review",label:"Code review",value:hrs(reviewHours),caption:"Median stage dwell · "+shortSprint(first.sprint_name),
-      evidence:"View "+num(reviewCount)+" measured issue durations",
+
       definition:"Median accumulated time in Code Review per issue, for the displayed sprint. Issues can revisit review; their recorded stage intervals are summed. The evidence median and population are independently reconciled before display.",
       source:"jira.v_sprint_stage_summary / exact Code Review stage-history evidence",
       drillKey:reviewCount!==null?"stage:Code Review":undefined,sprintId:first.sprint_id},
   ];
-  const sourceAgeMs=Date.now()-Date.parse(data.synced_at);
-  const isStale=sourceAgeMs>36*3600*1000 || sourceAgeMs<0;
   const apply=(m:Metric)=>setInfo(m);
   const drillTo=(d:DrillTarget)=>setDrill(d);
   return <>
     <main className="rd-page ed-page">
       <div className="rd-page-head ed-page-head">
         <div className="ed-page-copy">
-          <div className="ed-titleline"><h1>Engineering &amp; Delivery</h1>
-            <span className={"ed-reference-badge ed-live-badge"+(isStale?" ed-stale-badge":"")}>
-              {isStale?"Sync delayed":"Verified Jira"} · {freshness(data.synced_at)}
-            </span></div>
-          <p>Sprint delivery, attention, flow and quality · Published sync {data.snapshot_id}</p>
+          <h1>Engineering &amp; Delivery</h1>
+          <p>Sprint delivery, attention, flow and quality</p>
         </div>
         <FilterBar data={data} filters={filters}/>
       </div>
-      {isHistorical?<p className="ed-historical-warning" role="status">
-        Historical sprint selected. Completion reflects the <strong>current status</strong> of its issues,
-        not a reconstructed sprint-close snapshot.
-      </p>:null}
-      {pastPlannedEnd?<p className="ed-historical-warning" role="status">
-        Jira still marks this sprint active although its planned end date has passed.
-        Completion reflects the current issue state.
-      </p>:null}
-      {isStale?<p className="ed-historical-warning" role="status">
-        The latest verified Jira sync is older than 36 hours. Metrics remain labeled with their source cutoff.
-      </p>:null}
 
       <section className="metrics-grid-section ed-section" aria-label="Sprint delivery">
         <SectionHead title="Sprint delivery" question="Did we finish the work we planned?"/>
