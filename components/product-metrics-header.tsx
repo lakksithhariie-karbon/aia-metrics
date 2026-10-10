@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export type DashboardKey = "overview" | "retention" | "companies";
+export type DashboardKey = "overview" | "retention" | "companies" | "delivery";
 
 const DASHBOARDS = [
   {
@@ -53,6 +53,7 @@ export default function ProductMetricsHeader({
 }: {
   current: DashboardKey;
 }) {
+  const isDelivery = current === "delivery";
   const active = DASHBOARDS.find(item => item.key === current) ?? DASHBOARDS[0];
 
   return (
@@ -63,11 +64,15 @@ export default function ProductMetricsHeader({
           AI Accountant
         </div>
         <span className="brand-divider" />
-        <span className="product-name">Product Metrics</span>
+        <span className="product-name">{isDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
       </div>
 
-      <nav aria-label="Product metrics navigation" className="top-nav">
-        <DropdownMenu>
+      <nav aria-label={isDelivery ? "Engineering navigation" : "Product metrics navigation"} className="top-nav">
+        {isDelivery ? (
+          <span className="app-dashboard-trigger app-dashboard-current-section" aria-current="page">
+            Engineering &amp; Delivery
+          </span>
+        ) : <DropdownMenu>
           <DropdownMenuTrigger
             className="app-dashboard-trigger"
             aria-label={"Dashboards, currently " + active.name}
@@ -107,7 +112,7 @@ export default function ProductMetricsHeader({
               })}
             </DropdownMenuGroup>
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu>}
       </nav>
     </header>
   );
