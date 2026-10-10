@@ -1,3 +1,6 @@
+// All Overview drills must use the same audited independent-work and
+// test-excluded population as the KPI and Active Usage readers. The legacy v1
+// RPCs include test activity and cannot read historical snapshot generations.
 export type OverviewDrillSegment = "wau" | "mau" | "mau_only";
 export type OverviewCoreModule = "all" | "ap" | "ar" | "transactions";
 export type OverviewCoreCounts = { ap: number; ar: number; transactions: number };
@@ -121,7 +124,7 @@ export async function readOverviewCoreUsers(params: {
   signal?: AbortSignal;
 }): Promise<OverviewDrillUsersResponse | null> {
   return rpc<OverviewDrillUsersResponse>(
-    "read_overview_core_users_v1",
+    "read_overview_core_users_v3",
     {
       p_snapshot_id: params.snapshotId,
       p_segment: params.segment,
@@ -142,7 +145,7 @@ export async function readOverviewCoreCompany(params: {
   signal?: AbortSignal;
 }): Promise<OverviewDrillCompanyDetail | null> {
   return rpc<OverviewDrillCompanyDetail>(
-    "read_overview_core_company_v1",
+    "read_overview_core_company_v3",
     {
       p_snapshot_id: params.snapshotId,
       p_scope: params.scope,
@@ -179,7 +182,7 @@ export async function readOverviewActiveChartUsers(params: {
   signal?: AbortSignal;
 }): Promise<OverviewChartUsersResponse | null> {
   return rpc<OverviewChartUsersResponse>(
-    "read_overview_active_chart_users_v1",
+    "read_overview_active_chart_users_v3",
     {
       p_snapshot_id: params.snapshotId,
       p_kind: params.kind,
@@ -204,7 +207,7 @@ export async function readOverviewActiveChartCompany(params: {
   signal?: AbortSignal;
 }): Promise<OverviewDrillCompanyDetail | null> {
   return rpc<OverviewDrillCompanyDetail>(
-    "read_overview_active_chart_company_v1",
+    "read_overview_active_chart_company_v3",
     {
       p_snapshot_id: params.snapshotId,
       p_kind: params.kind,
