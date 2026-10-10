@@ -169,6 +169,12 @@ assert.match(overviewCards,/className="metric-card"/,
   "Product Overview remains the reference for full-card drill triggers.");
 assert.match(shell,/function MetricTile\(/);
 assert.match(shell,/return <div className="ed-metric-wrap">/);
+assert.match(modal,/value\?\.label\|\|target.label/,"Cohort title must follow published Jira definition.");
+assert.match(modal,/aria-hidden=\{!!detailKey\}/,"Primary modal must hide from accessibility tree while issue detail is open.");
+assert.match(issueModal,/querySelectorAll<HTMLElement>/,"Secondary investigation must contain keyboard focus.");
+assert.match(modalCss,/grid-template-columns:minmax\(0,1fr\) auto minmax\(0,1fr\)/,
+  "Product-style numbered pagination must stay centered.");
+assert.match(modalCss,/\.ed-investigation-foot \.rd-pagination\{/);
 assert.match(modal,/function EvidenceSkeleton\(/);
 assert.match(modal,/loading\?<EvidenceSkeleton review=\{target.key==="stage:Code Review"\}\/>/);
 assert.match(issueModal,/ed-issue-loading/);

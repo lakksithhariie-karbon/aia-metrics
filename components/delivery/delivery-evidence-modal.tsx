@@ -159,11 +159,12 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
     <div className="ed-overlay" role="presentation"
       onMouseDown={event=>{if(event.target===event.currentTarget&&!detailKey)onClose();}}>
       <section className="rd-modal rd-activation-modal ed-investigation-modal"
-        role="dialog" aria-modal={!detailKey} aria-labelledby="ed-cohort-title" aria-busy={loading}>
+        role="dialog" aria-modal={!detailKey} aria-hidden={!!detailKey}
+        aria-labelledby="ed-cohort-title" aria-busy={loading}>
         <header className="rd-modal-head ed-investigation-head">
           <div>
             <p>Cohort · Verified Jira snapshot {data.snapshot_id}</p>
-            <h2 id="ed-cohort-title">{target.label}</h2>
+            <h2 id="ed-cohort-title">{value?.label||target.label}</h2>
             <span>{number.format(cohortTotal??(search?value?.source_count:value?.total)??data.core.metric_cohorts[target.key]?.n??0)} issues in the selected population</span>
           </div>
           <button type="button" className="rd-close ed-investigation-close"

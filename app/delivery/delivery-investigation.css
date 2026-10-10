@@ -145,8 +145,9 @@
 }
 .ed-investigation-detail-link:hover{text-decoration:underline}
 .ed-investigation-foot.rd-modal-foot{
-  display:flex;align-items:center;justify-content:space-between;
-  gap:16px;flex:0 0 auto;min-height:59px;padding:10px 20px;
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  align-items:center;gap:16px;
+  flex:0 0 auto;min-height:59px;padding:10px 20px;
   border-top:1px solid #e7ecf3;
 }
 .ed-investigation-foot .rd-table-summary{
@@ -154,7 +155,9 @@
 }
 .ed-investigation-foot .rd-table-summary>span{font-size:9px;color:#718199}
 .ed-investigation-foot .rd-table-summary small{font-size:9px;color:#9aa5b6}
-.ed-investigation-foot .rd-pagination{flex-wrap:wrap;justify-content:flex-end}
+.ed-investigation-foot .rd-pagination{
+  grid-column:2;flex-wrap:wrap;justify-content:center;
+}
 .ed-export-error{color:#b45352!important}
 .ed-investigation-error,.ed-investigation-empty{
   min-height:200px;display:flex;flex-direction:column;
@@ -241,7 +244,11 @@
   .ed-investigation-toolbar.rd-drill-toolbar{padding:12px}
   .ed-investigation-caption{padding:4px 12px 10px}
   .ed-investigation-table-wrap.rd-table-wrap{margin:0 12px 3px}
-  .ed-investigation-foot.rd-modal-foot{padding:10px 12px;flex-wrap:wrap}
+  .ed-investigation-foot.rd-modal-foot{
+    display:flex;flex-direction:column;align-items:stretch;
+    padding:10px 12px;gap:9px;
+  }
+  .ed-investigation-foot .rd-pagination{justify-content:center}
   .ed-issue-levels{grid-template-columns:repeat(2,minmax(0,1fr))}
   .ed-issue-scroll{padding:14px}
 }

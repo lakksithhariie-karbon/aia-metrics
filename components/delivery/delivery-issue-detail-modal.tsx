@@ -80,7 +80,19 @@ export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,sna
   return <div className="ed-overlay ed-secondary-overlay" role="presentation"
     onMouseDown={event=>{if(event.target===event.currentTarget)onClose();}}>
     <section className="ed-issue-dialog" role="dialog" aria-modal="true"
-      aria-labelledby="ed-issue-detail-title" aria-busy={loading}>
+      aria-labelledby="ed-issue-detail-title" aria-busy={loading}
+      onKeyDown={event=>{
+        if(event.key!=="Tab")return;
+        const focusable=Array.from(event.currentTarget.querySelectorAll<HTMLElement>(
+          'button:not([disabled]),a[href]'
+        ));
+        if(!focusable.length)return;
+        if(event.shiftKey&&document.activeElement===focusable[0]){
+          event.preventDefault();focusable[focusable.length-1].focus();
+        }else if(!event.shiftKey&&document.activeElement===focusable[focusable.length-1]){
+          event.preventDefault();focusable[0].focus();
+        }
+      }}>
       <header className="ed-issue-head">
         <div>
           <button type="button" ref={backRef} className="ed-issue-back" onClick={onClose}>← Back to cohort</button>

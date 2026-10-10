@@ -211,7 +211,7 @@ export async function readDeliveryIssue(
       blocked:raw.status==="Blocked/Onhold",
     },
     service_levels:raw.service_levels??{
-      first_response_hours:null,eta_deviation_hours:null,reopen_count:0,
+      first_response_hours:null,eta_deviation_hours:null,reopen_count:null,
       qa_signoff_cycles:null,qa_rejected_cycles:null,
     },
     status_trail:raw.status_trail,

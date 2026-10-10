@@ -143,7 +143,7 @@ export type DeliveryIssueDetail = {
   service_levels: {
     first_response_hours: number | null;
     eta_deviation_hours: number | null;
-    reopen_count: number;
+    reopen_count: number | null;
     qa_signoff_cycles: number | null;
     qa_rejected_cycles: number | null;
   };
