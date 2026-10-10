@@ -33,13 +33,13 @@ function usageCount(value: unknown): { current: number; previous: number } | nul
   return current === null || previous === null ? null : { current, previous };
 }
 
-export async function readPublishedOverviewUsage(): Promise<OverviewUsageSnapshot | null> {
+export async function readPublishedOverviewUsage(snapshotId?:number): Promise<OverviewUsageSnapshot | null> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
 
   const response = await fetch(
-    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v2",
+    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v3",
     {
       method: "POST",
       cache: "no-store",
@@ -50,7 +50,7 @@ export async function readPublishedOverviewUsage(): Promise<OverviewUsageSnapsho
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
       },
-      body: "{}",
+      body: JSON.stringify(snapshotId == null ? {} : {p_snapshot_id:snapshotId}),
     },
   );
   if (!response.ok) {
