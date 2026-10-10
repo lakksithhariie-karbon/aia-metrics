@@ -7,6 +7,7 @@
 import {
   type CompanyUsageResponse,
   type ModuleBreakdownResponse,
+  type CompaniesMonthlyInsights,
   type MonthModuleKey,
   type SortDirection,
   type SortKey,
@@ -131,7 +132,7 @@ export async function companyBreakdown(
         ? ""
         : params.user_id;
 
-  const [grouped, identityPayload] = await Promise.all([
+  const [grouped, identityPayload, insightsPayload] = await Promise.all([
     rpc<
       Array<{
         event: string;
@@ -176,9 +177,20 @@ export async function companyBreakdown(
       },
       params.signal,
     ),
+    rpc<CompaniesMonthlyInsights | CompaniesMonthlyInsights[]>(
+      "read_companies_monthly_insights_v1",
+      {
+        p_company_id: params.company_id,
+        p_module: params.module,
+        p_user_key: userKey,
+        p_usage_month: params.month,
+      },
+      params.signal,
+    ),
   ]);
 
   const identity = scalar(identityPayload);
+  const insights = scalar(insightsPayload);
   const rows = grouped
     .map(row => ({
       event: text(row.event),
@@ -192,6 +204,31 @@ export async function companyBreakdown(
 
   const total = rows.reduce((sum, row) => sum + row.count, 0);
   const instrumented = rows.filter(row => row.items != null);
+  const expectedItemTotal = instrumented.length
+    ? instrumented.reduce((sum, row) => sum + (row.items ?? 0), 0)
+    : null;
+
+  // Never present newly grouped properties if any slice, category or daily
+  // count differs from the published v2 Companies usage population.
+  const sum = (list: Array<{ events: number }>) =>
+    list.reduce((acc, item) => acc + item.events, 0);
+  if (
+    insights.contract !== "companies_monthly_drill_insights_v1" ||
+    insights.company_id !== params.company_id ||
+    insights.module !== params.module ||
+    insights.month.slice(0, 7) !== params.month.slice(0, 7) ||
+    insights.user_key !== userKey ||
+    insights.total !== total ||
+    insights.item_total !== expectedItemTotal ||
+    sum(insights.categories) !== total ||
+    sum(insights.slices) !== total ||
+    sum(insights.days) !== total ||
+    sum(insights.sources) !== total ||
+    insights.active_users > insights.user_groups_total ||
+    insights.users.length > insights.user_groups_total
+  ) {
+    throw new Error("companies_insights_reconciliation_failed");
+  }
 
   const monthStartMs = Date.parse(`${params.month.slice(0, 7)}-01T00:00:00+05:30`);
   const integrationMs = identity.integration_at
@@ -225,9 +262,8 @@ export async function companyBreakdown(
     window_start: grouped[0]?.window_start ?? fallbackWindowStart,
     window_end: grouped[0]?.window_end ?? fallbackWindowEnd,
     total,
-    item_total: instrumented.length
-      ? instrumented.reduce((sum, row) => sum + (row.items ?? 0), 0)
-      : null,
+    item_total: expectedItemTotal,
     rows,
+    insights,
   };
 }
