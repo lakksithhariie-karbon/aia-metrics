@@ -38,6 +38,15 @@ assert.match(css,/grid-template-columns:repeat\(12,minmax\(0,1fr\)\)/);
 assert.match(css,/\.ed-sprint-kpis\.ed-kpi-grid>\.ed-metric-wrap\{grid-column:span 3\}/);
 assert.match(css,/\.ed-attention-kpis\.ed-kpi-grid\{grid-template-columns:repeat\(5,minmax\(0,1fr\)\)\}/);
 assert.match(css,/\.ed-quality-kpis\.ed-kpi-grid>\.ed-metric-wrap\{grid-column:span 4\}/);
+assert.doesNotMatch(shell,/highlighted(?:\?|:)|ed-metric-featured/,
+  "No Engineering KPI should ship in a permanently highlighted hover-like state.");
+assert.doesNotMatch(css,/ed-metric-featured|background:#f5f7ff/,
+  "Product KPI backgrounds must be neutral by default.");
+assert.match(css,/height:100%;min-height:136px;padding:15px 19px/,
+  "KPI cards should be compact and allow their grid row to grow for wrapped notes.");
+assert.match(css,/height:100%;min-height:134px;padding:15px 16px/,
+  "Mobile KPI cards should not retain the old 158px minimum.");
+
 for(const shared of [
   'className="po-kpi-divider"',
   'className="metric-label"',

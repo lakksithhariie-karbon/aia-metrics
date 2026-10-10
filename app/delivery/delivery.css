@@ -49,19 +49,17 @@
 .ed-attention-kpis.ed-kpi-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
 .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:auto}
 .ed-quality-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:span 4}
+/* Retain Product's typography and neutral cards, but let the content,
+   not the former CTA-footer, determine a compact Engineering KPI height.
+   Every card stretches to its grid row; multi-line captions stay visible. */
 .ed-kpi-grid.po-kpis .ed-metric.metric-card{
-  grid-column:auto;width:100%;min-width:0;cursor:pointer;
+  grid-column:auto;width:100%;min-width:0;
+  height:100%;min-height:136px;padding:15px 19px;
+  cursor:pointer;
 }
+.ed-kpi-grid.po-kpis .metric-value{margin:5px 0 2px}
 .ed-kpi-grid .ed-metric.metric-card:focus-visible{
   outline:2px solid #7899e4;outline-offset:2px;
-}
-/* Featured state mirrors Product's restrained indigo active KPI treatment. */
-.ed-kpi-grid .ed-metric-featured.metric-card{
-  border-color:#c4d2fa;border-left:3px solid #315de5;
-  background:#f5f7ff;
-}
-.ed-kpi-grid .ed-metric-featured.metric-card:hover{
-  border-color:#96b2f2;border-left-color:#244de0;background:#f1f5ff;
 }
 .ed-kpi-grid .metric-label{max-width:100%;padding-right:65px}
 .ed-kpi-grid .metric-note{max-width:100%;padding-right:30px}
@@ -202,7 +200,7 @@
   .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap:nth-child(n+4),
   .ed-attention-kpis.ed-kpi-grid>.ed-metric-wrap:last-child,
   .ed-quality-kpis.ed-kpi-grid>.ed-metric-wrap{grid-column:1/-1}
-  .ed-kpi-grid.po-kpis .ed-metric.metric-card{height:158px;min-height:158px}
+  .ed-kpi-grid.po-kpis .ed-metric.metric-card{height:100%;min-height:134px;padding:15px 16px}
   .ed-report-heading.report-header{padding:17px 15px 12px}
   .ed-table-shell{width:calc(100% - 30px);max-width:calc(100% - 30px);margin-left:15px;margin-right:15px}
   .ed-flow-summary{padding:0 15px 14px}

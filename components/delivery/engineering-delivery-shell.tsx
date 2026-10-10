@@ -23,7 +23,6 @@ type Metric = {
   source: string;
   drillKey?: string;
   sprintId?: number | null;
-  highlighted?: boolean;
   attention?: boolean;
 };
 type DrillTarget = { key: string; label: string; sprintId: number | null };
@@ -86,7 +85,7 @@ function MetricTile({metric,onInfo,onDrill}:{
   // Neither nested buttons nor extra CTA links are needed.
   return <div className="ed-metric-wrap">
     <button type="button"
-      className={"metric-card ed-metric"+(metric.highlighted?" ed-metric-featured":"")}
+      className="metric-card ed-metric"
       onClick={openCard}
       aria-haspopup="dialog"
       aria-label={metric.label+": "+metric.value+(metric.drillKey?". View matching Jira issues.":". View metric definition.")}>
@@ -432,7 +431,7 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       value:pct(first.commitment_completion_pct),caption:num(first.committed_done)+" of "+num(first.committed)+" committed issues completed",
 
       definition:"Completed committed issues divided by all originally committed direct sprint issues. Commitment uses the sprint-start plus two-day cutoff; removed-before-cutoff items are excluded.",
-      source:"jira.v_sprint_discipline · verified sprint cohort",highlighted:true,
+      source:"jira.v_sprint_discipline · verified sprint cohort",
       drillKey:metricAction("commit_s45"),sprintId:filters.sprint,attention:true},
     {id:"commitment_gap",label:"Committed work not delivered",period:shortSprint(first.sprint_name),
       value:num(gap),unit:"issues",caption:"Committed by cutoff · currently not Done",
@@ -484,7 +483,7 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       caption:"Median age "+decimal(bugAging.median_age_days)+"d",
 
       definition:"Jira issues of type Bug not in Done status, excluding Jira-deleted issues. Median age is measured from creation.",
-      source:"jira.v_bug_health / open_bugs cohort",drillKey:metricAction("open_bugs"),highlighted:true},
+      source:"jira.v_bug_health / open_bugs cohort",drillKey:metricAction("open_bugs")},
     {id:"reopen",label:"Reopen rate",period:"Latest month",value:pct(qReopen?.value),caption:num(qReopen?.n)+" of "+num(qReopen?.denominator)+" closes · latest observed month",
 
       definition:"Reopened issues relative to the published closed-issue denominator for the latest measured month. Historical status changes are used.",
