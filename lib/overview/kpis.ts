@@ -33,7 +33,7 @@ function usageCount(value: unknown): { current: number; previous: number } | nul
   return current === null || previous === null ? null : { current, previous };
 }
 
-export async function readPublishedOverviewUsage(snapshotId?:number): Promise<OverviewUsageSnapshot | null> {
+export async function readPublishedOverviewUsage(requestedSnapshotId?:number): Promise<OverviewUsageSnapshot | null> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return null;
@@ -50,7 +50,7 @@ export async function readPublishedOverviewUsage(snapshotId?:number): Promise<Ov
         "Content-Type": "application/json",
         "Cache-Control": "no-cache",
       },
-      body: JSON.stringify(snapshotId == null ? {} : {p_snapshot_id:snapshotId}),
+      body: JSON.stringify(requestedSnapshotId == null ? {} : {p_snapshot_id:requestedSnapshotId}),
     },
   );
   if (!response.ok) {
