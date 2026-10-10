@@ -19,7 +19,7 @@ export const metricsInfoDefinitions: Record<MetricsInfoKey, MetricsInfoDefinitio
     title: "Activation rate",
     logic: "Activated companies ÷ companies with a recorded successful integration in the selected dates. Activation requires a qualifying sync, core work on a later IST day, then another qualifying sync.",
     example: "4 activated / 20 integrated = 20%.",
-    note: "May–July tracking gaps can exclude integrations. Marked test companies are included.",
+    note: "May–July integration telemetry is incomplete; marked test companies are excluded.",
   },
   ttv: {
     title: "Average time to value",
@@ -30,25 +30,25 @@ export const metricsInfoDefinitions: Record<MetricsInfoKey, MetricsInfoDefinitio
     title: "Monthly churn",
     logic: "Activated companies with no recorded core activity in the last completed IST month ÷ companies activated before that month.",
     example: "5 inactive / 20 eligible = 25% churn.",
-    note: "Retention's core activity includes Accounting Sync. Marked test companies are included.",
+    note: "Accounting Sync and marked test companies are excluded. May–July tracking is incomplete.",
   },
   retention_cohorts: {
     title: "Retention",
     logic: "For each activation-week or activation-month cohort, count companies active in each subsequent completed period ÷ the original cohort size.",
     example: "4 active out of 10 in Week 1 = 40%.",
-    note: "Accounting Sync can qualify as activity here. May–July telemetry is incomplete.",
+    note: "Accounting Sync and marked test companies are excluded. May–July telemetry is incomplete.",
   },
   churn_trend: {
     title: "Month-on-Month Churn Trend",
     logic: "For each completed IST month: churned companies ÷ companies activated before the month. Entered = newly churned; Reactivated = churned last month but active now.",
     example: "Rate rises from 20% to 26%: +6 percentage points.",
-    note: "Core activity here includes Accounting Sync.",
+    note: "Only non-failed independent core work counts. Syncs and marked test companies do not.",
   },
   companies_monthly: {
     title: "Monthly company module usage",
-    logic: "Companies are grouped by first recorded integration month. Each cell counts mapped AP, AR, Transactions or GST event occurrences after integration, in that IST calendar month.",
+    logic: "Group real client companies by recorded first integration month. Count non-failed, qualifying AP, AR, Transactions or GST actions after integration in each IST month.",
     example: "3 bill-upload events + 2 transaction edits = AP 3, Transactions 2.",
-    note: "Counts include failed attempts, downloads and deletions, not just completed work. Invoice bulk edits currently map to AP. Test companies can appear.",
+    note: "Failed attempts, downloads, sync-only actions and marked test companies are excluded. Successful invoice bulk edits map to AR.",
   },
 };
 
