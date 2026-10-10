@@ -3,7 +3,6 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 
 function readRepo(path) {
   return readFileSync(new URL("../" + path, import.meta.url), "utf8");
@@ -33,7 +32,7 @@ for (const name of [
 ]) {
   assert.doesNotMatch(
     adapter,
-    new RegExp('"'+name+'_v[12]"'),
+    new RegExp('"' + name + '_v[12]"'),
     "Legacy, test-inclusive or nonhistorical Overview drill was reintroduced",
   );
 }
@@ -41,13 +40,13 @@ for (const name of [
 const kpis = readRepo("lib/overview/kpis.ts");
 assert.match(
   kpis,
-  /\\/rpc\\/read_overview_independent_core_kpis_v4/,
+  /\/rpc\/read_overview_independent_core_kpis_v4/,
   "Overview KPI reader must use audited snapshot-keyed v4",
 );
 const usageModal = readRepo("components/overview/overview-usage-modals.tsx");
 assert.match(
   usageModal,
-  /result\\.segment_total\\s*!==\\s*expectedTotal\\(snapshot,\\s*segment\\)/,
+  /result\.segment_total\s*!==\s*expectedTotal\(snapshot,\s*segment\)/,
   "Do not remove KPI/drill total consistency validation",
 );
 
