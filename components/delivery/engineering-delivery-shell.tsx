@@ -314,7 +314,7 @@ function EvidenceDialog({target,data,filters,onClose}:{target:DrillTarget;data:D
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
         key:target.key,snapshot_id:data.snapshot_id,offset,
-        filters:{...filters,sprint:target.sprintId},
+        filters:{...filters,sprint:target.sprintId??filters.sprint},
       }),
     }).then(async response=>{
       if(!response.ok)throw new Error("evidence_request_failed");
@@ -463,7 +463,7 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       evidence:"View "+num(cohort("open_bugs"))+" open bugs",
       definition:"Jira issues of type Bug not in Done status, excluding Jira-deleted issues. Median age is measured from creation.",
       source:"jira.v_bug_health / open_bugs cohort",drillKey:metricAction("open_bugs"),highlighted:true},
-    {id:"reopen",label:"Reopen rate",value:pct(qReopen?.value),caption:num(qReopen?.n)+" of "+num(qReopen?.denominator)+" closes · latest completed month",
+    {id:"reopen",label:"Reopen rate",value:pct(qReopen?.value),caption:num(qReopen?.n)+" of "+num(qReopen?.denominator)+" closes · latest observed month",
       evidence:"View "+num(cohort("reopen_latest"))+" reopened issues",
       definition:"Reopened issues relative to the published closed-issue denominator for the latest measured month. Historical status changes are used.",
       source:"jira.get_filtered_dashboard_quality_submodule / reopen_latest cohort",drillKey:metricAction("reopen_latest")},
