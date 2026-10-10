@@ -34,16 +34,13 @@ export default async function OverviewPage({
   };
   // Never fall back to current production values for an unsupported date.
   const selected=resolved.unsupported ? undefined : resolved.snapshotId??undefined;
-  const [kpiResult,chartResult,adoptionResult,workflowResult,frictionResult] = await Promise.allSettled(
-    resolved.unsupported ? [Promise.resolve(null),Promise.resolve(null),
-      Promise.resolve(null),Promise.resolve(null),Promise.resolve(null)] : [
-      readPublishedOverviewUsage(selected),
-      readPublishedOverviewActiveCharts(selected),
-      readPublishedAdoptionSummary(selected),
-      readPublishedWorkflowSummary(selected),
-      readPublishedFrictionSummary(selected),
-    ]
-  );
+  const [kpiResult,chartResult,adoptionResult,workflowResult,frictionResult] = await Promise.allSettled([
+    resolved.unsupported ? Promise.resolve(null as OverviewUsageSnapshot|null) : readPublishedOverviewUsage(selected),
+    resolved.unsupported ? Promise.resolve(null as OverviewActiveCharts|null) : readPublishedOverviewActiveCharts(selected),
+    resolved.unsupported ? Promise.resolve(null as AdoptionSummary|null) : readPublishedAdoptionSummary(selected),
+    resolved.unsupported ? Promise.resolve(null as WorkflowSummary|null) : readPublishedWorkflowSummary(selected),
+    resolved.unsupported ? Promise.resolve(null as FrictionSummary|null) : readPublishedFrictionSummary(selected),
+  ]);
   if(kpiResult.status==="rejected") {
     console.error("overview-live-kpis",
       kpiResult.reason instanceof Error ? kpiResult.reason.message.slice(0,120) : "unknown_error");
