@@ -56,7 +56,8 @@ export async function POST(request: Request) {
       // Sanitize spreadsheet formulas, even though source text is Jira-controlled.
       const safe=(value:unknown):string=>{
         const s=String(value??"");
-        const guarded=/^[=+\\-@]/.test(s.trimStart().charAt(0))?"'"+s:s;
+        const first=s.trimStart().charAt(0);
+        const guarded=first!==""&&"=+-@".includes(first)?"\'"+s:s;
         return '"'+guarded.replace(/"/g,'""')+'"';
       };
       const cols=["issue_key","summary","issue_type","created_at","resolved_at","severity",
