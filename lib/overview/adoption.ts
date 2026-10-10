@@ -113,7 +113,7 @@ async function rpc<T>(name:string,body:Record<string,unknown>,signal?:AbortSigna
   return await response.json() as T|null;
 }
 export async function readPublishedAdoptionSummary():Promise<AdoptionSummary|null>{
-  const raw=asObject(await rpc<unknown>("read_overview_adoption_journey_v1",{}));
+  const raw=asObject(await rpc<unknown>("read_overview_adoption_journey_v2",{}));
   if(!raw||raw.contract!=="mature_independent_adoption_v1")return null;
   const snapshotId=count(raw.snapshot_id),total=count(raw.total);
   const outcomes=checkCounts(raw.outcomes,OUTCOME_KEYS);
@@ -142,7 +142,7 @@ export async function readAdoptionCompanyList(params:{
  snapshotId:number;segment:AdoptionSegment;query:string;
  page:number;pageSize:number;signal?:AbortSignal;
 }):Promise<AdoptionList|null>{
- return rpc<AdoptionList>("read_overview_adoption_companies_v1",{
+ return rpc<AdoptionList>("read_overview_adoption_companies_v2",{
   p_snapshot_id:params.snapshotId,p_segment:params.segment,p_query:params.query,
   p_page:params.page,p_page_size:params.pageSize,
  },params.signal);
@@ -150,7 +150,7 @@ export async function readAdoptionCompanyList(params:{
 export async function readAdoptionCompanyDetail(params:{
  snapshotId:number;companyId:string;signal?:AbortSignal;
 }):Promise<AdoptionCompanyDetail|null>{
- return rpc<AdoptionCompanyDetail>("read_overview_adoption_company_v1",{
+ return rpc<AdoptionCompanyDetail>("read_overview_adoption_company_v2",{
   p_snapshot_id:params.snapshotId,p_company_id:params.companyId,
  },params.signal);
 }
