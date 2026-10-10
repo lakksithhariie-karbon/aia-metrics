@@ -11,11 +11,15 @@ export const maxDuration = 60;
 const HEADERS = { "Cache-Control": "private, no-store" };
 function reply(data:object,status=200){return NextResponse.json(data,{status,headers:HEADERS});}
 function validMonthEnd(value:unknown):value is string{
- if(typeof value!=="string"||!/^2026-(?:0[3-9]|1[0-2])-[0-3]\d$/.test(value))
+ if(typeof value!=="string"||!/^\d{4}-(0[1-9]|1[0-2])-([0-2]\d|3[01])$/.test(value)||
+    value<"2026-03-31")
   return false;
  const [year,month,day]=value.split("-").map(Number);
  const last=new Date(Date.UTC(year,month,0)).getUTCDate();
- return day===last;
+ const currentMonth=new Intl.DateTimeFormat("sv-SE",{
+  timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",
+ }).format(new Date());
+ return day===last && value.slice(0,7)<currentMonth;
 }
 function istDate(value:string){
  return new Intl.DateTimeFormat("sv-SE",{
