@@ -20,13 +20,11 @@ export const overviewDefinitions: Record<OverviewInfoKey, Definition> = {
     title: "Weekly core-active users",
     rule: "Distinct users with non-failed independent AP, AR or Transactions work in the last rolling 7 days. Accounting Sync does not count.",
     example: "One user uploads five bills: 1 active user.",
-    note: "Marked test companies are currently included.",
   },
   mau: {
     title: "Monthly core-active users",
-    rule: "Distinct users with independent core work in the last rolling 30 days. Same action rules as WAU.",
+    rule: "Distinct users with non-failed independent core work in the last rolling 30 days. Same exclusions as WAU.",
     example: "One user works on 10 days: 1 active user.",
-    note: "Marked test companies are currently included.",
   },
   stickiness: {
     title: "Stickiness",
@@ -35,7 +33,7 @@ export const overviewDefinitions: Record<OverviewInfoKey, Definition> = {
   },
   weekly: {
     title: "Weekly core-active users",
-    rule: "Distinct independent core-active users in each of 12 completed IST weeks. First observed = first recorded active week; Returning = recorded earlier.",
+    rule: "Distinct independent core-active users per completed IST week (up to 12). First observed = first recorded active week; Returning = recorded earlier.",
     example: "50 active, 8 first observed: 42 returning.",
     note: "First observed is not signup. May–July 2026 tracking was incomplete.",
   },
@@ -69,14 +67,13 @@ export const overviewDefinitions: Record<OverviewInfoKey, Definition> = {
   },
   feature: {
     title: "Module usage over time",
-    rule: "Distinct users performing non-failed independent AP, AR or Transactions work per completed IST week, across 12 weeks.",
+    rule: "Distinct users with non-failed independent AP, AR or Transactions work per completed IST week (up to 12).",
     example: "Bills and Transactions work in one week counts once in each line.",
   },
   mix: {
     title: "Module combinations",
     rule: "Each independently core-active company belongs to one exact AP/AR/Transactions combination per rolling 28 days. Compare shares with the previous 28 days.",
     example: "3 of 10 companies use AP + Transactions only = 30%.",
-    note: "Marked test companies are currently included.",
   },
   friction: {
     title: "Issues that need attention",
