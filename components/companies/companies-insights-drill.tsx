@@ -288,7 +288,7 @@ export default function CompaniesInsightsDrill({
             {!visibleCategories.length ? <p className="cid-empty">No events match this category.</p> : null}
             {visibleCategories.map((item, index) => (
               <details className="cid-group" key={item.key + ":" + category}
-                defaultOpen={category !== "all" || index === 0}>
+                open={category !== "all" || index === 0}>
                 <summary>
                   <span><strong>{categoryLabel(item.key, module)}</strong><small>{nf.format(item.events)} recorded events · {itemText(item.instrumented ? item.items : null)}</small></span>
                   <span className="cid-group-count">{nf.format(item.events)} <span aria-hidden="true">⌄</span></span>
