@@ -1420,9 +1420,6 @@ export default function RetentionDashboard({
           <div>
             <h1>Retention & Churn</h1>
             <p>Activation quality, time to value, and completed-month churn</p>
-            <p className="metrics-recording-caveat">
-              May–July 2026 integration tracking was incomplete. Historical rates reflect recorded companies.
-            </p>
           </div>
           <DatePicker range={range} onApply={setRange} />
         </div>
