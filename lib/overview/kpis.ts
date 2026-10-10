@@ -39,7 +39,7 @@ export async function readPublishedOverviewUsage(): Promise<OverviewUsageSnapsho
   if (!url || !key) return null;
 
   const response = await fetch(
-    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v1",
+    url + "/rest/v1/rpc/read_overview_independent_core_kpis_v2",
     {
       method: "POST",
       cache: "no-store",
