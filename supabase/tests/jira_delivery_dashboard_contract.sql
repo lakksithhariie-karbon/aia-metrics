@@ -1,9 +1,11 @@
 -- Read-only Engineering & Delivery dashboard release guards.
 -- Does not modify source data. Snapshot ID and all numbers are derived live.
+-- Materialize the dashboard call once: inlining can re-execute this expensive
+-- stable RPC for each field projection and create a false timeout.
 
-WITH dashboard AS (
+WITH dashboard AS MATERIALIZED (
  SELECT public.read_jira_delivery_dashboard_v1() AS j
-), canonical AS (
+), canonical AS MATERIALIZED (
  SELECT
    (j->'core'->'metric_cohorts'->'wip_open'->>'n')::int AS core_wip,
    (j->'flow'->'flow_counts'->>'open_total')::int AS flow_wip,
