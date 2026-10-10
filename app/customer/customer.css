@@ -310,10 +310,6 @@
 .cid-evidence td small{display:block;margin-top:3px;font-size:9px;color:#8c9aab;max-width:280px}
 .cid-evidence .cid-num{text-align:right}
 .cid-evidence-total td{background:#f7f9fc;font-weight:750;color:#374d70}
-.cid-raw{max-width:340px;overflow-wrap:anywhere}
-.cid-technical{margin-top:15px;padding:11px 12px;border:1px solid #e1e7ef;border-radius:7px}
-.cid-technical summary{cursor:pointer;font-weight:620;color:#5f7497}
-.cid-technical .cid-muted{margin:8px 0}
 .cid-footer{flex:0 0 auto;border-top:1px solid #e3e9f0;padding:10px 22px!important;gap:8px}
 .cid-footer>button{color:#3159d0;background:none;border:0;font-size:10px;cursor:pointer;font-weight:650}
 .cid-footer>button:hover{text-decoration:underline}

@@ -34,4 +34,6 @@ for (const requirement of [
 ]) {
   assert.ok(sql.includes(requirement), "Missing audited SQL requirement: " + requirement);
 }
+assert.doesNotMatch(ui, /Technical details and original grouped subtypes|cid-technical/,
+  "The approved Companies drill must not show raw technical details.");
 console.log("Companies drill contract verified: modules, tabs, source filters and total parity guards.");

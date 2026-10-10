@@ -350,22 +350,6 @@ export default function CompaniesInsightsDrill({
                 </tbody>
               </table>
             </div>
-            <details className="cid-technical">
-              <summary>Technical details and original grouped subtypes</summary>
-              <p className="cid-muted">Raw identifiers appear here only. They do not contribute extra events.</p>
-              <div className="cid-table-scroll">
-                <table className="cid-evidence">
-                  <thead><tr><th>Original event</th><th>Raw subtype</th><th>Status</th><th className="cid-num">Events</th></tr></thead>
-                  <tbody>{breakdown.rows.slice(0, 50).map((row, index) => (
-                    <tr key={index}><td>{row.event}</td>
-                      <td className="cid-raw">{row.subtype ?? "—"}</td>
-                      <td>{row.status ?? "—"}</td>
-                      <td className="cid-num">{nf.format(row.count)}</td></tr>
-                  ))}</tbody>
-                </table>
-              </div>
-              {breakdown.rows.length > 50 ? <p className="cid-muted">Showing 50 of {breakdown.rows.length} original grouped entries.</p> : null}
-            </details>
             <p className="cid-hint">A dash under Items means the underlying event did not report item volume. It does not mean zero. Historical data reflects recorded telemetry.</p>
           </section>
         )}
