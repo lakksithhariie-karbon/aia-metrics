@@ -53,6 +53,8 @@ assert.match(shell,/data\.awsMonths\.slice\(\)\.reverse\(\)/,
   "Every displayed AWS chart point must be selectable.");
 assert.match(charts,/Service breakdowns in this preview begin in May 2026/);
 assert.match(charts,/Account breakdowns in this preview begin in May 2026/);
+assert.doesNotMatch(charts,/InfraBillMonth|InfraDocType|InfraBillDay/,
+  "No detached Bill Processing types should remain in Infra charts.");
 assert.match(shell,/Only the month total is captured before May 2026/);
 assert.equal(data.mode,"audited-preview-snapshot");
 assert.equal(data.awsMonths.length,10);

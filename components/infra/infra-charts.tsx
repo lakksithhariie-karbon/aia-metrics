@@ -2,8 +2,7 @@
 
 import { useId, useState } from "react";
 import type {
-  InfraAwsMonth, InfraAwsService, InfraAwsAccount, InfraBillMonth,
-  InfraDocType, InfraBillDay,
+  InfraAwsMonth, InfraAwsService, InfraAwsAccount,
 } from "../../lib/infra/types";
 
 const money = (n:number) => new Intl.NumberFormat("en-US",{
