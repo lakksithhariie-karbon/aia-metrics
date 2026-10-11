@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactMenuSelect from "../ui/compact-menu-select";
 import DeliveryEvidenceModal from "./delivery-evidence-modal";
+import { prefetchEvidencePage } from "./evidence-prefetch";
 import DeliveryBacklogModal from "./delivery-backlog-modal";
 import type { ReactNode } from "react";
 import type {
@@ -280,8 +281,9 @@ function IssueTypes({data,open}:{data:DeliveryDashboard;open:(target:DrillTarget
     </div>
   </Surface>;
 }
-function FlowHealth({data,sprint,open}:{
-  data:DeliveryDashboard;sprint:SprintRow;open:(target:DrillTarget)=>void;
+function FlowHealth({data,sprint,open,prefetch}:{
+  data:DeliveryDashboard;sprint:SprintRow;
+  open:(target:DrillTarget)=>void;prefetch:(target:DrillTarget)=>void;
 }){
   const stages=data.flow.stage_summary.filter(s=>s.sprint_id===sprint.sprint_id)
     .sort((a,b)=>(b.median_hours??0)-(a.median_hours??0));
@@ -289,10 +291,12 @@ function FlowHealth({data,sprint,open}:{
     data.core.cycle_time_by_sprint.find(x=>x.sprint_id===sprint.sprint_id) :
     data.core.cycle_time_org;
   const maxHours=Math.max(1,...stages.map(s=>s.median_hours??0));
-  const inspect=(s:FlowStageRow)=>open({
+  const stageTarget=(s:FlowStageRow):DrillTarget=>({
     key:"stage:"+s.stage,label:shortSprint(sprint.sprint_name)+" · "+(s.stage==="Uat"?"UAT":s.stage),
-    sprintId:sprint.sprint_id,detailNote:hrs(s.median_hours)+" median dwell",
+    sprintId:sprint.sprint_id,expectedCount:s.issues_in_stage,
+    detailNote:hrs(s.median_hours)+" median dwell",
   });
+  const inspect=(s:FlowStageRow)=>open(stageTarget(s));
   return <Surface title="Flow health" subtitle={"Median stage dwell · "+shortSprint(sprint.sprint_name)}>
     <div className="ed-flow-summary"><div>
       <span>Engineering cycle time</span>
@@ -306,6 +310,8 @@ function FlowHealth({data,sprint,open}:{
           tabIndex={0} title={"Open matching Jira stage history for "+s.stage}
           aria-label={s.stage+", "+num(s.issues_in_stage)+" measured issues, "+hrs(s.median_hours)+" median. Inspect Jira issues."}
           onClick={()=>inspect(s)}
+          onMouseEnter={()=>prefetch(stageTarget(s))}
+          onFocus={()=>prefetch(stageTarget(s))}
           onKeyDown={event=>{
             if(event.key==="Enter"||event.key===" "){event.preventDefault();inspect(s);}
           }}>
@@ -419,11 +425,18 @@ function BacklogTrend({data,onOpen}:{data:DeliveryDashboard;onOpen:(week:string)
     </div>
   </Surface>;
 }
-function BugAging({data,open}:{data:DeliveryDashboard;open:(target:DrillTarget)=>void}){
+function BugAging({data,open,prefetch}:{
+  data:DeliveryDashboard;open:(target:DrillTarget)=>void;
+  prefetch:(target:DrillTarget)=>void;
+}){
   const [active,setActive]=useState<number|null>(null);
   const rows=data.flow.bug_health.age_histogram;
   const total=data.flow.bug_health.open_bugs;
   const median=data.flow.bug_health.median_age_days;
+  const bucketTarget=(row:typeof rows[number]):DrillTarget=>({
+    key:"aging:"+row.bucket,label:"Open bugs · "+row.bucket,
+    sprintId:null,expectedCount:row.count,detailNote:pct(row.pct)+" of open bugs",
+  });
   return <Surface title="Open bug aging"
     subtitle="Time since Jira issue creation · current non-deleted bug backlog" half>
     <div className="ed-aging">
@@ -434,11 +447,10 @@ function BugAging({data,open}:{data:DeliveryDashboard;open:(target:DrillTarget)=
       <div className="ed-aging-chart" role="group" aria-label="Open bug aging by time since creation">
         {rows.map((row,index)=><button type="button" className="ed-aging-row" key={row.bucket}
           aria-label={row.bucket+": "+num(row.count)+" open bugs, "+pct(row.pct)+" of the total. Inspect Jira issues."}
-          onClick={()=>open({key:"aging:"+row.bucket,label:"Open bugs · "+row.bucket,
-            sprintId:null,expectedCount:row.count,detailNote:pct(row.pct)+" of open bugs"})}
-          onMouseEnter={()=>setActive(index)}
+          onClick={()=>open(bucketTarget(row))}
+          onMouseEnter={()=>{setActive(index);prefetch(bucketTarget(row));}}
           onMouseLeave={()=>setActive(null)}
-          onFocus={()=>setActive(index)}
+          onFocus={()=>{setActive(index);prefetch(bucketTarget(row));}}
           onBlur={()=>setActive(null)}>
           <span className="ed-aging-label">{row.bucket}</span>
           <span className="ed-aging-track" aria-hidden="true">
@@ -600,7 +612,18 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       drillKey:reviewCount!==null?"stage:Code Review":undefined,sprintId:first.sprint_id},
   ];
   const apply=(m:Metric)=>setInfo(m);
-  const drillTo=(d:DrillTarget)=>setDrill(d);
+  const prefetchDrill=(target:DrillTarget)=>{
+    prefetchEvidencePage({
+      key:target.key,snapshot_id:data.snapshot_id,
+      filters:{...filters,sprint:target.sprintId??filters.sprint},
+      expected_count:target.expectedCount,offset:0,search:"",
+      sort:"created_at",direction:"desc",
+    });
+  };
+  const drillTo=(d:DrillTarget)=>{
+    prefetchDrill(d);
+    setDrill(d);
+  };
   return <>
     <main className="rd-page ed-page">
       <div className="rd-page-head ed-page-head">
@@ -631,14 +654,14 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       </section>
       <section className="metrics-grid-section ed-section" aria-label="Flow">
         <SectionHead title="Flow" question="Where does work wait, and how long does it take?"/>
-        <div className="ed-collection"><FlowHealth data={data} sprint={first} open={drillTo}/></div>
+        <div className="ed-collection"><FlowHealth data={data} sprint={first} open={drillTo} prefetch={prefetchDrill}/></div>
       </section>
       <section className="metrics-grid-section ed-section" aria-label="Quality">
         <SectionHead title="Quality" question="Defect stock, rejection, recovery and cycle time"/>
         <div className="ed-quality-kpis ed-kpi-grid po-kpis">{quality.map(m=>
           <MetricTile key={m.id} metric={m} onInfo={apply} onDrill={drillTo}/>)}</div>
         <div className="ed-collection">
-          <BugAging data={data} open={drillTo}/><BacklogTrend data={data} onOpen={setBacklogWeek}/>
+          <BugAging data={data} open={drillTo} prefetch={prefetchDrill}/><BacklogTrend data={data} onOpen={setBacklogWeek}/>
         </div>
       </section>
       <footer className="ed-preview-note">

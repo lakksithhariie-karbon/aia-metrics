@@ -5,6 +5,7 @@ import type {
   DeliveryDashboard,DeliveryEvidence,DeliveryEvidenceItem,DeliveryEvidenceSort,DeliveryFilters,
 } from "../../lib/delivery/types";
 import DeliveryIssueDetailModal from "./delivery-issue-detail-modal";
+import { loadEvidencePage } from "./evidence-prefetch";
 
 type DrillTarget={key:string;label:string;sprintId:number|null;expectedCount?:number;detailNote?:string};
 type DrillSort=DeliveryEvidenceSort|"age_days";
@@ -103,16 +104,11 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
   useEffect(()=>{
     const controller=new AbortController();
     setLoading(true);setError(false);setValue(null);
-    fetch("/api/delivery/evidence",{
-      method:"POST",cache:"no-store",signal:controller.signal,
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({key:target.key,snapshot_id:data.snapshot_id,
-        offset:(page-1)*size,search,sort,direction,filters:scopedFilters,
-        expected_count:target.expectedCount}),
-    }).then(async response=>{
-      if(!response.ok)throw new Error("evidence_request_failed");
-      return await response.json() as DeliveryEvidence;
-    }).then(result=>{
+    loadEvidencePage({
+      key:target.key,snapshot_id:data.snapshot_id,
+      offset:(page-1)*size,search,sort,direction,filters:scopedFilters,
+      expected_count:target.expectedCount,
+    },controller.signal).then(result=>{
       if(result.contract!=="jira_delivery_evidence_v2"||result.key!==target.key||
         result.snapshot_id!==data.snapshot_id||result.sort!==(sort==="age_days"?"age_days":({issue_key:"key",created_at:"created",resolved_at:"resolved",severity:"severity",status:"status",priority:"priority",assignee:"assignee"} as Record<DeliveryEvidenceSort,string>)[sort])||
         result.direction!==direction||result.query!==search||

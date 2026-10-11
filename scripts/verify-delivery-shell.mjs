@@ -106,6 +106,7 @@ assert.match(modal,/snapshot_id:data.snapshot_id/,
 const issueModal = read("components/delivery/delivery-issue-detail-modal.tsx");
 const modalCss = read("app/delivery/delivery-investigation.css");
 const loadingPage = read("app/delivery/loading.tsx");
+const evidencePrefetch = read("components/delivery/evidence-prefetch.ts");
 const issueRoute = read("app/api/delivery/issue/route.ts");
 const backlogModal = read("components/delivery/delivery-backlog-modal.tsx");
 const stageExpansion = read("supabase/migrations/20261011_jira_delivery_all_stage_evidence_v1.sql");
@@ -208,6 +209,23 @@ assert.match(shell,/function FlowHealth\(\{data,sprint,open\}/,
   "Flow stages must use the native chart drill callback.");
 assert.match(shell,/key:"stage:"\+s.stage/,
   "Each Flow stage must target its own exact stage-history cohort.");
+assert.match(shell,/expectedCount:s.issues_in_stage/,
+  "Stages must reconcile displayed issue counts with drilled evidence.");
+assert.match(server,/jira_delivery_stage_evidence_expected_count_mismatch/,
+  "Stage evidence must fail closed on a published count mismatch.");
+assert.match(api,/const stage=key.startsWith\("stage:"\)/);
+assert.match(api,/Server-Timing/);
+assert.match(shell,/onMouseEnter=\{\(\)=>prefetch\(stageTarget\(s\)\)\}/);
+assert.match(shell,/onFocus=\{\(\)=>prefetch\(stageTarget\(s\)\)\}/);
+assert.match(shell,/prefetch\(bucketTarget\(row\)\)/);
+assert.match(modal,/loadEvidencePage\(\{/);
+assert.match(evidencePrefetch,/FIRST_PAGE_TTL_MS=20_000/);
+assert.match(evidencePrefetch,/MAX_ENTRIES=24/);
+assert.match(evidencePrefetch,/request.snapshot_id,request.key/);
+assert.match(evidencePrefetch,/const f=request.filters/);
+assert.match(evidencePrefetch,/cache:"no-store"/);
+assert.match(evidencePrefetch,/result.snapshot_id!==request.snapshot_id/);
+assert.match(evidencePrefetch,/firstPage.delete\(key\)/);
 assert.match(shell,/onKeyDown=\{event=>\{[\s\S]*?inspect\(s\)/,
   "Flow stage rows must be keyboard operable.");
 assert.match(shell,/key:"aging:"\+row.bucket/,

@@ -36,15 +36,18 @@ export async function POST(request: Request) {
   const exportAll=body.export===true;
   const limit=exportAll?7000:10;
   const aging=key.startsWith("aging:");
+  const stage=key.startsWith("stage:");
   const expectedCount=body.expected_count;
   if(query.length>120 ||
      (!VALID_EVIDENCE_SORTS.some(x=>x===sort)&&!(aging&&sort==="age_days")) ||
-     (aging&&(typeof expectedCount!=="number"||
-       !Number.isSafeInteger(expectedCount)||expectedCount<0))||
+     ((aging||(stage&&expectedCount!==undefined))&&
+       (typeof expectedCount!=="number"||
+        !Number.isSafeInteger(expectedCount)||expectedCount<0))||
      (direction!=="asc"&&direction!=="desc") || (exportAll&&offset!==0)) {
     return bad(400,"invalid_evidence_filter");
   }
   try {
+    const readStarted=performance.now();
     const input = filterInput as Record<string,unknown>;
     const value = (v:unknown) => typeof v === "string" ? v : undefined;
     const raw = {
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
     const result=await readDeliveryEvidence(filters,key,snapshot,offset,limit,query,
       sort as DrillEvidenceSort,
       direction as "asc"|"desc",exportAll,
-      aging?expectedCount as number:undefined);
+      aging||stage?expectedCount as number|undefined:undefined);
     if(exportAll){
       // Sanitize spreadsheet formulas, even though source text is Jira-controlled.
       const safe=(value:unknown):string=>{
@@ -79,7 +82,10 @@ export async function POST(request: Request) {
           "Content-Disposition":"attachment; filename="+JSON.stringify("jira-"+snapshot+"-"+key.replace(/[^a-z0-9-]/gi,"_")+".csv")},
       });
     }
-    return NextResponse.json(result,{headers:{"Cache-Control":"no-store"}});
+    return NextResponse.json(result,{headers:{
+      "Cache-Control":"no-store",
+      "Server-Timing":"jira-evidence;dur="+(performance.now()-readStarted).toFixed(1),
+    }});
   } catch(error) {
     console.error("delivery_evidence_unavailable",
       error instanceof Error ? error.message.slice(0,120) : "unknown");

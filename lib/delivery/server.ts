@@ -223,6 +223,10 @@ export async function readDeliveryEvidence(
        !/^SPEND-[0-9]+$/.test(row.issue_key))){
     throw Error("jira_delivery_evidence_contract_invalid");
   }
+  if(key.startsWith("stage:")&&expectedCount!==undefined&&
+     result.source_count!==expectedCount){
+    throw Error("jira_delivery_stage_evidence_expected_count_mismatch");
+  }
   if(exportAll&&result.rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
   return result;
 }
