@@ -109,6 +109,7 @@ const loadingPage = read("app/delivery/loading.tsx");
 const issueRoute = read("app/api/delivery/issue/route.ts");
 const backlogModal = read("components/delivery/delivery-backlog-modal.tsx");
 const stageExpansion = read("supabase/migrations/20261011_jira_delivery_all_stage_evidence_v1.sql");
+const stageFastpath = read("supabase/migrations/20261011_jira_delivery_stage_evidence_fastpath_v1.sql");
 assert.match(page,/delivery-investigation.css/);
 assert.match(shell,/<DeliveryEvidenceModal target=\{drill\}/);
 assert.match(modal,/className="rd-modal rd-activation-modal ed-investigation-modal"/);
@@ -236,7 +237,15 @@ assert.match(backlogModal,/row.open_eod-row.net_movement/,
   "Weekly opening stock must derive from verified closing and net movement.");
 assert.doesNotMatch(backlogModal,/readDeliveryEvidence|fetch\(|SPEND-[0-9]/,
   "No present-day issue rows may be passed off as historic backlog.");
-assert.match(stageExpansion,/STAGED, NOT APPLIED/);
+assert.match(stageExpansion,/Applied to the connected Jira reporting database/);
+assert.match(stageFastpath,/WITH members AS MATERIALIZED/);
+assert.match(stageFastpath,/JOIN members m ON m.issue_id=h.issue_id/);
+assert.match(stageFastpath,/ORDER BY h.changed_at,h.itemordinal/);
+assert.match(stageFastpath,/jira.v_sprint_stage_summary s/);
+assert.match(stageFastpath,/jira.get_filtered_dashboard_flow_submodule/);
+assert.match(stageFastpath,/jira_delivery_stage_evidence_parity_mismatch/);
+assert.match(stageFastpath,/v_last_run IS DISTINCT FROM v_published/);
+assert.match(stageFastpath,/TO service_role;/);
 assert.match(stageExpansion,/AND ss.stage=v_requested_stage/);
 assert.match(stageExpansion,/jira_delivery_stage_evidence_parity_mismatch/);
 assert.match(stageExpansion,/v_last_run IS DISTINCT FROM v_published/,

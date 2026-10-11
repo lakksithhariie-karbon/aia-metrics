@@ -1,5 +1,5 @@
--- STAGED, NOT APPLIED: extend the existing service-role-only Jira evidence
--- function to all published Flow stages, after explicit schema approval.
+ -- Applied to the connected Jira reporting database on 11 October 2026.
+-- This is the initial all-stage reader; the follow-up fastpath only optimizes queries.
 -- Each returned stage's count and median must reconcile to published Flow
 -- summary before returning rows; no current-status proxy is permitted.
 -- GitHub-owned Jira investigation reader v2. Non-destructive extension of
