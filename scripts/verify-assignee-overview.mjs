@@ -80,3 +80,9 @@ assert.match(customerCss,/\.companies-monthly-table tbody td:nth-child\(3\)/);
 assert.match(customerCss,/\.companies-monthly-table tfoot td/);
 assert.doesNotMatch(matrix,/fixture|mockKpis|Math.random/);
 console.log("Assignee Overview verified: exact Companies table primitives, live audited Jira cohorts, scoped drill evidence, and frozen header/identity layout.");
+
+assert.match(css,/\.assignee-page\.companies-page\{/);
+assert.match(css,/height:calc\(100dvh - 56px\)/);
+assert.match(css,/padding:0 30px!important/);
+assert.match(css,/\.assignee-page\.companies-page \.companies-records/);
+assert.match(table,/assignee-scope-value/);
