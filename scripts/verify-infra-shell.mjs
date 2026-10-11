@@ -1,87 +1,113 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { infraPreviewData as data } from "../lib/infra/preview-snapshot.ts";
+import { completedPreset, resolveRange, validMonthRange, shiftMonth } from "../lib/infra/date-range.ts";
+const read = path => readFileSync(new URL("../" + path, import.meta.url), "utf8");
+const drawer = read("components/main-navigation-drawer.tsx");
+const header = read("components/product-metrics-header.tsx");
+const page = read("app/infra/page.tsx");
+const loading = read("app/infra/loading.tsx");
+const shell = read("components/infra/infra-overview.tsx");
+const charts = read("components/infra/infra-charts.tsx");
+const css = read("app/infra/infra.css");
+const types = read("lib/infra/types.ts");
+const source = read("lib/infra/preview-snapshot.ts");
+const layout = read("app/metrics-page-grid.css");
+const baseCss = read("app/delivery/delivery.css");
+const picker = read("components/ui/product-month-range-picker.tsx");
+const productCss = read("app/prototype.css");
 
-const read=path=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
-const drawer=read("components/main-navigation-drawer.tsx");
-const header=read("components/product-metrics-header.tsx");
-const page=read("app/infra/page.tsx");
-const loading=read("app/infra/loading.tsx");
-const shell=read("components/infra/infra-overview.tsx");
-const charts=read("components/infra/infra-charts.tsx");
-const css=read("app/infra/infra.css");
-const types=read("lib/infra/types.ts");
-const source=read("lib/infra/preview-snapshot.ts");
-const layout=read("app/metrics-page-grid.css");
-const baseCss=read("app/delivery/delivery.css");
-const info=read("components/ui/metrics-info.tsx");
+assert.match(drawer, /href="\/infra"/);
+assert.match(header, /current === "infra"/);
+assert.match(page, /<ProductMetricsHeader current="infra"/);
+assert.match(page, /<InfraOverview data=\{infraPreviewData\}/);
+for (const token of ["retention/retention.css", "metrics-page-grid.css", "delivery/delivery.css"]) assert.ok(page.includes(token));
+for (const token of [
+  "rd-page ed-page infra-page", "rd-page-head ed-page-head", "metrics-grid-section ed-section",
+  "metrics-section-kicker ed-section-heading", "ed-sprint-kpis ed-kpi-grid po-kpis", "metric-card ed-metric",
+  "report-card ed-report", "report-header ed-report-heading", "ed-collection", "MetricsInfoButton", "MetricsInfoDialog",
+  "ed-evidence-dialog", "ed-evidence-table-shell", "ed-report-table", "ProductMonthRangePicker",
+]) assert.ok(shell.includes(token), "Missing shared Product primitive: " + token);
+assert.match(layout, /--metrics-page-max:1560px/);
+assert.match(layout, /--metrics-page-gap:24px/);
+assert.match(baseCss, /\.ed-kpi-grid\.po-kpis/);
+for (const token of [".metric-card{", ".report-card{", ".rd-page{", ".app-header{", ".app-dashboard-trigger{", ".date-popover{"]) {
+  assert.ok(!css.includes(token), "Infra must not redefine a shared component: " + token);
+}
 
-assert.match(drawer,/href="\/infra"/);
-assert.match(drawer,/onInfra \? " is-current" : ""/);
-assert.match(header,/current === "infra"/);
-assert.match(header,/Infrastructure Overview/);
-assert.match(header,/href:"\/infra"/);
-assert.match(page,/<ProductMetricsHeader current="infra"/);
-assert.match(page,/<InfraOverview data=\{infraPreviewData\}/);
-for(const token of ["retention/retention.css","metrics-page-grid.css","delivery/delivery.css"]) {
-  assert.ok(page.includes(token),"Missing shared styles: "+token);
+// The Product month-picker structure inherits the unchanged global design.
+for (const token of ["date-popover", "date-popover-heading", "date-picker-body", "date-presets", "date-preset", "month-picker", "range-fields", "range-field", "month-grid", "month-button", "date-scope-note", "date-picker-footer", "date-trigger"]) {
+  assert.ok(picker.includes(token) && productCss.includes("." + token), "Picker must reuse Product styles: " + token);
 }
-for(const token of [
-  "rd-page ed-page infra-page","rd-page-head ed-page-head",
-  "metrics-grid-section ed-section","metrics-section-kicker ed-section-heading",
-  "ed-sprint-kpis ed-kpi-grid po-kpis","metric-card ed-metric",
-  "report-card ed-report","report-header ed-report-heading","ed-collection",
-  "CompactMenuSelect","MetricsInfoButton","MetricsInfoDialog",
-  "ed-evidence-dialog","ed-evidence-table-shell","ed-report-table",
-])assert.ok(shell.includes(token),"Infra must reuse approved Product primitive: "+token);
-assert.match(layout,/--metrics-page-max:1560px/);
-assert.match(layout,/--metrics-page-gap:24px/);
-assert.match(baseCss,/\.ed-kpi-grid\.po-kpis/);
-for(const token of [
-  ".metric-card{",".report-card{",".rd-page{",".ed-kpi-grid.po-kpis{",
-  ".app-header{",".app-dashboard-trigger{",
-])assert.ok(!css.includes(token),"Infra must not redefine shared styles: "+token);
-for(const component of ["AwsSpendTrend","ServiceDrivers","AccountDistribution"]) {
-  assert.ok(charts.includes("function "+component),"Missing AWS chart: "+component);
-}
-assert.match(shell,/onSelect=\{setMonth\}/);
-assert.match(shell,/onSelect=\{key=>openDrill/);
-assert.match(info,/sectionLabel = "Product Metrics"/);
-assert.match(shell,/Frozen audited AWS cost preview · Not live/,
-  "Captured Infra data must never be presented as live.");
-assert.match(shell,/data\.awsMonths\.slice\(\)\.reverse\(\)/,
-  "Every displayed AWS chart point must be selectable.");
-assert.match(charts,/Service breakdowns in this preview begin in May 2026/);
-assert.match(charts,/Account breakdowns in this preview begin in May 2026/);
-assert.doesNotMatch(charts,/InfraBillMonth|InfraDocType|InfraBillDay/,
-  "No detached Bill Processing types should remain in Infra charts.");
-assert.match(shell,/Only the month total is captured before May 2026/);
-assert.equal(data.mode,"audited-preview-snapshot");
-assert.equal(data.awsMonths.length,10);
-assert.equal(data.awsServices.length,66);
-assert.equal(data.awsAccounts.length,54);
-assert.equal(data.awsMonths.find(x=>x.month==="2026-09")?.usd,4016.56);
-assert.equal(data.awsMonths.find(x=>x.month==="2026-10")?.estimated,true);
-assert.equal(data.awsRun.rows,11966);
-assert.ok(Math.abs(data.awsRun.referenceUsd-data.awsRun.storedDetailUsd)<.05);
-assert.ok(data.awsAccounts.every(x=>/^Account \d{2}$/.test(x.label)));
-assert.ok(data.awsServices.every(x=>Number.isFinite(x.usd)));
-for(const month of data.awsMonths){
-  assert.ok(month.usd>=0&&month.accounts>0&&month.services>0);
-  const top=data.awsServices.filter(x=>x.month===month.month);
-  assert.ok(top.reduce((sum,row)=>sum+row.usd,0)<=month.usd+.06);
-}
-// Bill Processing Economics is a separate module. No related code or data
-// may ship in the Infra source, even hidden inside its preview snapshot.
-const forbidden=/bill.?processing|bill.?cost|billMonths|billAsOf|billDays|docTypes|BillVolumeEconomics|CostComposition|DocumentTypes|DailyBillVolume|enrichment_cost|extraction_cost/i;
-for(const [name,content] of Object.entries({page,loading,shell,charts,css,types,source})){
-  assert.doesNotMatch(content,forbidden,
-    "Removed Bill Processing module leaked into Infra: "+name);
-}
-assert.ok(!("billMonths" in data)&&!("billAsOf" in data)&&
-  !("docTypes" in data)&&!("billDays" in data),
-  "Infra preview payload must carry AWS-only data.");
-assert.doesNotMatch(source,/AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|SUPABASE_SERVICE_ROLE_KEY|company_uuid|prediction_uuid|\b[0-9]{12}\b/);
-assert.doesNotMatch(page,/read_jira_delivery|readPublishedOverview|fetch\(|postgres\(|service_role/);
+assert.match(picker, /id="date-range-popover"/);
+assert.match(picker, /Point-in-time reporting/);
+assert.match(picker, />Cancel<\/button>/);
+assert.match(picker, />Apply<\/button>/);
+assert.match(picker, /onApply\(draft\)/);
+assert.match(picker, /setDraft\(value\)/, "Reopening resets uncommitted draft selections.");
+assert.match(picker, /Presets use completed calendar months/);
+assert.doesNotMatch(shell, /CompactMenuSelect|infra-preview-caption|Frozen audited|Source integrity|Data confidence|kind:\s*"health"/);
+assert.doesNotMatch(loading, /Source integrity|Data confidence|Frozen audited/);
+assert.match(shell, /previewDisclosure/);
+assert.match(shell, /This preview is not a live billing feed/);
+assert.match(shell, /note: previewDisclosure/, "Keep captured-data disclosure in metric information.");
 
-console.log("Infra AWS-only preview verified: shared Product design, monthly source parity, interactive AWS drills; Bill Processing removed.");
+const asOf = "2026-10-08T04:17:14Z";
+assert.deepEqual(completedPreset("3", asOf), { preset: "3", start: "2026-07", end: "2026-09" });
+assert.deepEqual(completedPreset("6", asOf), { preset: "6", start: "2026-04", end: "2026-09" });
+assert.deepEqual(completedPreset("12", asOf), { preset: "12", start: "2025-10", end: "2026-09" });
+assert.equal(shiftMonth("2026-01", -1), "2025-12");
+const months = data.awsMonths.map(m => m.month);
+assert.deepEqual(resolveRange(completedPreset("lifetime", asOf), months), { start: "2026-01", end: "2026-10" });
+assert.deepEqual(resolveRange({ preset: "custom", start: "2026-07", end: "2026-08" }, months), { start: "2026-07", end: "2026-08" });
+assert.deepEqual(resolveRange({ preset: "custom", start: "2026-09", end: "2026-09" }, months), { start: "2026-09", end: "2026-09" });
+assert.equal(validMonthRange({ preset: "custom", start: "2026-09", end: "2026-08" }, "2026-10"), false);
+assert.equal(validMonthRange({ preset: "custom", start: "2026-09", end: "2026-11" }, "2026-10"), false);
+assert.equal(validMonthRange({ preset: "custom", start: null, end: "2026-09" }, "2026-10"), false);
+assert.match(shell, /const month = scope.end/);
+assert.match(shell, /m.month >= scope.start && m.month <= scope.end/);
+assert.match(shell, /setDrill\(null\); setInfo\(null\); setRange\(next\)/);
+assert.match(shell, /month: selectedMonth/, "Chart drill must stay tied to the selected point, not a different global month.");
+
+// Both breakdowns use one component, matching row count and dimensions.
+assert.equal((charts.match(/<CostBreakdownTable /g) || []).length, 2);
+assert.match(charts, /slice\(0, 7\)/);
+assert.match(charts, /total - shown.reduce/);
+assert.match(charts, /amount \/ total \* 100/);
+assert.match(charts, /<tfoot>/);
+assert.match(css, /tbody tr\{height:44px\}/);
+assert.match(charts, /ResizeObserver/);
+assert.match(charts, /getBoundingClientRect\(\).width/);
+assert.match(css, /height:270px;max-height:none/);
+assert.doesNotMatch(charts + shell, /↗/);
+for (const component of ["AwsSpendTrend", "ServiceDrivers", "AccountDistribution"]) assert.ok(charts.includes("function " + component));
+assert.match(charts, /Service breakdowns in this preview begin in May 2026/);
+assert.match(charts, /Account breakdowns in this preview begin in May 2026/);
+assert.match(shell, /Only the month total is captured before May 2026/);
+
+// Existing AWS capture and arithmetic are unchanged.
+assert.equal(data.mode, "audited-preview-snapshot");
+assert.equal(data.awsMonths.length, 10);
+assert.equal(data.awsServices.length, 66);
+assert.equal(data.awsAccounts.length, 54);
+assert.equal(data.awsMonths.find(x => x.month === "2026-09")?.usd, 4016.56);
+assert.equal(data.awsMonths.find(x => x.month === "2026-10")?.estimated, true);
+assert.equal(data.awsRun.rows, 11966);
+assert.ok(Math.abs(data.awsRun.referenceUsd - data.awsRun.storedDetailUsd) < .05);
+assert.ok(data.awsAccounts.every(x => /^Account \d{2}$/.test(x.label)));
+for (const month of data.awsMonths) {
+  assert.ok(month.usd >= 0 && month.accounts > 0 && month.services > 0);
+  for (const rows of [data.awsServices, data.awsAccounts]) {
+    const shown = rows.filter(x => x.month === month.month).sort((a, b) => b.usd - a.usd).slice(0, 7);
+    const sum = shown.reduce((s, r) => s + r.usd, 0);
+    assert.ok(sum <= month.usd + .06);
+    assert.ok(Math.abs(sum + Math.max(0, month.usd - sum) - month.usd) < .06);
+  }
+}
+const forbidden = /bill.?processing|bill.?cost|billMonths|billAsOf|billDays|docTypes|BillVolumeEconomics|CostComposition|DocumentTypes|DailyBillVolume|enrichment_cost|extraction_cost/i;
+for (const [name, content] of Object.entries({ page, loading, shell, charts, css, types, source })) assert.doesNotMatch(content, forbidden, "Separate module leaked into Infra: " + name);
+assert.doesNotMatch(charts, /InfraBillMonth|InfraDocType|InfraBillDay/);
+assert.ok(!("billMonths" in data) && !("billAsOf" in data) && !("docTypes" in data) && !("billDays" in data));
+assert.doesNotMatch(source, /AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|SUPABASE_SERVICE_ROLE_KEY|company_uuid|prediction_uuid|\b[0-9]{12}\b/);
+assert.doesNotMatch(page, /read_jira_delivery|readPublishedOverview|fetch\(|postgres\(|service_role/);
+console.log("Infra validated: Product date picker, completed-month presets, exact scope, shared breakdown table, responsive chart width, removed source panel and banner, unchanged AWS data.");
