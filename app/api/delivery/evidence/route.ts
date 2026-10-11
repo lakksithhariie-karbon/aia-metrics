@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { VALID_EVIDENCE_SORTS, parseDeliveryFilters, readDeliveryEvidence } from "../../../../lib/delivery/server";
+import type { DrillEvidenceSort } from "../../../../lib/delivery/server";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 35;
@@ -34,7 +35,12 @@ export async function POST(request: Request) {
   const direction=typeof body.direction==="string"?body.direction:"desc";
   const exportAll=body.export===true;
   const limit=exportAll?7000:10;
-  if(query.length>120 || !VALID_EVIDENCE_SORTS.some(x=>x===sort) ||
+  const aging=key.startsWith("aging:");
+  const expectedCount=body.expected_count;
+  if(query.length>120 ||
+     (!VALID_EVIDENCE_SORTS.some(x=>x===sort)&&!(aging&&sort==="age_days")) ||
+     (aging&&(typeof expectedCount!=="number"||
+       !Number.isSafeInteger(expectedCount)||expectedCount<0))||
      (direction!=="asc"&&direction!=="desc") || (exportAll&&offset!==0)) {
     return bad(400,"invalid_evidence_filter");
   }
@@ -50,8 +56,9 @@ export async function POST(request: Request) {
     };
     const filters = parseDeliveryFilters(raw);
     const result=await readDeliveryEvidence(filters,key,snapshot,offset,limit,query,
-      sort as import("../../../../lib/delivery/types").DeliveryEvidenceSort,
-      direction as "asc"|"desc",exportAll);
+      sort as DrillEvidenceSort,
+      direction as "asc"|"desc",exportAll,
+      aging?expectedCount as number:undefined);
     if(exportAll){
       // Sanitize spreadsheet formulas, even though source text is Jira-controlled.
       const safe=(value:unknown):string=>{
@@ -61,7 +68,7 @@ export async function POST(request: Request) {
         return '"'+guarded.replace(/"/g,'""')+'"';
       };
       const cols=["issue_key","summary","issue_type","created_at","resolved_at","severity",
-        "status","priority","module","sub_module","assignee","stage_hours"] as const;
+        "status","priority","module","sub_module","assignee","stage_hours","age_days"] as const;
       const lines=[cols.map(safe).join(","),...result.rows.map(row=>
         cols.map(col=>safe(row[col])).join(","))];
       return new Response("\uFEFF"+lines.join("\r\n"),{

@@ -6,7 +6,8 @@ import type {
 } from "../../lib/delivery/types";
 import DeliveryIssueDetailModal from "./delivery-issue-detail-modal";
 
-type DrillTarget={key:string;label:string;sprintId:number|null};
+type DrillTarget={key:string;label:string;sprintId:number|null;expectedCount?:number;detailNote?:string};
+type DrillSort=DeliveryEvidenceSort|"age_days";
 const number=new Intl.NumberFormat("en-IN");
 const show=(v:string|null|undefined)=>v?.trim()||"—";
 const date=(value:string|null|undefined)=>{
@@ -26,6 +27,12 @@ const sorts:Array<{key:DeliveryEvidenceSort;label:string}>=[
   {key:"status",label:"Status"},{key:"priority",label:"Priority"},
   {key:"assignee",label:"Assignee"},
 ];
+const agingSorts:Array<{key:DrillSort;label:string}>=[
+  {key:"issue_key",label:"Key"},{key:"created_at",label:"Created"},
+  {key:"age_days",label:"Age"},{key:"severity",label:"Sev"},
+  {key:"status",label:"Status"},{key:"priority",label:"Priority"},
+  {key:"assignee",label:"Assignee"},
+];
 const pages=(page:number,total:number):Array<number|"…">=>{
   if(total<=7)return Array.from({length:total},(_,i)=>i+1);
   const keep=new Set([1,total,page-1,page,page+1].filter(n=>n>=1&&n<=total));
@@ -38,9 +45,9 @@ const pages=(page:number,total:number):Array<number|"…">=>{
   return result;
 };
 
-function EvidenceSkeleton({review}:{review:boolean}){
+function EvidenceSkeleton({review,aging}:{review:boolean;aging:boolean}){
   return <table className="rd-activation-table ed-investigation-table ed-investigation-skeleton" aria-hidden="true">
-    <thead><tr><th/><th>Key</th><th>Created</th><th>Resolved</th><th>Sev</th>
+    <thead><tr><th/><th>Key</th><th>Created</th><th>{aging?"Age":"Resolved"}</th><th>Sev</th>
       <th>Status</th><th>Priority</th><th>Assignee</th>
       {review?<th>Review dwell</th>:null}</tr></thead>
     <tbody>{Array.from({length:10},(_,i)=><tr key={i}>
@@ -57,7 +64,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
 }){
   const [query,setQuery]=useState("");
   const [search,setSearch]=useState("");
-  const [sort,setSort]=useState<DeliveryEvidenceSort>("created_at");
+  const [sort,setSort]=useState<DrillSort>("created_at");
   const [direction,setDirection]=useState<"asc"|"desc">("desc");
   const [page,setPage]=useState(1);
   const [expanded,setExpanded]=useState<string|null>(null);
@@ -72,6 +79,9 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
   const closeRef=useRef<HTMLButtonElement>(null);
   const triggerRef=useRef<HTMLButtonElement|null>(null);
   const size=10;
+  const aging=target.key.startsWith("aging:");
+  const stage=target.key.startsWith("stage:");
+  const visibleSorts=aging?agingSorts:sorts;
   const scopedFilters=useMemo(()=>({...filters,sprint:target.sprintId??filters.sprint}),
     [filters.sprint,filters.module,filters.sub_module,filters.severity,filters.assignee,target.sprintId]);
   const pageCount=Math.max(1,Math.ceil((value?.total??0)/size));
@@ -97,13 +107,14 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
       method:"POST",cache:"no-store",signal:controller.signal,
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({key:target.key,snapshot_id:data.snapshot_id,
-        offset:(page-1)*size,search,sort,direction,filters:scopedFilters}),
+        offset:(page-1)*size,search,sort,direction,filters:scopedFilters,
+        expected_count:target.expectedCount}),
     }).then(async response=>{
       if(!response.ok)throw new Error("evidence_request_failed");
       return await response.json() as DeliveryEvidence;
     }).then(result=>{
       if(result.contract!=="jira_delivery_evidence_v2"||result.key!==target.key||
-        result.snapshot_id!==data.snapshot_id||result.sort!==({issue_key:"key",created_at:"created",resolved_at:"resolved",severity:"severity",status:"status",priority:"priority",assignee:"assignee"} as Record<DeliveryEvidenceSort,string>)[sort]||
+        result.snapshot_id!==data.snapshot_id||result.sort!==(sort==="age_days"?"age_days":({issue_key:"key",created_at:"created",resolved_at:"resolved",severity:"severity",status:"status",priority:"priority",assignee:"assignee"} as Record<DeliveryEvidenceSort,string>)[sort])||
         result.direction!==direction||result.query!==search||
         result.rows.length>size)throw new Error("evidence_contract_mismatch");
       if(!controller.signal.aborted){
@@ -113,9 +124,9 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
       if(!controller.signal.aborted){setError(true);setLoading(false);}
     });
     return ()=>controller.abort();
-  },[target.key,data.snapshot_id,scopedFilters,page,search,sort,direction,retry]);
+  },[target.key,target.expectedCount,data.snapshot_id,scopedFilters,page,search,sort,direction,retry]);
 
-  const changeSort=(next:DeliveryEvidenceSort)=>{
+  const changeSort=(next:DrillSort)=>{
     setExpanded(null);setPage(1);scroll.current?.scrollTo({top:0});
     if(sort===next)setDirection(d=>d==="asc"?"desc":"asc");
     else{setSort(next);setDirection(next==="created_at"?"desc":"asc");}
@@ -138,7 +149,8 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
         method:"POST",cache:"no-store",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({key:target.key,snapshot_id:data.snapshot_id,offset:0,
-          search,sort,direction,export:true,filters:scopedFilters}),
+          search,sort,direction,export:true,filters:scopedFilters,
+          expected_count:target.expectedCount}),
       });
       if(!response.ok)throw new Error("export_unavailable");
       const blob=await response.blob();
@@ -161,7 +173,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
           <div>
             <p>Jira issues</p>
             <h2 id="ed-cohort-title">{value?.label||target.label}</h2>
-            <span>{value?number.format(value.total)+(search?" matching issues":" issues"):"Issue breakdown"}</span>
+            <span>{target.detailNote?target.detailNote+" · ":""}{value?number.format(value.total)+(search?" matching issues":" issues"):"Issue breakdown"}</span>
           </div>
           <button type="button" className="rd-close ed-investigation-close"
             ref={closeRef} onClick={onClose} aria-label="Close issues">×</button>
@@ -188,26 +200,28 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
         </div>
         <div className="rd-table-wrap ed-investigation-table-wrap" ref={scroll}>
           {error?<div className="ed-investigation-error" role="alert">
-            <p>Verified issue evidence is unavailable. No unverified data is shown.</p>
+            <p>{stage&&target.key!=="stage:Code Review"
+              ?"Historical stage evidence awaits its verified reporting reader. No current-status substitute is shown."
+              :"Verified issue evidence is unavailable. No unverified data is shown."}</p>
             <button type="button" onClick={()=>setRetry(n=>n+1)}>Try again</button>
-          </div>:loading?<EvidenceSkeleton review={target.key==="stage:Code Review"}/>:
+          </div>:loading?<EvidenceSkeleton review={stage} aging={aging}/>:
           !value||!value.rows.length?<div className="ed-investigation-empty">
             No issues match your search. Try a different keyword.
           </div>:
           <table className="rd-activation-table ed-investigation-table">
             <thead><tr>
               <th scope="col"><span className="ed-screenreader-only">Expand</span></th>
-              {sorts.map(({key,label})=><th scope="col" key={key}
+              {visibleSorts.map(({key,label})=><th scope="col" key={key}
                 aria-sort={sort===key?(direction==="asc"?"ascending":"descending"):"none"}>
                 <button type="button" className="ed-investigation-sort"
                   onClick={()=>changeSort(key)}>
                   {label}<span aria-hidden="true">{sort===key?(direction==="asc"?" ↑":" ↓"):" ↕"}</span>
                 </button></th>)}
-              {target.key==="stage:Code Review"?<th scope="col">Review dwell</th>:null}
+              {stage?<th scope="col">Stage dwell</th>:null}
             </tr></thead>
             <tbody>{value.rows.flatMap(row=>{
               const opened=expanded===row.issue_key;
-              const cols=target.key==="stage:Code Review"?9:8;
+              const cols=stage?9:8;
               const master=<tr className={opened?"ed-investigation-row is-expanded":"ed-investigation-row"}
                 key={"issue:"+row.issue_key}>
                 <td><button type="button" className="rd-expander ed-investigation-expander"
@@ -218,12 +232,12 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
                   title={"Open "+row.issue_key+" details"}
                   onClick={event=>openIssue(row,event.currentTarget)}>{row.issue_key}</button></td>
                 <td>{date(row.created_at)}</td>
-                <td>{date(row.resolved_at)}</td>
+                <td>{aging?(row.age_days==null?"—":number.format(row.age_days)+"d"):date(row.resolved_at)}</td>
                 <td>{show(row.severity)}</td>
                 <td><span className="ed-investigation-status">{show(row.status)}</span></td>
                 <td>{show(row.priority)}</td>
                 <td>{show(row.assignee)}</td>
-                {target.key==="stage:Code Review"?<td>{duration(row.stage_hours)}</td>:null}
+                {stage?<td>{duration(row.stage_hours)}</td>:null}
               </tr>;
               if(!opened)return [master];
               const details=<tr className="ed-investigation-expanded" key={"detail:"+row.issue_key}>
@@ -235,7 +249,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
                     </div>
                     <div className="ed-investigation-field-grid">
                       {[
-                        ["Created",date(row.created_at)],["Resolved",date(row.resolved_at)],
+                        ["Created",date(row.created_at)],[aging?"Age":"Resolved",aging?(row.age_days==null?"—":number.format(row.age_days)+"d"):date(row.resolved_at)],
                         ["Severity",show(row.severity)],["Status",show(row.status)],
                         ["Priority",show(row.priority)],["Assignee",show(row.assignee)],
                         ["Issue type",show(row.issue_type)],["Module",show(row.module)],

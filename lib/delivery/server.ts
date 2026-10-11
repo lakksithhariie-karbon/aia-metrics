@@ -129,24 +129,92 @@ const databaseSort:Record<DeliveryEvidenceSort,string>={
   severity:"severity",status:"status",priority:"priority",assignee:"assignee",
 };
 
+const AGING_BUCKETS = ["<7d","7-30d","31-90d",">90d"] as const;
+type AgingBucket = typeof AGING_BUCKETS[number];
+export type DrillEvidenceSort = DeliveryEvidenceSort | "age_days";
+const ageBucket = (elapsedMs:number):AgingBucket =>
+  elapsedMs < 7*86400000 ? "<7d" : elapsedMs < 30*86400000 ? "7-30d" :
+  elapsedMs < 90*86400000 ? "31-90d" : ">90d";
+
 export async function readDeliveryEvidence(
-  filters: DeliveryFilters,key:string,snapshotId:number,offset:number,
-  limit:number,search="",sort:DeliveryEvidenceSort="created_at",
-  direction:"asc"|"desc"="desc",exportAll=false,
+  filters:DeliveryFilters,key:string,snapshotId:number,offset:number,
+  limit:number,search="",sort:DrillEvidenceSort="created_at",
+  direction:"asc"|"desc"="desc",exportAll=false,expectedCount?:number,
 ):Promise<DeliveryEvidence>{
+  const aging=key.startsWith("aging:");
+  const bucket=key.slice(6);
   if(!count(snapshotId)||key.length>90||!key.trim()||
      !count(offset)||offset>25000||
      !count(limit)||limit<1||limit>(exportAll?7000:50)||
-     !VALID_EVIDENCE_SORTS.includes(sort)||
+     (!VALID_EVIDENCE_SORTS.includes(sort as DeliveryEvidenceSort) &&
+       !(aging&&sort==="age_days"))||
      (direction!=="asc"&&direction!=="desc")||search.length>120||
-     (exportAll&&offset!==0))throw Error("jira_delivery_invalid_evidence_request");
+     (exportAll&&offset!==0)||
+     (aging&&!AGING_BUCKETS.includes(bucket as AgingBucket))||
+     (expectedCount!==undefined&&!count(expectedCount))) {
+    throw Error("jira_delivery_invalid_evidence_request");
+  }
+  if(aging){
+    // The existing audited bug cohort is fetched once on the server, never sent
+    // wholesale to the browser. Apply the source age boundaries before paging.
+    const parent=await readDeliveryEvidence(filters,"open_bugs",snapshotId,0,7000,
+      "","created_at","desc",true);
+    if(parent.total!==parent.source_count||parent.rows.length!==parent.total){
+      throw Error("jira_delivery_bug_aging_parent_mismatch");
+    }
+    const at=Date.now();
+    const matches=parent.rows.map(row=>{
+      const created=row.created_at?Date.parse(row.created_at):NaN;
+      if(!Number.isFinite(created)||created>at){
+        throw Error("jira_delivery_bug_aging_invalid_created");
+      }
+      const elapsed=at-created;
+      return {row:{...row,age_days:Math.floor(elapsed/86400000)},elapsed};
+    }).filter(item=>ageBucket(item.elapsed)===bucket);
+    if(expectedCount!==undefined&&matches.length!==expectedCount){
+      // Crossing an age boundary after a dashboard load must fail closed.
+      throw Error("jira_delivery_bug_aging_evidence_mismatch");
+    }
+    const needle=search.trim().toLowerCase();
+    const filtered=matches.filter(({row})=>!needle||
+      [row.issue_key,row.summary,row.assignee,row.issue_type,row.status,
+       row.module,row.priority].filter(Boolean).join(" ").toLowerCase().includes(needle));
+    const sortValue=(row:DeliveryEvidenceItem,elapsed:number):string|number|null=>{
+      if(sort==="age_days")return elapsed;
+      if(sort==="issue_key")return Number(row.issue_key.replace(/^SPEND-/,""));
+      if(sort==="created_at"||sort==="resolved_at"){
+        const v=row[sort];return v?Date.parse(v):null;
+      }
+      return (row[sort]??null)?.toLowerCase()??null;
+    };
+    filtered.sort((a,b)=>{
+      const av=sortValue(a.row,a.elapsed),bv=sortValue(b.row,b.elapsed);
+      if(av===null)return bv===null?0:1;
+      if(bv===null)return -1;
+      const comparison=av<bv?-1:av>bv?1:0;
+      if(comparison)return direction==="asc"?comparison:-comparison;
+      return Number(b.row.issue_key.replace(/^SPEND-/,""))-
+        Number(a.row.issue_key.replace(/^SPEND-/,""));
+    });
+    const rows=filtered.slice(offset,offset+limit).map(item=>item.row);
+    const result:DeliveryEvidence={
+      contract:"jira_delivery_evidence_v2",key,
+      label:"Open bugs · "+bucket+" old",snapshot_id:snapshotId,
+      total:filtered.length,source_count:matches.length,query:search,
+      sort:sort==="age_days"?"age_days":databaseSort[sort],
+      direction,offset,limit,rows,
+    };
+    if(exportAll&&rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
+    return result;
+  }
+  const sortKey=sort as DeliveryEvidenceSort;
   const result=await rpc<DeliveryEvidence>("read_jira_delivery_evidence_v2",{
     ...args(filters),p_key:key,p_snapshot_id:snapshotId,p_offset:offset,
-    p_limit:limit,p_query:search,p_sort:databaseSort[sort],p_direction:direction,
+    p_limit:limit,p_query:search,p_sort:databaseSort[sortKey],p_direction:direction,
   });
   if(result.contract!=="jira_delivery_evidence_v2"||result.key!==key||
      result.snapshot_id!==snapshotId||result.query!==search||
-     result.sort!==databaseSort[sort]||result.direction!==direction||
+     result.sort!==databaseSort[sortKey]||result.direction!==direction||
      !count(result.total)||!count(result.source_count)||
      result.offset!==offset||result.limit!==limit||
      !Array.isArray(result.rows)||result.rows.length>limit||

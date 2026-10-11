@@ -112,6 +112,7 @@ export type DeliveryEvidenceItem = {
   created_at: string | null;
   resolved_at: string | null;
   stage_hours?: number | null;
+  age_days?: number | null;
 };
 export type DeliveryEvidenceSort = "issue_key" | "created_at" | "resolved_at" | "severity" | "status" | "priority" | "assignee";
 export type DeliveryEvidence = {
