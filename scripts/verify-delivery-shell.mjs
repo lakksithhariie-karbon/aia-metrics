@@ -205,7 +205,7 @@ assert.match(modal,/function EvidenceSkeleton\(/);
 assert.match(modal,/loading\?<EvidenceSkeleton review=\{stage\} aging=\{aging\}\/>/);
 assert.match(issueModal,/ed-issue-loading/);
 assert.match(modalCss,/\.ed-investigation-skeleton/);
-assert.match(shell,/function FlowHealth\(\{data,sprint,open\}/,
+assert.match(shell,/function FlowHealth\(\{data,sprint,open,prefetch\}/,
   "Flow stages must use the native chart drill callback.");
 assert.match(shell,/key:"stage:"\+s.stage/,
   "Each Flow stage must target its own exact stage-history cohort.");
