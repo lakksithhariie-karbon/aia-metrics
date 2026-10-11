@@ -13,6 +13,8 @@ import MetricsInfoDialog, {
   metricsInfoDefinitions,
   type MetricsInfoKey,
 } from "../ui/metrics-info";
+import { visibleScopedValue, isScopedRequestPending } from "../../lib/retention/range-state";
+import type { ScopedValue, ScopedRequest } from "../../lib/retention/range-state";
 import type {
   RetentionChurnSeriesRow,
   RetentionDashboardV4Response,
@@ -1264,9 +1266,14 @@ export default function RetentionDashboard({
     () => bounds(defaultRange(initialMonth)),
     [initialMonth],
   );
-  const [dashboardData, setDashboardData] =
-    useState<RetentionDashboardV4Response | null>(initialData);
-  const [loading, setLoading] = useState(!initialData);
+  const initialKey = dashboardKey(initialBounds.from, initialBounds.to);
+  const [scopedDashboard, setScopedDashboard] =
+    useState<ScopedValue<RetentionDashboardV4Response> | null>(
+      () => initialData ? { key: initialKey, value: initialData } : null,
+    );
+  const [requestStatus, setRequestStatus] = useState<ScopedRequest>(
+    () => ({ key: initialKey, pending: !initialData }),
+  );
   const [activationOpen, setActivationOpen] = useState(false);
   const [heatmapTarget, setHeatmapTarget] =
     useState<RetentionHeatmapTarget | null>(null);
@@ -1286,6 +1293,11 @@ export default function RetentionDashboard({
   const [metricInfo, setMetricInfo] = useState<MetricsInfoKey | null>(null);
   const infoTrigger = useRef<HTMLButtonElement | null>(null);
   const rangeBounds = useMemo(() => bounds(range), [range]);
+  const rangeKey = dashboardKey(rangeBounds.from, rangeBounds.to);
+  // A new selection must not render the previous range's KPI/heatmap data,
+  // even for the render before the new request effect starts.
+  const dashboardData = visibleScopedValue(rangeKey, scopedDashboard);
+  const loading = isScopedRequestPending(rangeKey, requestStatus);
 
   useEffect(() => {
     if (initialData) {
@@ -1301,23 +1313,28 @@ export default function RetentionDashboard({
     const key = dashboardKey(rangeBounds.from, rangeBounds.to);
     const cached = dashboardCache.get(key);
     if (cached) {
-      setDashboardData(cached);
-      setLoading(false);
+      setScopedDashboard({ key, value: cached });
+      setRequestStatus({ key, pending: false });
       return () => controller.abort();
     }
 
-    setLoading(true);
+    setRequestStatus({ key, pending: true });
     fetchDashboard(rangeBounds.from, rangeBounds.to, controller.signal)
       .then(result => {
-        if (!controller.signal.aborted) setDashboardData(result);
+        if (!controller.signal.aborted) {
+          setScopedDashboard({ key, value: result });
+        }
       })
       .catch(() => {
-        if (!controller.signal.aborted && !dashboardData) {
-          setDashboardData(null);
+        if (!controller.signal.aborted) {
+          // Keep other scopes in the cache, never display them under this key.
+          setScopedDashboard(previous => previous?.key === key ? null : previous);
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setRequestStatus({ key, pending: false });
+        }
       });
     return () => controller.abort();
   }, [rangeBounds.from, rangeBounds.to]);
@@ -1346,6 +1363,16 @@ export default function RetentionDashboard({
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [activationOpen, churnCompany, churnMonth, heatmapTarget, retentionCompany]);
+
+  const onApplyRange = (next: MonthRange) => {
+    // A drill opened for the previous period cannot outlive the range change.
+    setActivationOpen(false);
+    setHeatmapTarget(null);
+    setRetentionCompany(null);
+    setChurnMonth(null);
+    setChurnCompany(null);
+    setRange(next);
+  };
 
   const kpis = dashboardData?.kpis ?? null;
   const ttv = cardTtv(kpis?.ttv.avg_hours ?? null);
@@ -1421,7 +1448,7 @@ export default function RetentionDashboard({
             <h1>Retention & Churn</h1>
             <p>Activation quality, time to value, and completed-month churn</p>
           </div>
-          <DatePicker range={range} onApply={setRange} />
+          <DatePicker range={range} onApply={onApplyRange} />
         </div>
 
         <section className="kpi-grid po-kpis rd-kpi-grid" aria-label="Retention key metrics">
