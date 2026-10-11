@@ -301,7 +301,7 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
         <div className="ed-page-copy">
           <div className="ed-titleline"><h1>Infrastructure Overview</h1></div>
           <p>Cloud spend, processing economics and source integrity</p>
-          <p className="infra-preview-caption">Audited preview data · AWS as of 8 Oct · Bill processing as of 11 Oct</p>
+          <p className="infra-preview-caption">Frozen audited preview · Not live · AWS as of 8 Oct · Bill processing as of 11 Oct</p>
         </div>
         <div className="ed-filters" role="group" aria-label="Infra reporting scope">
           <div className="ed-filter-label">

@@ -77,3 +77,6 @@ assert.match(charts,/Service breakdowns in this preview begin in May 2026/);
 assert.match(charts,/Account breakdowns in this preview begin in May 2026/);
 assert.match(shell,/Only the month total is captured before May 2026/);
 console.log("All-history filter alignment and missing detailed-breakdown guards verified.");
+
+assert.match(shell,/Frozen audited preview · Not live/,
+  "The UI must clearly distinguish a captured shell from a live Infra dashboard.");
