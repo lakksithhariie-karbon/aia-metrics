@@ -1,4 +1,4 @@
-import type { DeliveryDashboard, DeliveryEvidence, DeliveryEvidenceSort, DeliveryIssueDetail, DeliveryFilters } from "./types";
+import type { DeliveryDashboard, DeliveryEvidence, DeliveryEvidenceItem, DeliveryEvidenceSort, DeliveryIssueDetail, DeliveryFilters } from "./types";
 
 /**
  * The same Vercel server-only environment used by Product Metrics.
