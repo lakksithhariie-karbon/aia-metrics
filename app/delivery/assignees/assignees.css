@@ -2,7 +2,8 @@
    Only header/column adjustments for different Jira dimensions are scoped here. */
 .assignee-page .metrics-section-kicker{margin:0 0 12px}
 .assignee-page .companies-page-heading{padding-bottom:20px}
-.assignee-page .assignee-current-scope{color:#8b98ab;font-size:10px}
+.assignee-page .assignee-current-scope{display:flex;align-items:center;gap:12px;color:#8b98ab;font-size:10px}
+.assignee-page .assignee-scope-value{display:inline-flex;align-items:center;justify-content:space-between;min-width:156px;height:36px;padding:0 12px;border:1px solid #dce3ed;border-radius:6px;background:#fff;color:#53647d;font-size:10.5px}
 .assignee-page .companies-monthly-scroll{border-radius:0 0 9px 9px}
 .assignee-page .assignee-monthly-table .companies-month-header th:nth-child(2),
 .assignee-page .assignee-monthly-table .companies-month-header th:nth-child(3){text-align:left}
@@ -49,4 +50,24 @@
   .assignee-page .companies-grid-card .po-search{flex:1 1 100%;max-width:none;width:100%}
   .assignee-page .assignee-current-scope{display:none}
   .assignee-page .assignee-monthly-table .companies-month-header th:nth-child(3){width:210px}
+}
+
+/* Match the Companies page's header and table geometry exactly.
+   Retention's shared page-grid stylesheet is imported after customer.css;
+   restore the Companies-owned full-width, fixed-viewport layout. */
+.assignee-page.companies-page{
+  max-width:none!important;width:100%;margin:0!important;
+  height:calc(100dvh - 56px);display:flex;flex-direction:column;
+  overflow:hidden;background:#fff;padding:0 30px!important;
+}
+.assignee-page.companies-page .page-heading{flex:0 0 auto;margin:0;padding:27px 0 20px}
+.assignee-page.companies-page .companies-records{
+  flex:1;min-height:0;height:auto;max-height:none;margin:0 0 14px;
+  display:flex;flex-direction:column;
+}
+.assignee-page.companies-page .po-record-scroll{flex:1;min-height:0;margin:0;overflow:auto}
+.assignee-page.companies-page .assignee-page-footer{padding:7px 0 14px;white-space:nowrap}
+@media(max-width:600px){
+  .assignee-page.companies-page{padding:0 12px!important}
+  .assignee-page .assignee-current-scope{display:none}
 }
