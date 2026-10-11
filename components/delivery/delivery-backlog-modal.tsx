@@ -59,7 +59,7 @@ export default function DeliveryBacklogModal({rows,weekStart,onClose}:{
         <div>
           <p>Backlog investigation</p>
           <h2 id="ed-backlog-title">Week of {date(active?.week_start??weekStart)}</h2>
-          <span>{active?fmt(active.open_eod)+" issues at week end":"No reported weeks"}</span>
+          <span>{active?fmt(active.open_eod)+" open bugs at week end":"No reported weeks"}</span>
         </div>
         <button type="button" ref={close} className="rd-close ed-investigation-close"
           aria-label="Close backlog investigation" onClick={onClose}>×</button>
@@ -67,9 +67,9 @@ export default function DeliveryBacklogModal({rows,weekStart,onClose}:{
       <nav className="ed-backlog-tabs" aria-label="Backlog investigation views">
         <button type="button" className="ed-backlog-tab" aria-current="page">Weekly breakdown</button>
         <button type="button" className="ed-backlog-tab" disabled
-          title="Historical issue-level evidence has not been published">Created issues</button>
+          title="Historical issue-level evidence has not been published">Created bugs</button>
         <button type="button" className="ed-backlog-tab" disabled
-          title="Historical issue-level evidence has not been published">Resolved issues</button>
+          title="Historical issue-level evidence has not been published">Resolved bugs</button>
       </nav>
       {active?<div className="ed-backlog-context">
         <span>Opening <strong>{fmt(active.open_eod-active.net_movement)}</strong></span>
@@ -79,7 +79,7 @@ export default function DeliveryBacklogModal({rows,weekStart,onClose}:{
         <span>Closing <strong>{fmt(active.open_eod)}</strong></span>
       </div>:null}
       <div className="rd-table-wrap ed-investigation-table-wrap" role="region"
-        aria-label="Published weekly Jira backlog totals" tabIndex={0}>
+        aria-label="Published weekly Jira bug backlog totals" tabIndex={0}>
         <table className="rd-activation-table ed-investigation-table ed-backlog-table">
           <thead><tr>
             <th scope="col"><button type="button" className="ed-investigation-sort"
@@ -104,7 +104,7 @@ export default function DeliveryBacklogModal({rows,weekStart,onClose}:{
         </table>
       </div>
       <p className="ed-backlog-scope-note">
-        These are published weekly totals. Historical issue-level lists are unavailable,
+        These are published weekly bug totals. Historical issue-level lists are unavailable,
         so no current issue records are presented as historical evidence.
       </p>
       {totalPages>1?<footer className="rd-modal-foot rd-modal-foot-paginated ed-investigation-foot">

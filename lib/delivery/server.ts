@@ -129,12 +129,12 @@ const databaseSort:Record<DeliveryEvidenceSort,string>={
   severity:"severity",status:"status",priority:"priority",assignee:"assignee",
 };
 
-const AGING_BUCKETS = ["<7d","7-30d","31-90d",">90d"] as const;
+const AGING_BUCKETS = ["<7d","7–30d","31–90d",">90d"] as const;
 type AgingBucket = typeof AGING_BUCKETS[number];
 export type DrillEvidenceSort = DeliveryEvidenceSort | "age_days";
 const ageBucket = (elapsedMs:number):AgingBucket =>
-  elapsedMs < 7*86400000 ? "<7d" : elapsedMs < 30*86400000 ? "7-30d" :
-  elapsedMs < 90*86400000 ? "31-90d" : ">90d";
+  elapsedMs < 7*86400000 ? "<7d" : elapsedMs < 31*86400000 ? "7–30d" :
+  elapsedMs < 91*86400000 ? "31–90d" : ">90d";
 
 export async function readDeliveryEvidence(
   filters:DeliveryFilters,key:string,snapshotId:number,offset:number,

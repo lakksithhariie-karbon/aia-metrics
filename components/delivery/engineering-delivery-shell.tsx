@@ -301,7 +301,7 @@ function FlowHealth({data,sprint,open}:{
     </div><div className="ed-flow-measured">{stages.length} instrumented stages</div></div>
     <div className="ed-table-shell" role="region" tabIndex={0} aria-label="Stage dwell time in the selected sprint">
       <table className="ed-report-table ed-flow-table">
-        <thead><tr><th>Stage</th><th>Median dwell</th><th>Duration / stays</th></tr></thead>
+        <thead><tr><th>Stage</th><th>Median dwell</th><th>Duration / issues</th></tr></thead>
         <tbody>{stages.map(s=><tr key={s.stage} className="ed-flow-drill-row"
           tabIndex={0} title={"Open matching Jira stage history for "+s.stage}
           aria-label={s.stage+", "+num(s.issues_in_stage)+" measured issues, "+hrs(s.median_hours)+" median. Inspect Jira issues."}
@@ -342,17 +342,17 @@ function BacklogTrend({data,onOpen}:{data:DeliveryDashboard;onOpen:(week:string)
   const ticks=n>=4?[0,Math.floor((n-1)/2),n-1]:n>=2?[0,n-1]:[];
   const changeText=(value:number)=>value>0?"+"+num(value):num(value);
   return <Surface title="Backlog trajectory"
-    subtitle="End-of-week open issues · last 20 reported weeks" half>
+    subtitle="End-of-week open bugs · last 20 reported weeks" half>
     <div className="ed-trend-layout">
       <div className="ed-trend-summary">
         <div><span>Latest reported backlog</span>
-          <strong>{num(latest?.open_eod)}<small>open issues</small></strong></div>
+          <strong>{num(latest?.open_eod)}<small>open bugs</small></strong></div>
         <span className={"ed-trend-change"+(change!==null&&change>0?" is-increase":"")}>
           {change===null?"Not enough weeks":changeText(change)+" since first shown week"}
         </span>
       </div>
       {n>=2?<div className="ed-trend-plot" role="group" tabIndex={0}
-          aria-label={"Weekly open backlog across "+n+" weeks. Use left and right arrow keys to choose a week, then Enter to investigate."}
+          aria-label={"Weekly open bug backlog across "+n+" weeks. Use left and right arrow keys to choose a week, then Enter to investigate."}
           onFocus={()=>setActive(index=>index===null?n-1:index)}
           onBlur={()=>setActive(null)}
           onMouseLeave={()=>setActive(null)}
@@ -366,7 +366,7 @@ function BacklogTrend({data,onOpen}:{data:DeliveryDashboard;onOpen:(week:string)
             }
           }}>
         <svg viewBox={"0 0 "+width+" "+height} role="img"
-          aria-label={"Open issues rose or fell across the displayed weeks, from "+
+          aria-label={"Open bugs rose or fell across the displayed weeks, from "+
             num(series[0].open_eod)+" to "+num(series[n-1].open_eod)}>
           <defs>
             <linearGradient id="ed-backlog-area" x1="0" y1="0" x2="0" y2="1">
@@ -409,7 +409,7 @@ function BacklogTrend({data,onOpen}:{data:DeliveryDashboard;onOpen:(week:string)
           role="tooltip"
           style={{left:Math.min(82,Math.max(18,x(active)/width*100))+"%"}}>
           <strong>Week of {date(marked.week_start)}</strong>
-          <span><b>{num(marked.open_eod)}</b> open issues</span>
+          <span><b>{num(marked.open_eod)}</b> open bugs</span>
           <small>{num(marked.created)} created · {num(marked.resolved)} resolved</small>
           <small>Net movement: {changeText(marked.net_movement)}</small>
            <small>Click to inspect the week</small>

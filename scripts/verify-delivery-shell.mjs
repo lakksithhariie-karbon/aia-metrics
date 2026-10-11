@@ -217,12 +217,20 @@ assert.match(server,/const parent=await readDeliveryEvidence\(filters,"open_bugs
   "Aging issue evidence must come from the verified service-role parent cohort.");
 assert.match(server,/jira_delivery_bug_aging_evidence_mismatch/,
   "Aging drill must fail closed on bucket/source parity drift.");
+assert.match(server,/const AGING_BUCKETS = \["<7d","7–30d","31–90d",">90d"\] as const/,
+  "Age cohort keys must use the exact published Flow histogram labels.");
+assert.match(server,/elapsedMs < 7\*86400000[\s\S]*?elapsedMs < 31\*86400000[\s\S]*?elapsedMs < 91\*86400000/,
+  "Age boundaries must match the live filtered Flow reader: 7, 31 and 91 days.");
 assert.match(server,/const needle=search.trim\(\).toLowerCase\(\)/,
   "Full-bucket search must run before paging.");
 assert.match(modal,/age_days/);
 assert.match(api,/expected_count:target.expectedCount|expectedCount=body.expected_count/);
 assert.match(shell,/onOpen=\{setBacklogWeek\}/);
 assert.match(backlogModal,/Weekly breakdown/);
+assert.match(shell,/End-of-week open bugs/);
+assert.match(backlogModal,/published weekly bug totals/);
+assert.match(shell,/Duration \/ issues/,
+  "Flow stage sample counts represent issues, not transition stays.");
 assert.match(backlogModal,/Historical issue-level lists are unavailable/);
 assert.match(backlogModal,/row.open_eod-row.net_movement/,
   "Weekly opening stock must derive from verified closing and net movement.");
