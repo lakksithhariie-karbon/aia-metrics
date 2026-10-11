@@ -199,7 +199,7 @@ export function BillVolumeEconomics({months,selected,onSelect}:{
       {months.length>1? <path d={smoothPath(months.map((m,i)=>({
         x:left+step*(i+.5),
         y:base-(m.avg_measured??0)/maxUnit*(base-top),
-      }))} stroke="#278c9a" strokeWidth="2.8" fill="none" strokeLinecap="round"/>:null}
+      })))} stroke="#278c9a" strokeWidth="2.8" fill="none" strokeLinecap="round"/>:null}
       {months.map((m,i)=><circle key={m.month} cx={left+step*(i+.5)}
         cy={base-(m.avg_measured??0)/maxUnit*(base-top)}
         r={m.month===selected?5:4} stroke="#fff" strokeWidth="2" fill="#278c9a"
