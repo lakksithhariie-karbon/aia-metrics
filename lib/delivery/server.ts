@@ -1,0 +1,407 @@
+import type { DeliveryDashboard, DeliveryEvidence, DeliveryEvidenceItem, DeliveryEvidenceSort, DeliveryIssueDetail, DeliveryFilters, AssigneeMatrixScope } from "./types";
+
+/**
+ * The same Vercel server-only environment used by Product Metrics.
+ * Jira's schema is not exposed to the browser; only two audited public RPC
+ * facades can be called, with EXECUTE restricted to service_role.
+ */
+const credentials = () => {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("jira_delivery_server_credentials_missing");
+  return { url: url.replace(/\/+$/, ""), key };
+};
+
+async function rpc<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const start = performance.now();
+  try {
+    const { url, key } = credentials();
+    const response = await fetch(url + "/rest/v1/rpc/" + name, {
+      method: "POST", cache: "no-store", signal: AbortSignal.timeout(29_000),
+      headers: {
+        apikey: key, Authorization: "Bearer " + key,
+        "Content-Type": "application/json", "Cache-Control": "no-store",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error("jira_delivery_" + name + "_http_" + response.status);
+    const value: unknown = await response.json();
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("jira_delivery_bad_rpc_payload");
+    }
+    return value as T;
+  } finally {
+    // Server-only, no credentials or Jira record content in timing logs.
+    console.info("jira_rpc_duration_ms", name, Math.round(performance.now() - start));
+  }
+}
+
+const scalar = (x: unknown): x is number =>
+  typeof x === "number" && Number.isFinite(x) && x >= 0;
+const count = (x: unknown): x is number => scalar(x) && Number.isSafeInteger(x);
+
+const same = (x: unknown, y: unknown): boolean => count(x) && count(y) && x === y;
+
+function validate(payload: DeliveryDashboard): DeliveryDashboard {
+  if (payload.contract !== "jira_delivery_dashboard_v1" ||
+      !count(payload.snapshot_id) ||
+      !same(payload.snapshot_id, payload.latest_clean_sync_id) ||
+      !Number.isFinite(Date.parse(payload.synced_at)) ||
+      !Number.isFinite(Date.parse(payload.refreshed_at)) ||
+      !Array.isArray(payload.core?.sprint_discipline) ||
+      !Array.isArray(payload.options?.sprints) ||
+      !Array.isArray(payload.issue_types) ||
+      !Array.isArray(payload.flow?.wip_by_status) ||
+      !Array.isArray(payload.flow?.stage_summary) ||
+      !Array.isArray(payload.quality?.org_reopen)) {
+    throw new Error("jira_delivery_contract_invalid");
+  }
+  const cohort = payload.core.metric_cohorts;
+  const fc = payload.flow.flow_counts;
+  const bh = payload.flow.bug_health;
+  const check = (key: string, expected: unknown) => same(cohort?.[key]?.n, expected);
+  if (!check("wip_open",fc.open_total) ||
+      !check("open_bugs",bh.open_bugs) ||
+      !check("stale_7d",fc.stale_all) ||
+      !check("stale_blocked",fc.stale_blocked) ||
+      !check("blocked",fc.blocked_all) ||
+      !check("qa_queue",fc.qa_queue_count) ||
+      payload.flow.wip_by_status.reduce((s,r)=>s+r.issue_count,0)!==fc.open_total) {
+    throw new Error("jira_delivery_reconciliation_failed");
+  }
+  for (const sprint of payload.core.sprint_discipline) {
+    if (!count(sprint.sprint_id)||!count(sprint.scope_now)||
+        !count(sprint.done_now)||!count(sprint.committed)||
+        !count(sprint.committed_done)||!count(sprint.added_mid_sprint)||
+        sprint.done_now>sprint.scope_now ||
+        sprint.committed_done>sprint.committed ||
+        sprint.committed+sprint.added_mid_sprint!==sprint.scope_now ||
+        (sprint.scope_completion_pct!==null &&
+          Math.abs(sprint.done_now/Math.max(1,sprint.scope_now)*100-sprint.scope_completion_pct)>0.11)) {
+      throw new Error("jira_delivery_sprint_reconciliation_failed");
+    }
+    const types=payload.issue_types
+      .filter(t=>t.sprint_id===sprint.sprint_id)
+      .reduce((sum,t)=>sum+t.count,0);
+    if(types!==sprint.scope_now)throw new Error("jira_delivery_issue_types_reconciliation_failed");
+  }
+  if(payload.flow.bug_health.age_histogram
+      .reduce((s,row)=>s+row.count,0)!==bh.open_bugs){
+    throw new Error("jira_delivery_bug_aging_reconciliation_failed");
+  }
+  return payload;
+}
+export function parseDeliveryFilters(
+  raw: Record<string, string | string[] | undefined>,
+): DeliveryFilters {
+  const one = (key: string): string | null => {
+    const v = raw[key];
+    const s = typeof v === "string" ? v : Array.isArray(v) ? v[0] : null;
+    if (!s) return null;
+    if (s.length > 160) throw new Error("jira_delivery_invalid_filter");
+    return s;
+  };
+  const sprint = one("sprint");
+  if (sprint && !/^[1-9][0-9]{0,11}$/.test(sprint)){
+    throw new Error("jira_delivery_invalid_sprint");
+  }
+  return {
+    sprint: sprint ? Number(sprint) : null,
+    module: one("module"),
+    sub_module: one("sub_module"),
+    severity: one("severity"),
+    assignee: one("assignee"),
+  };
+}
+function args(filters: DeliveryFilters): Record<string, unknown> {
+  return {
+    p_sprint_id: filters.sprint,
+    p_modules: filters.module ? [filters.module] : null,
+    p_sub_modules: filters.sub_module ? [filters.sub_module] : null,
+    p_severities: filters.severity ? [filters.severity] : null,
+    p_assignees: filters.assignee ? [filters.assignee] : null,
+  };
+}
+
+export async function readDeliveryDashboard(filters: DeliveryFilters): Promise<DeliveryDashboard> {
+  return validate(await rpc<DeliveryDashboard>("read_jira_delivery_dashboard_v1",args(filters)));
+}
+
+export const VALID_EVIDENCE_SORTS: DeliveryEvidenceSort[] = [
+  "issue_key","created_at","resolved_at","severity","status","priority","assignee",
+];
+const databaseSort:Record<DeliveryEvidenceSort,string>={
+  issue_key:"key",created_at:"created",resolved_at:"resolved",
+  severity:"severity",status:"status",priority:"priority",assignee:"assignee",
+};
+
+const AGING_BUCKETS = ["<7d","7–30d","31–90d",">90d"] as const;
+type AgingBucket = typeof AGING_BUCKETS[number];
+export type DrillEvidenceSort = DeliveryEvidenceSort | "age_days";
+const ageBucket = (elapsedMs:number):AgingBucket =>
+  elapsedMs < 7*86400000 ? "<7d" : elapsedMs < 31*86400000 ? "7–30d" :
+  elapsedMs < 91*86400000 ? "31–90d" : ">90d";
+
+/**
+ * Shared validated evidence reader. A null snapshot is permitted ONLY for
+ * Assignee page initialization below. Each DB call still fails closed against
+ * an unpublished sync; the page must then match all three returned snapshot IDs
+ * with its independently validated dashboard ID before any data can render.
+ */
+async function readSourceEvidence(
+  filters:DeliveryFilters,key:string,snapshotId:number|null,offset:number,
+  limit:number,search:string,sort:DeliveryEvidenceSort,
+  direction:"asc"|"desc",exportAll:boolean,expectedCount?:number,
+):Promise<DeliveryEvidence>{
+  const result=await rpc<DeliveryEvidence>("read_jira_delivery_evidence_v2",{
+    ...args(filters),p_key:key,p_snapshot_id:snapshotId,p_offset:offset,
+    p_limit:limit,p_query:search,p_sort:databaseSort[sort],p_direction:direction,
+  });
+  if(result.contract!=="jira_delivery_evidence_v2"||result.key!==key||
+     !count(result.snapshot_id)||
+     (snapshotId!==null&&result.snapshot_id!==snapshotId)||
+     result.query!==search||result.sort!==databaseSort[sort]||
+     result.direction!==direction||
+     !count(result.total)||!count(result.source_count)||
+     result.offset!==offset||result.limit!==limit||
+     !Array.isArray(result.rows)||result.rows.length>limit||
+     result.rows.length!==Math.max(0,Math.min(limit,result.total-offset))||
+     result.rows.some(row=>typeof row.issue_key!=="string"||
+       !/^SPEND-[0-9]+$/.test(row.issue_key))){
+    throw Error("jira_delivery_evidence_contract_invalid");
+  }
+  if(key.startsWith("stage:")&&expectedCount!==undefined&&
+     result.source_count!==expectedCount){
+    throw Error("jira_delivery_stage_evidence_expected_count_mismatch");
+  }
+  if(exportAll&&result.rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
+  return result;
+}
+
+/**
+ * Restricted initial Assignee workload cohorts. This deliberately does NOT
+ * change the browser evidence API, which requires an explicit snapshot ID.
+ * Parallel reads are reconciled by readAssigneeMatrix before any UI output.
+ */
+export async function readAssigneeMatrixEvidence(
+  filters:DeliveryFilters,key:"wip_open"|"stale_7d"|"blocked",
+):Promise<DeliveryEvidence>{
+  const evidence=await readSourceEvidence(filters,key,null,0,7000,"",
+    "created_at","desc",true);
+  if(evidence.source_count!==evidence.total||
+     evidence.rows.length!==evidence.total){
+    throw Error("jira_assignee_initial_evidence_incomplete");
+  }
+  return evidence;
+}
+
+export async function readDeliveryEvidence(
+  filters:DeliveryFilters,key:string,snapshotId:number,offset:number,
+  limit:number,search="",sort:DrillEvidenceSort="created_at",
+  direction:"asc"|"desc"="desc",exportAll=false,expectedCount?:number,
+  matrixScope?:AssigneeMatrixScope,
+):Promise<DeliveryEvidence>{
+  const aging=key.startsWith("aging:");
+  const matrix=key.startsWith("matrix:");
+  const bucket=key.slice(6);
+  if(!count(snapshotId)||key.length>90||!key.trim()||
+     !count(offset)||offset>25000||
+     !count(limit)||limit<1||limit>(exportAll?7000:50)||
+     (!VALID_EVIDENCE_SORTS.includes(sort as DeliveryEvidenceSort) &&
+       !(aging&&sort==="age_days"))||
+     (direction!=="asc"&&direction!=="desc")||search.length>120||
+     (exportAll&&offset!==0)||
+     (aging&&!AGING_BUCKETS.includes(bucket as AgingBucket))||
+     (expectedCount!==undefined&&!count(expectedCount))||
+     (matrix&&!["matrix:open","matrix:stale","matrix:blocked"].includes(key))||
+     (matrix&&!matrixScope)||
+     (!matrix&&matrixScope!==undefined)) {
+    throw Error("jira_delivery_invalid_evidence_request");
+  }
+  if(matrix){
+    const scope=matrixScope!;
+    if(!["all","single","other"].includes(scope.moduleMode)||
+       (scope.assignee!==undefined&&scope.assignee!==null&&
+         (typeof scope.assignee!=="string"||scope.assignee.length>160))||
+       (scope.moduleMode==="single"&&
+         (typeof scope.module!=="string"||scope.module.length>160))||
+       (scope.issueType!==undefined&&
+         (typeof scope.issueType!=="string"||scope.issueType.length>80))||
+       (scope.excludedModules!==undefined&&
+         (!Array.isArray(scope.excludedModules)||scope.excludedModules.length>35||
+          scope.excludedModules.some(x=>typeof x!=="string"||x.length>160)))||
+       (scope.moduleMode==="other"&&!Array.isArray(scope.excludedModules))){
+      throw Error("jira_delivery_invalid_matrix_scope");
+    }
+    const sourceKey=key==="matrix:stale"?"stale_7d":
+      key==="matrix:blocked"?"blocked":"wip_open";
+    // The base cohort is source-locked, snapshot-validated and complete.
+    const parent=await readDeliveryEvidence(filters,sourceKey,snapshotId,0,7000,
+      "","created_at","desc",true);
+    const moduleKey=(value:string|null)=>value?.trim()||"__untagged__";
+    const rows=parent.rows.filter(row=>{
+      const person=row.assignee?.trim()||null;
+      if(scope.assignee!==undefined&&scope.assignee!==person)return false;
+      const module=moduleKey(row.module);
+      if(scope.moduleMode==="single"&&module!==scope.module)return false;
+      if(scope.moduleMode==="other"&&
+         (module==="__untagged__"||scope.excludedModules!.includes(module)))return false;
+      if(scope.issueType!==undefined&&
+         (row.issue_type?.trim()||"Unspecified")!==scope.issueType)return false;
+      return true;
+    });
+    if(expectedCount!==undefined&&rows.length!==expectedCount){
+      throw Error("jira_delivery_matrix_evidence_count_mismatch");
+    }
+    const needle=search.trim().toLowerCase();
+    const filtered=rows.filter(row=>!needle||
+      [row.issue_key,row.summary,row.assignee,row.issue_type,row.status,
+       row.module,row.priority].filter(Boolean).join(" ").toLowerCase().includes(needle));
+    const sortValue=(row:DeliveryEvidenceItem):string|number|null=>{
+      if(sort==="issue_key")return Number(row.issue_key.replace(/^SPEND-/,""));
+      if(sort==="created_at"||sort==="resolved_at"){
+        const value=row[sort];return value?Date.parse(value):null;
+      }
+      return (row[sort as "severity"|"status"|"priority"|"assignee"]??null)?.toLowerCase()??null;
+    };
+    filtered.sort((a,b)=>{
+      const av=sortValue(a),bv=sortValue(b);
+      if(av===null)return bv===null?0:1;
+      if(bv===null)return -1;
+      const diff=av<bv?-1:av>bv?1:0;
+      if(diff)return direction==="asc"?diff:-diff;
+      return Number(b.issue_key.replace(/^SPEND-/,""))-Number(a.issue_key.replace(/^SPEND-/,""));
+    });
+    const selected=filtered.slice(offset,offset+limit);
+    if(exportAll&&selected.length!==filtered.length)throw Error("jira_delivery_export_incomplete");
+    return {
+      contract:"jira_delivery_evidence_v2",key,label:"Assignee workload",
+      snapshot_id:snapshotId,source_count:rows.length,total:filtered.length,
+      query:search,sort:databaseSort[sort as DeliveryEvidenceSort],
+      direction,offset,limit,rows:selected,
+    };
+  }
+  if(aging){
+    // The existing audited bug cohort is fetched once on the server, never sent
+    // wholesale to the browser. Apply the source age boundaries before paging.
+    const parent=await readDeliveryEvidence(filters,"open_bugs",snapshotId,0,7000,
+      "","created_at","desc",true);
+    if(parent.total!==parent.source_count||parent.rows.length!==parent.total){
+      throw Error("jira_delivery_bug_aging_parent_mismatch");
+    }
+    const at=Date.now();
+    const matches=parent.rows.map(row=>{
+      const created=row.created_at?Date.parse(row.created_at):NaN;
+      if(!Number.isFinite(created)||created>at){
+        throw Error("jira_delivery_bug_aging_invalid_created");
+      }
+      const elapsed=at-created;
+      return {row:{...row,age_days:Math.floor(elapsed/86400000)},elapsed};
+    }).filter(item=>ageBucket(item.elapsed)===bucket);
+    if(expectedCount!==undefined&&matches.length!==expectedCount){
+      // Crossing an age boundary after a dashboard load must fail closed.
+      throw Error("jira_delivery_bug_aging_evidence_mismatch");
+    }
+    const needle=search.trim().toLowerCase();
+    const filtered=matches.filter(({row})=>!needle||
+      [row.issue_key,row.summary,row.assignee,row.issue_type,row.status,
+       row.module,row.priority].filter(Boolean).join(" ").toLowerCase().includes(needle));
+    const sortValue=(row:DeliveryEvidenceItem,elapsed:number):string|number|null=>{
+      if(sort==="age_days")return elapsed;
+      if(sort==="issue_key")return Number(row.issue_key.replace(/^SPEND-/,""));
+      if(sort==="created_at"||sort==="resolved_at"){
+        const v=row[sort];return v?Date.parse(v):null;
+      }
+      return (row[sort]??null)?.toLowerCase()??null;
+    };
+    filtered.sort((a,b)=>{
+      const av=sortValue(a.row,a.elapsed),bv=sortValue(b.row,b.elapsed);
+      if(av===null)return bv===null?0:1;
+      if(bv===null)return -1;
+      const comparison=av<bv?-1:av>bv?1:0;
+      if(comparison)return direction==="asc"?comparison:-comparison;
+      return Number(b.row.issue_key.replace(/^SPEND-/,""))-
+        Number(a.row.issue_key.replace(/^SPEND-/,""));
+    });
+    const rows=filtered.slice(offset,offset+limit).map(item=>item.row);
+    const result:DeliveryEvidence={
+      contract:"jira_delivery_evidence_v2",key,
+      label:"Open bugs · "+bucket+" old",snapshot_id:snapshotId,
+      total:filtered.length,source_count:matches.length,query:search,
+      sort:sort==="age_days"?"age_days":databaseSort[sort],
+      direction,offset,limit,rows,
+    };
+    if(exportAll&&rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
+    return result;
+  }
+  return readSourceEvidence(filters,key,snapshotId,offset,limit,search,sort as DeliveryEvidenceSort,
+    direction,exportAll,expectedCount);
+}
+
+type RawIssueRecord = Record<string,unknown> & {
+  contract:string;snapshot_id:number;issue_key:string;
+  summary?:string|null;status?:string|null;issue_type?:string|null;
+  priority?:string|null;severity?:string|null;module?:string|null;
+  sub_module?:string|null;assignee?:string|null;
+  created_at?:string|null;resolved_at?:string|null;updated_at?:string|null;
+  service_levels?:DeliveryIssueDetail["service_levels"];
+  status_trail?:DeliveryIssueDetail["status_trail"];
+  comments?:Array<{author:string|null;created_at:string;body:string}>;
+  links?:Array<{direction:string|null;relationship:string|null;issue_key:string|null}>;
+};
+
+export async function readDeliveryIssue(
+  filters:DeliveryFilters,cohortKey:string,issueKey:string,snapshotId:number,
+  matrixScope?:AssigneeMatrixScope,
+):Promise<DeliveryIssueDetail>{
+  if(!count(snapshotId)||cohortKey.length>90||!cohortKey.trim()||
+     !/^SPEND-[0-9]{1,12}$/.test(issueKey)){
+    throw Error("jira_delivery_issue_invalid_request");
+  }
+  // The deployed Jira detail reader is service-role-only, but the browser-facing
+  // route must also prohibit arbitrary issue-key enumeration. Scope the
+  // lookup to the exact verified cohort before returning any detailed data.
+  const membership=await readDeliveryEvidence(
+    filters,cohortKey,snapshotId,0,50,issueKey,"issue_key","asc",
+    false,undefined,matrixScope);
+  if(!membership.rows.some(row=>row.issue_key===issueKey)){
+    throw Error("jira_delivery_issue_outside_cohort");
+  }
+  const raw=await rpc<RawIssueRecord>("read_jira_delivery_issue_v1",{
+    p_issue_key:issueKey,p_snapshot_id:snapshotId,
+  });
+  if(raw.contract!=="jira_delivery_issue_v1"||
+     raw.snapshot_id!==snapshotId||raw.issue_key!==issueKey||
+     !Array.isArray(raw.status_trail)||!Array.isArray(raw.comments)||
+     !Array.isArray(raw.links)||raw.comments.length>30||raw.links.length>50){
+    throw Error("jira_delivery_issue_contract_invalid");
+  }
+  const isOpen=!["done","resolved","closed"].includes((raw.status||"").toLowerCase());
+  return {
+    contract:"jira_delivery_issue_v1",
+    snapshot_id:snapshotId,cohort_key:cohortKey,
+    issue:{
+      issue_key:issueKey,summary:raw.summary??null,status:raw.status??null,
+      issue_type:raw.issue_type??null,priority:raw.priority??null,
+      severity:raw.severity??null,module:raw.module??null,
+      sub_module:raw.sub_module??null,assignee:raw.assignee??null,
+      created_at:raw.created_at??null,resolved_at:raw.resolved_at??null,
+      updated_at:raw.updated_at??null,status_category:null,
+      stale:isOpen&&!!raw.updated_at &&
+        Date.now()-Date.parse(raw.updated_at)>7*86400000,
+      blocked:raw.status==="Blocked/Onhold",
+    },
+    service_levels:raw.service_levels??{
+      first_response_hours:null,eta_deviation_hours:null,reopen_count:null,
+      qa_signoff_cycles:null,qa_rejected_cycles:null,
+    },
+    status_trail:raw.status_trail,
+    comments:raw.comments.map(row=>({
+      author:row.author??"Unspecified",created_at:row.created_at,text:row.body??"",
+    })),
+    links:raw.links.map(row=>({
+      type:row.relationship,description:row.relationship,
+      direction:row.direction,issue_key:row.issue_key,
+    })),
+  };
+}

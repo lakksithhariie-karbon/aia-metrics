@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const futureSections = [
-  "Engineering & Delivery",
   "Product",
   "AI Services",
   "Infra",
@@ -19,6 +19,8 @@ const futureSections = [
  * entries respond with an honest placeholder until routes are defined.
  */
 export default function MainNavigationDrawer() {
+  const pathname = usePathname();
+  const onDelivery = pathname === "/delivery" || pathname.startsWith("/delivery/");
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -125,7 +127,7 @@ export default function MainNavigationDrawer() {
                   <div className="app-main-drawer-brand">
                     <strong>AI Accountant</strong>
                     <span className="app-main-drawer-brand-divider" aria-hidden="true" />
-                    <span>Product Metrics</span>
+                    <span>{onDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
                   </div>
                   <button
                     ref={closeRef}
@@ -148,15 +150,19 @@ export default function MainNavigationDrawer() {
                     <div className="app-main-drawer-sections">
                       <Link
                         href="/overview"
-                        className="app-main-drawer-item is-current"
-                        aria-current="page"
-                        onClick={() => {
-                          // Keep the anchor mounted for Next.js navigation.
-                          // On Overview itself, the same-page click only closes the drawer.
-                          if (window.location.pathname === "/overview") close();
-                        }}
+                        className={"app-main-drawer-item" + (!onDelivery ? " is-current" : "")}
+                        aria-current={!onDelivery ? "page" : undefined}
+                        onClick={close}
                       >
                         Overview
+                      </Link>
+                      <Link
+                        href="/delivery"
+                        className={"app-main-drawer-item" + (onDelivery ? " is-current" : "")}
+                        aria-current={onDelivery ? "page" : undefined}
+                        onClick={close}
+                      >
+                        Engineering &amp; Delivery
                       </Link>
                       {futureSections.map(section => (
                         <button

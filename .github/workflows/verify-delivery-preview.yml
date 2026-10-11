@@ -1,0 +1,30 @@
+name: Verify Engineering & Delivery Preview
+
+on:
+  push:
+    branches:
+      - fix/jira-data-foundation-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build audited delivery dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout GitHub branch
+        uses: actions/checkout@v4
+      - name: Use Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Run five data/layout guards and Next.js build
+        run: npm run build

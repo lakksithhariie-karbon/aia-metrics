@@ -5,7 +5,8 @@ import type { MouseEvent } from "react";
 
 export type MetricsInfoKey =
   | "activation" | "ttv" | "monthly_churn"
-  | "retention_cohorts" | "churn_trend" | "companies_monthly";
+  | "retention_cohorts" | "churn_trend" | "companies_monthly"
+  | "assignee_workload";
 
 export interface MetricsInfoDefinition {
   title: string;
@@ -49,6 +50,12 @@ export const metricsInfoDefinitions: Record<MetricsInfoKey, MetricsInfoDefinitio
     logic: "Group real client companies by recorded first integration month. Count non-failed, qualifying AP, AR, Transactions or GST actions after integration in each IST month.",
     example: "3 bill-upload events + 2 transaction edits = AP 3, Transactions 2.",
     note: "Failed attempts, downloads, sync-only actions and marked test companies are excluded. Successful invoice bulk edits map to AR.",
+  },
+  assignee_workload: {
+    title: "Assignee workload",
+    logic: "The matrix groups every open Jira issue in its current state by assignee and module, using the same verified delivery classification as the Engineering & Delivery dashboard. Stale means an open issue with no update for 7+ days; blocked means a blocked status.",
+    example: "An assignee with 3 open AP issues and 2 open AR issues shows AP 3 and AR 2. Each issue contributes once to the assignee's open total.",
+    note: "Counts are issue counts per assignee; cell drills list the underlying issues from the same published Jira snapshot.",
   },
 };
 

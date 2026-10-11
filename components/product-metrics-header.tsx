@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import MainNavigationDrawer from "./main-navigation-drawer";
 import {
   DropdownMenu,
@@ -11,8 +12,15 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export type DashboardKey = "overview" | "retention" | "companies";
+export type DashboardKey = "overview" | "retention" | "companies" | "delivery";
+export type DeliveryView = "overview" | "assignees";
 
+const ENGINEERING_PAGES = [
+  {key:"overview" as const,name:"Engineering Overview",
+   description:"Sprint, flow and quality reporting",href:"/delivery"},
+  {key:"assignees" as const,name:"Assignee Overview",
+   description:"Ownership by module and issue type",href:"/delivery/assignees"},
+];
 const DASHBOARDS = [
   {
     key: "overview" as const,
@@ -49,11 +57,15 @@ function HeaderIcon({ name }: { name: "down" | "check" }) {
  * hand-managed prototype popover. Chart help remains in individual cards.
  */
 export default function ProductMetricsHeader({
-  current,
+  current,deliveryView="overview",
 }: {
   current: DashboardKey;
+  deliveryView?:DeliveryView;
 }) {
+  const router = useRouter();
+  const isDelivery = current === "delivery";
   const active = DASHBOARDS.find(item => item.key === current) ?? DASHBOARDS[0];
+  const deliveryCurrent=ENGINEERING_PAGES.find(item=>item.key===deliveryView)??ENGINEERING_PAGES[0];
 
   return (
     <header className="app-header product-metrics-header">
@@ -63,11 +75,46 @@ export default function ProductMetricsHeader({
           AI Accountant
         </div>
         <span className="brand-divider" />
-        <span className="product-name">Product Metrics</span>
+        <span className="product-name">{isDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
       </div>
 
-      <nav aria-label="Product metrics navigation" className="top-nav">
-        <DropdownMenu>
+      <nav aria-label={isDelivery ? "Engineering navigation" : "Product metrics navigation"} className="top-nav">
+        {isDelivery ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger className="app-dashboard-trigger"
+              aria-label={"Engineering pages, currently "+deliveryCurrent.name}>
+              <span>{deliveryCurrent.name}</span>
+              <HeaderIcon name="down" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent aria-label="Engineering pages" align="end" sideOffset={8}>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="app-dashboard-menu-label">Engineering</DropdownMenuLabel>
+                {ENGINEERING_PAGES.map(item=>{
+                  const selected=item.key===deliveryView;
+                  return <DropdownMenuLinkItem key={item.key} href={item.href}
+                    aria-current={selected?"page":undefined} className="app-dashboard-item"
+                    onClick={event=>{
+                      if(selected){event.preventDefault();return;}
+                      // Client transition preserves the already-loaded app shell
+                      // and shows the destination loading skeleton immediately.
+                      // Modified clicks keep native new-tab navigation behavior.
+                      if(event.defaultPrevented||event.button!==0||
+                        event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+                      event.preventDefault();
+                      router.push(item.href);
+                    }}>
+                    <span className="app-dashboard-item-label">
+                      <strong>{item.name}</strong><small>{item.description}</small>
+                    </span>
+                    {selected?<span className="app-dashboard-current" aria-hidden="true">
+                      <HeaderIcon name="check" />
+                    </span>:null}
+                  </DropdownMenuLinkItem>;
+                })}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : <DropdownMenu>
           <DropdownMenuTrigger
             className="app-dashboard-trigger"
             aria-label={"Dashboards, currently " + active.name}
@@ -107,7 +154,7 @@ export default function ProductMetricsHeader({
               })}
             </DropdownMenuGroup>
           </DropdownMenuContent>
-        </DropdownMenu>
+        </DropdownMenu>}
       </nav>
     </header>
   );

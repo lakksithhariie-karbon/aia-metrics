@@ -187,10 +187,11 @@ test('4. multiple users under one company keep their own totals', () => {
 
 test('5. integrated zero is clickable while pre-integration months render a dash', () => {
   const source = read('components/companies/companies-dashboard.tsx');
+  const drill = read('components/companies/companies-insights-drill.tsx');
   assert(source.includes('if (!usageMonth?.available)'), 'pre-integration months have an explicit availability gate');
   assert(source.includes('companies-month-future'), 'pre-integration months render the dash state');
   assert(source.includes('value === 0 ? "is-zero"'), 'available zero remains a real numeric cell');
-  assert(source.includes('No events in this module'), 'zero-cell drilldown explains the real zero');
+  assert(drill.includes('No eligible recorded work for this module and month.'), 'zero-cell drilldown explains the real zero');
 });
 
 test('6. search by company matches the parent row', () => {
@@ -244,8 +245,8 @@ test('integration month is first, uses first successful integration, and default
   assert(types.includes('integration_month: string;'), 'rows carry their cohort month');
   assert(dashboard.includes('useState<SortKey>("integration_month")'), 'default sort is integration month');
   assert(dashboard.includes('useState<SortDirection>("desc")'), 'default direction is newest first');
-  assert(dashboard.indexOf('Integration month') < dashboard.indexOf('Company'), 'integration month precedes company');
-  assert(dashboard.includes('shortMonth(company.integration_month)'), 'integration month is rendered');
+  assert(dashboard.indexOf('companies-integration-month') < dashboard.indexOf('companies-company-cell'), 'integration month precedes company');
+  assert(dashboard.includes('shortMonth(') && dashboard.includes('company.integration_month'), 'integration month is rendered');
   assert(sql.includes("order by e.company_id, e.event_time asc, e.insert_id asc"), 'anchor is the first successful integration');
   assert(sql.includes("sort_key='integration_month'"), 'monthly RPC sorts integration month');
 });
@@ -257,7 +258,7 @@ test('monthly matrix is calendar months x AP/AR/TXN/GST', () => {
   assert(types.includes('export const MONTH_MODULES'), 'matrix has its own four-module month contract');
   assert(types.includes('{ key: "ap", label: "AP" }'));
   assert(types.includes('{ key: "ar", label: "AR" }'));
-  assert(types.includes('{ key: "transactions", label: "TXN" }'));
+  assert(types.includes('{ key: "transactions", label: "Transaction" }'));
   assert(types.includes('{ key: "gst", label: "GST" }'));
   assert(dashboard.includes('(data?.months ?? []).map(month =>'), 'month groups are driven by the selected range');
   assert(sql.includes("date_trunc('month',e.event_time at time zone 'Asia/Kolkata')"), 'usage is bucketed by IST calendar month');
@@ -275,7 +276,7 @@ test('date picker is anchored to the date trigger when opened', () => {
   assert(dashboard.includes('dateTriggerRef'), 'date trigger has an anchor ref');
   assert(dashboard.includes('datePanelRef'), 'date popover has a panel ref');
   assert(dashboard.includes('getBoundingClientRect()'), 'popover position is measured');
-  assert(dashboard.includes('style={{ left: datePosition.left, top: datePosition.top }}'), 'popover receives visible fixed coordinates');
+  assert(dashboard.includes('left: datePosition.left') && dashboard.includes('top: datePosition.top'), 'popover receives visible fixed coordinates');
   assert(dashboard.includes('window.addEventListener("resize", position)'), 'popover repositions on resize');
 });
 
@@ -289,19 +290,21 @@ test('9. date filtering uses Asia/Kolkata calendar boundaries', () => {
 
 test('10. module modal is scoped to company + calendar month + module', () => {
   const source = read('components/companies/companies-dashboard.tsx');
+  const drill = read('components/companies/companies-insights-drill.tsx');
   const route = read('app/api/companies/route.ts');
   assert(source.includes('user_id: target.user?.id ?? null'), 'company scope sends null user');
   assert(source.includes('month: target.month.slice(0, 7) + "-01"'), 'clicked calendar month is sent');
-  assert(source.includes('Company total'), 'company scope is labeled');
+  assert(drill.includes('Company activity breakdown'), 'company scope is labeled');
   assert(route.includes('!validMonth(month)'), 'invalid calendar months are rejected');
 });
 
 test('11. nested user cells open the same month/module breakdown at user scope', () => {
   const source = read('components/companies/companies-dashboard.tsx');
+  const drill = read('components/companies/companies-insights-drill.tsx');
   const server = read('lib/companies/server.ts');
   assert(source.includes('matrixCells(company, user)'), 'nested users use the same month grid');
   assert(source.includes('openBreakdown('), 'user cells open the shared breakdown flow');
-  assert(source.includes('User scope'), 'modal labels user scope');
+  assert(drill.includes('· User activity'), 'modal labels user scope');
   assert(server.includes('params.user_id === UNATTRIBUTED_ID'), 'unattributed activity is preserved');
   assert(server.includes('read_companies_monthly_breakdown'), 'user/company modal uses monthly breakdown RPC');
 });
@@ -348,7 +351,7 @@ test('filters use the compact old-style surface without covering the grid', () =
   const css = read('app/customer/customer.css');
   assert(source.includes('companies-filter-popover po-filters'), 'filter uses the familiar compact surface');
   assert(source.includes('ui-select-host'), 'filter dropdowns reuse the styled select components');
-  assert(css.includes('.companies-filter-popover.po-filters{position:static'), 'filter remains in layout and cannot cover month columns');
+  assert(css.includes('.companies-filter-popover.po-filters{position:absolute'), 'filter opens as a positioned popover surface');
 });
 
 test('month headers, identity columns and totals are frozen without header overlap', () => {
@@ -356,7 +359,7 @@ test('month headers, identity columns and totals are frozen without header overl
   const css = read('app/customer/customer.css');
   assert(css.includes('.companies-monthly-scroll{flex:1;min-height:0;overflow:auto'), 'matrix owns vertical/horizontal scrolling');
   assert(css.includes('.companies-month-header th{position:sticky;top:0'), 'month header is sticky');
-  assert(css.includes('.companies-module-header th{position:sticky;top:38px'), 'module header is sticky');
+  assert(css.includes('.companies-monthly-table .companies-module-header th{position:sticky;top:40px'), 'module header is sticky');
   assert(source.includes('companies-frozen-header-spacer'), 'second header row has opaque frozen identity cells');
   assert(css.includes('.companies-module-header .companies-frozen-header-spacer:nth-child(3)'), 'company header spacer stays above scrolling modules');
   assert(css.includes('tfoot td{position:sticky;bottom:0'), 'totals footer is sticky');
@@ -365,7 +368,7 @@ test('month headers, identity columns and totals are frozen without header overl
 test('page footer keeps freshness only', () => {
   const source = read('components/companies/companies-dashboard.tsx');
   assert(!source.includes('W1 = day 0–6'));
-  assert(source.includes('Source freshness:'), 'source freshness remains visible');
+  assert(source.includes('cohort · updated'), 'source freshness remains visible');
 });
 
 test('monthly SQL stays private and restricted to server roles', () => {
@@ -391,7 +394,8 @@ test('18. visible navigation label is Companies', () => {
   assert(nav.includes('href="/customer"'), 'prototype menu links to /customer');
   const dashboard = read('components/companies/companies-dashboard.tsx');
   assert(dashboard.includes('<h1>Companies</h1>'), 'page title is Companies');
-  assert(dashboard.includes('<span>Companies</span>'), 'dashboard switcher says Companies');
+  const header = read('components/product-metrics-header.tsx');
+  assert(header.includes('name: "Companies"') && header.includes('href: "/customer"'), 'header switcher labels Companies');
   assert(!dashboard.includes('>Customer<'), 'no visible Customer wording remains');
 });
 
@@ -402,10 +406,10 @@ test('retention KPI v2 uses integration -> training -> independent core work -> 
   assert(sql.includes('public.is_successful_integration'), 'cohort starts at successful integration');
   assert(sql.includes('training_sync_at'), 'first qualifying sync is preserved as training');
   assert(sql.includes("(e.event_time at time zone 'Asia/Kolkata')::date"), 'training boundary is IST calendar day');
-  assert(sql.includes("> (t.training_sync_at at time zone 'Asia/Kolkata')::date"), 'training-day work is excluded');
+  assert(sql.includes("> (training.training_sync_at at time zone 'Asia/Kolkata')::date"), 'training-day work is excluded');
   assert(sql.includes("e.event_name <> 'Accounting Sync'"), 'core job requirement is independent of sync');
   assert(sql.includes("coalesce(e.properties->>'status', '')") && sql.includes("<> 'failed'"), 'failed core jobs do not qualify');
-  assert(sql.includes('e.event_time > c.post_training_core_at'), 'activation-closing sync follows the core job');
+  assert(sql.includes('e.event_time > core.post_training_core_at'), 'activation-closing sync follows the core job');
   assert(sql.includes('activated_at - integration_at'), 'TTV runs from integration to activation');
 });
 
@@ -453,14 +457,14 @@ test('Companies and Retention share the same Product Metrics header', () => {
   const retention = read('components/retention/retention-dashboard.tsx');
 
   assert(header.includes('className="app-header product-metrics-header"'));
-  assert(header.includes('className="dashboard-menu ui-menu-surface"'));
-  assert(header.includes('className="header-help"'));
+  assert(header.includes('className="app-dashboard-trigger"'), 'shared dropdown switcher trigger');
+  assert(header.includes('className="product-name"'), 'shared product label');
   assert(header.includes('href: "/retention"'));
   assert(companies.includes('<ProductMetricsHeader'));
   assert(companies.includes('current="companies"'));
   assert(retention.includes('<ProductMetricsHeader'));
   assert(retention.includes('current="retention"'));
-  assert(retention.includes('helpRef.current?.showModal()'));
+  assert(retention.includes('MetricsInfoDialog') && retention.includes('openInfo'), 'retention metric help is wired');
 });
 
 test('native Retention restores the live cohort heatmap', () => {
@@ -471,8 +475,8 @@ test('native Retention restores the live cohort heatmap', () => {
 
   assert(dashboard.includes('<RetentionHeatmap'));
   assert(!dashboard.includes('preview cards'), 'production Retention has no preview copy');
-  assert(heatmap.includes('"/api/retention-heatmap"'));
-  assert(heatmap.includes('className="heatmap-table'));
+  assert(dashboard.includes('weekly={dashboardData.weekly}') && dashboard.includes('monthly={dashboardData.monthly}'), 'heatmap renders the live dashboard cohorts');
+  assert(heatmap.includes('"heatmap-table "'), 'cohort table keeps its shared heatmap class');
   assert(heatmap.includes('Week 1') === false, 'week columns are generated from the live response');
   assert(route.includes('retention_heatmap_unavailable'));
   assert(sql.includes('metrics_private.retention_week_core_v2'));
@@ -557,7 +561,7 @@ test('monthly churn trend and drill use completed-month v3 semantics', () => {
   assert(modal.includes('Entered churn'));
   assert(modal.includes('Reactivated'));
   assert(modal.includes('Search companies or users'));
-  assert(modal.includes('user.active ? "Active" : "No activity"'));
+  assert(modal.includes('user.active?"Active":"No activity"'));
   assert(modal.includes('rd-modal rd-activation-modal rd-churn-month-modal'));
   assert(route.includes('body.action === "churn_month"'));
   assert(dashboard.includes('<RetentionChurnTrend'));
