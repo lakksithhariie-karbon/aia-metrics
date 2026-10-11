@@ -1499,7 +1499,16 @@ export default function RetentionDashboard({
             />
           ) : (
             <article className="report-card rd-retention-report">
-              <div className="heatmap-empty">Loading retention…</div>
+              <div className="heatmap-empty">
+                {loading ? (
+                  <strong>Loading retention…</strong>
+                ) : (
+                  <>
+                    <strong>Verified data unavailable</strong>
+                    <p>Live retention cohorts could not be loaded for this range. No fixture values are shown.</p>
+                  </>
+                )}
+              </div>
             </article>
           )}
         </section>
