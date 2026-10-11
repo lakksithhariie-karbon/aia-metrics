@@ -325,3 +325,12 @@ assert.match(drawer,/href="\/delivery"/);
 assert.doesNotMatch(shell,/Visual reference only|Reference snapshot|drill pending|mockKpis|fixtureData|not live data|SPEND Sprint 50.*41\.9%/i,
   "No screenshot figures or placeholder copy allowed in the verified dashboard.");
 console.log("Live Engineering & Delivery contract verified: 15 metrics, 6 reports, 5 filters, secured SSR + paginated evidence, shared Product grid.");
+
+
+// Perf instrumentation belongs to the shared server reader, used by both routes.
+assert.match(server,/jira_rpc_duration_ms/);
+assert.match(server,/performance\.now\(\)/);
+assert.match(header,/router\.push\(item\.href\)/,
+  "Engineering page switching must use a client navigation rather than a hard document reload.");
+assert.match(header,/event\.metaKey\|\|event\.ctrlKey/,
+  "Navigation must respect modifier/new-tab clicks.");

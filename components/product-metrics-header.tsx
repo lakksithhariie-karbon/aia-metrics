@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter } from "next/navigation";
 import MainNavigationDrawer from "./main-navigation-drawer";
 import {
   DropdownMenu,
@@ -61,6 +62,7 @@ export default function ProductMetricsHeader({
   current: DashboardKey;
   deliveryView?:DeliveryView;
 }) {
+  const router = useRouter();
   const isDelivery = current === "delivery";
   const active = DASHBOARDS.find(item => item.key === current) ?? DASHBOARDS[0];
   const deliveryCurrent=ENGINEERING_PAGES.find(item=>item.key===deliveryView)??ENGINEERING_PAGES[0];
@@ -91,7 +93,16 @@ export default function ProductMetricsHeader({
                   const selected=item.key===deliveryView;
                   return <DropdownMenuLinkItem key={item.key} href={item.href}
                     aria-current={selected?"page":undefined} className="app-dashboard-item"
-                    onClick={event=>{if(selected)event.preventDefault();}}>
+                    onClick={event=>{
+                      if(selected){event.preventDefault();return;}
+                      // Client transition preserves the already-loaded app shell
+                      // and shows the destination loading skeleton immediately.
+                      // Modified clicks keep native new-tab navigation behavior.
+                      if(event.defaultPrevented||event.button!==0||
+                        event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+                      event.preventDefault();
+                      router.push(item.href);
+                    }}>
                     <span className="app-dashboard-item-label">
                       <strong>{item.name}</strong><small>{item.description}</small>
                     </span>

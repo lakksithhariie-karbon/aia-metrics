@@ -13,21 +13,27 @@ const credentials = () => {
 };
 
 async function rpc<T>(name: string, body: Record<string, unknown>): Promise<T> {
-  const { url, key } = credentials();
-  const response = await fetch(url + "/rest/v1/rpc/" + name, {
-    method: "POST", cache: "no-store", signal: AbortSignal.timeout(29_000),
-    headers: {
-      apikey: key, Authorization: "Bearer " + key,
-      "Content-Type": "application/json", "Cache-Control": "no-store",
-    },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new Error("jira_delivery_" + name + "_http_" + response.status);
-  const value: unknown = await response.json();
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("jira_delivery_bad_rpc_payload");
+  const start = performance.now();
+  try {
+    const { url, key } = credentials();
+    const response = await fetch(url + "/rest/v1/rpc/" + name, {
+      method: "POST", cache: "no-store", signal: AbortSignal.timeout(29_000),
+      headers: {
+        apikey: key, Authorization: "Bearer " + key,
+        "Content-Type": "application/json", "Cache-Control": "no-store",
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) throw new Error("jira_delivery_" + name + "_http_" + response.status);
+    const value: unknown = await response.json();
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("jira_delivery_bad_rpc_payload");
+    }
+    return value as T;
+  } finally {
+    // Server-only, no credentials or Jira record content in timing logs.
+    console.info("jira_rpc_duration_ms", name, Math.round(performance.now() - start));
   }
-  return value as T;
 }
 
 const scalar = (x: unknown): x is number =>
@@ -135,6 +141,59 @@ export type DrillEvidenceSort = DeliveryEvidenceSort | "age_days";
 const ageBucket = (elapsedMs:number):AgingBucket =>
   elapsedMs < 7*86400000 ? "<7d" : elapsedMs < 31*86400000 ? "7–30d" :
   elapsedMs < 91*86400000 ? "31–90d" : ">90d";
+
+/**
+ * Shared validated evidence reader. A null snapshot is permitted ONLY for
+ * Assignee page initialization below. Each DB call still fails closed against
+ * an unpublished sync; the page must then match all three returned snapshot IDs
+ * with its independently validated dashboard ID before any data can render.
+ */
+async function readSourceEvidence(
+  filters:DeliveryFilters,key:string,snapshotId:number|null,offset:number,
+  limit:number,search:string,sort:DeliveryEvidenceSort,
+  direction:"asc"|"desc",exportAll:boolean,expectedCount?:number,
+):Promise<DeliveryEvidence>{
+  const result=await rpc<DeliveryEvidence>("read_jira_delivery_evidence_v2",{
+    ...args(filters),p_key:key,p_snapshot_id:snapshotId,p_offset:offset,
+    p_limit:limit,p_query:search,p_sort:databaseSort[sort],p_direction:direction,
+  });
+  if(result.contract!=="jira_delivery_evidence_v2"||result.key!==key||
+     !count(result.snapshot_id)||
+     (snapshotId!==null&&result.snapshot_id!==snapshotId)||
+     result.query!==search||result.sort!==databaseSort[sort]||
+     result.direction!==direction||
+     !count(result.total)||!count(result.source_count)||
+     result.offset!==offset||result.limit!==limit||
+     !Array.isArray(result.rows)||result.rows.length>limit||
+     result.rows.length!==Math.max(0,Math.min(limit,result.total-offset))||
+     result.rows.some(row=>typeof row.issue_key!=="string"||
+       !/^SPEND-[0-9]+$/.test(row.issue_key))){
+    throw Error("jira_delivery_evidence_contract_invalid");
+  }
+  if(key.startsWith("stage:")&&expectedCount!==undefined&&
+     result.source_count!==expectedCount){
+    throw Error("jira_delivery_stage_evidence_expected_count_mismatch");
+  }
+  if(exportAll&&result.rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
+  return result;
+}
+
+/**
+ * Restricted initial Assignee workload cohorts. This deliberately does NOT
+ * change the browser evidence API, which requires an explicit snapshot ID.
+ * Parallel reads are reconciled by readAssigneeMatrix before any UI output.
+ */
+export async function readAssigneeMatrixEvidence(
+  filters:DeliveryFilters,key:"wip_open"|"stale_7d"|"blocked",
+):Promise<DeliveryEvidence>{
+  const evidence=await readSourceEvidence(filters,key,null,0,7000,"",
+    "created_at","desc",true);
+  if(evidence.source_count!==evidence.total||
+     evidence.rows.length!==evidence.total){
+    throw Error("jira_assignee_initial_evidence_incomplete");
+  }
+  return evidence;
+}
 
 export async function readDeliveryEvidence(
   filters:DeliveryFilters,key:string,snapshotId:number,offset:number,
@@ -275,28 +334,8 @@ export async function readDeliveryEvidence(
     if(exportAll&&rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
     return result;
   }
-  const sortKey=sort as DeliveryEvidenceSort;
-  const result=await rpc<DeliveryEvidence>("read_jira_delivery_evidence_v2",{
-    ...args(filters),p_key:key,p_snapshot_id:snapshotId,p_offset:offset,
-    p_limit:limit,p_query:search,p_sort:databaseSort[sortKey],p_direction:direction,
-  });
-  if(result.contract!=="jira_delivery_evidence_v2"||result.key!==key||
-     result.snapshot_id!==snapshotId||result.query!==search||
-     result.sort!==databaseSort[sortKey]||result.direction!==direction||
-     !count(result.total)||!count(result.source_count)||
-     result.offset!==offset||result.limit!==limit||
-     !Array.isArray(result.rows)||result.rows.length>limit||
-     result.rows.length!==Math.max(0,Math.min(limit,result.total-offset))||
-     result.rows.some(row=>typeof row.issue_key!=="string"||
-       !/^SPEND-[0-9]+$/.test(row.issue_key))){
-    throw Error("jira_delivery_evidence_contract_invalid");
-  }
-  if(key.startsWith("stage:")&&expectedCount!==undefined&&
-     result.source_count!==expectedCount){
-    throw Error("jira_delivery_stage_evidence_expected_count_mismatch");
-  }
-  if(exportAll&&result.rows.length!==result.total)throw Error("jira_delivery_export_incomplete");
-  return result;
+  return readSourceEvidence(filters,key,snapshotId,offset,limit,search,sort as DeliveryEvidenceSort,
+    direction,exportAll,expectedCount);
 }
 
 type RawIssueRecord = Record<string,unknown> & {

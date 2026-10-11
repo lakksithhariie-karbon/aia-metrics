@@ -50,7 +50,17 @@ assert.match(table,/DeliveryEvidenceModal target=\{drill\}/);
 assert.match(table,/prefetchEvidencePage/);
 assert.doesNotMatch(table,/Export CSV|escapeCSV|assignee-export/);
 assert.match(matrix,/readDeliveryDashboard\(filters\)/);
-assert.match(matrix,/readDeliveryEvidence\(filters,key,snapshot,0,7000/);
+assert.match(matrix,/readAssigneeMatrixEvidence\(filters,"wip_open"\)/);
+assert.match(matrix,/readAssigneeMatrixEvidence\(filters,"stale_7d"\)/);
+assert.match(matrix,/readAssigneeMatrixEvidence\(filters,"blocked"\)/);
+assert.match(matrix,/\[dashboard,open,stale,blocked\]=await Promise\.all\(\[/);
+assert.match(matrix,/value\.snapshot_id!==snapshot/,
+  "Unpinned initial cohorts must reconcile against the validated dashboard snapshot.");
+assert.match(server,/snapshotId!==null&&result\.snapshot_id!==snapshotId/,
+  "Pinned evidence requests must continue rejecting snapshot mismatches.");
+assert.match(server,/readAssigneeMatrixEvidence\(/);
+assert.match(server,/p_snapshot_id:snapshotId/);
+assert.match(server,/jira_assignee_initial_evidence_incomplete/);
 assert.match(matrix,/wip_open","stale_7d","blocked/);
 assert.match(matrix,/jira_assignee_matrix_cohort_mismatch_/);
 assert.match(matrix,/jira_assignee_matrix_membership_mismatch/);

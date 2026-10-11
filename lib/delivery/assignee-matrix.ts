@@ -1,8 +1,8 @@
-import { readDeliveryDashboard, readDeliveryEvidence } from "./server";
+import { readDeliveryDashboard, readAssigneeMatrixEvidence } from "./server";
 import type { DeliveryEvidenceItem, DeliveryFilters, SprintRow } from "./types";
 
 // Use the already audited and service-role-only Jira cohorts. The client gets
-// aggregated counts, never the raw 792-item issue population at page load.
+// aggregated counts, never the full issue population at page load.
 export const UNTAGGED_MODULE="__untagged__";
 export const moduleKey=(v:string|null|undefined):string=>v?.trim()||UNTAGGED_MODULE;
 export const assigneeKey=(v:string|null|undefined):string=>v?.trim()||"__unassigned__";
@@ -33,11 +33,16 @@ function add(c:MatrixCounts,module:string,isStale:boolean,isBlocked:boolean){
   if(isBlocked)c.blocked++;
 }
 export async function readAssigneeMatrix(filters:DeliveryFilters):Promise<AssigneeMatrix>{
-  const dashboard=await readDeliveryDashboard(filters);
+  // Remove the dashboard -> evidence waterfall. Every independent reader
+  // enforces the live published snapshot gate; cross-reader snapshot parity
+  // is checked below before returning any matrix data.
+  const [dashboard,open,stale,blocked]=await Promise.all([
+    readDeliveryDashboard(filters),
+    readAssigneeMatrixEvidence(filters,"wip_open"),
+    readAssigneeMatrixEvidence(filters,"stale_7d"),
+    readAssigneeMatrixEvidence(filters,"blocked"),
+  ]);
   const snapshot=dashboard.snapshot_id;
-  const [open,stale,blocked]=await Promise.all(
-    (["wip_open","stale_7d","blocked"] as const).map(key=>
-      readDeliveryEvidence(filters,key,snapshot,0,7000,"","created_at","desc",true)));
   const cohorts=[
     [open,"wip_open",dashboard.flow.flow_counts.open_total],
     [stale,"stale_7d",dashboard.flow.flow_counts.stale_all],
