@@ -61,7 +61,9 @@ assert.match(server,/snapshotId!==null&&result\.snapshot_id!==snapshotId/,
 assert.match(server,/readAssigneeMatrixEvidence\(/);
 assert.match(server,/p_snapshot_id:snapshotId/);
 assert.match(server,/jira_assignee_initial_evidence_incomplete/);
-assert.match(matrix,/wip_open","stale_7d","blocked/);
+assert.match(matrix,/readAssigneeMatrixEvidence\(filters,"wip_open"\)/);
+assert.match(matrix,/readAssigneeMatrixEvidence\(filters,"stale_7d"\)/);
+assert.match(matrix,/readAssigneeMatrixEvidence\(filters,"blocked"\)/);
 assert.match(matrix,/jira_assignee_matrix_cohort_mismatch_/);
 assert.match(matrix,/jira_assignee_matrix_membership_mismatch/);
 assert.match(matrix,/jira_assignee_matrix_total_reconciliation_failed/);
