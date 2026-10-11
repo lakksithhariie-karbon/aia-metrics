@@ -1,0 +1,135 @@
+/*
+ * Infra shell only. Page, KPIs, dropdowns, modal frames and report cards use
+ * the unchanged Product / Engineering design-system classes.
+ * All Infra rules below are restricted to visualization interiors and data
+ * annotations. Do not override .metric-card, .report-card, or shared grid.
+ */
+.infra-page .ed-page-copy>.infra-preview-caption{
+  margin-top:7px;color:#8797ad;font-size:9px;line-height:15px;
+}
+.infra-page .ed-filters>.ed-filter-label{min-width:198px;flex:0 1 230px}
+.infra-chart-shell{padding:0 22px 19px;min-width:0}
+.infra-svg-chart{display:block;width:100%;height:auto;max-height:315px;overflow:visible}
+.infra-svg-chart [role=button]{cursor:pointer;outline:none}
+.infra-svg-chart [role=button]:focus-visible .infra-point-hit{
+  stroke:#315dca;stroke-width:2;fill:#f7f9ff;fill-opacity:.08;
+}
+.infra-axis-label{font:500 12px var(--font-oxanium),sans-serif;fill:#92a0b4}
+.infra-axis-label.is-active{font-weight:700;fill:#3557b2}
+.infra-bar-count{font:600 12px var(--font-oxanium),sans-serif;fill:#5d7092}
+.infra-chart-summary{display:flex;align-items:center;gap:24px;flex-wrap:wrap;
+  padding-top:8px;border-top:1px solid #eef1f6;margin-top:2px}
+.infra-chart-summary>div{display:flex;flex-direction:column;gap:4px}
+.infra-chart-summary>div>span{font-size:9px;color:#94a2b5}
+.infra-chart-summary strong{font-size:12px;color:#345277;font-weight:700}
+.infra-chart-hint{margin-left:auto;color:#96a3b6;font-size:9px}
+.infra-chart-footnote{font-size:9px;line-height:15px;color:#93a1b3;margin:12px 0 0}
+.infra-chart-legend{display:flex;flex-wrap:wrap;gap:18px;margin-top:8px;font-size:9px;
+  color:#75879f}
+.infra-chart-legend>span{display:inline-flex;align-items:center;gap:6px}
+.infra-legend-dot{display:inline-block;width:9px;height:9px;flex:0 0 9px;border-radius:2px}
+.infra-drivers{display:flex;flex-direction:column;gap:0;padding:0 20px 16px}
+.infra-list-head{display:grid;grid-template-columns:minmax(130px,1.1fr) minmax(90px,1.1fr) 82px;
+  gap:12px;padding:4px 7px 10px;color:#8a9ab0;font-size:9px;font-weight:650;
+  text-transform:uppercase;letter-spacing:.35px}
+.infra-list-head>span:last-child{text-align:right}
+.infra-driver-row{width:100%;min-height:44px;display:grid;align-items:center;
+  grid-template-columns:minmax(130px,1.1fr) minmax(90px,1.1fr) 82px;gap:12px;
+  padding:7px;background:#fff;border:0;border-top:1px solid #eef1f5;
+  color:#435573;text-align:left;cursor:pointer}
+.infra-driver-row:hover,.infra-driver-row:focus-visible{background:#f5f8fe;outline:0}
+.infra-driver-row:focus-visible{box-shadow:inset 0 0 0 2px #aac0f2}
+.infra-driver-name{display:flex;align-items:center;gap:8px;min-width:0;font-size:10px;font-weight:600}
+.infra-driver-name>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.infra-swatch{width:7px;height:7px;border-radius:2px;flex:0 0 7px}
+.infra-driver-track{height:7px;background:#f0f3f8;border-radius:99px;display:block;overflow:hidden}
+.infra-driver-track>i{display:block;height:100%;border-radius:99px}
+.infra-driver-row>strong{text-align:right;font-size:10.5px;font-weight:700;
+  color:#304b77;font-variant-numeric:tabular-nums}
+.infra-list-footer{display:flex;justify-content:space-between;align-items:center;
+  flex-wrap:wrap;gap:8px;margin:10px 7px 0;color:#9aa6b7;font-size:9px;line-height:15px}
+.infra-accounts-scroll{margin-bottom:16px;overflow-y:auto;max-height:440px}
+.infra-accounts-table{min-width:460px}
+.infra-accounts-table .ed-flow-track{min-width:85px}
+.infra-accounts-table th:first-child{width:37%}
+.infra-accounts-table td:nth-child(2){width:33%}
+.infra-accounts-table .infra-table-num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.infra-accounts-table .ed-flow-track>span{background:#6484dc}
+.infra-bill-trend{padding-bottom:17px}
+.infra-donut-layout{display:flex;align-items:center;justify-content:center;gap:27px;
+  min-height:260px;padding:0 20px 20px}
+.infra-donut{width:218px;max-width:49%;height:auto;flex:0 0 auto}
+.infra-donut-total{font:700 26px var(--font-oxanium),sans-serif;fill:#243b65}
+.infra-donut-label{font:500 10px var(--font-oxanium),sans-serif;fill:#96a4b7}
+.infra-donut-breakdown{display:flex;flex:1 1 auto;flex-direction:column;gap:20px;min-width:0}
+.infra-donut-breakdown>div{display:flex;flex-direction:column;gap:6px}
+.infra-donut-breakdown>div>span{font-size:10px;color:#6b7f9b;display:flex;align-items:center;gap:6px}
+.infra-donut-breakdown strong{font-size:20px;color:#2c456b;font-weight:700;letter-spacing:-.45px}
+.infra-donut-breakdown small{font-size:9px;color:#8f9fb2}
+.infra-donut-breakdown p{margin:0;color:#95a3b6;font-size:9px;line-height:15px}
+.infra-types-list{display:flex;flex-direction:column;padding:0 19px 17px;gap:0}
+.infra-types-head{display:grid;grid-template-columns:1fr 55px 115px;padding:4px 6px 10px;
+  font-size:9px;font-weight:650;letter-spacing:.35px;text-transform:uppercase;color:#8999ae}
+.infra-types-head>span:not(:first-child){text-align:right}
+.infra-type-row{width:100%;border:0;border-top:1px solid #eef1f5;background:#fff;
+  min-height:60px;display:grid;grid-template-columns:minmax(112px,1.2fr) minmax(70px,1fr) 135px;gap:12px;
+  padding:10px 6px;align-items:center;text-align:left;cursor:pointer}
+.infra-type-row:hover,.infra-type-row:focus-visible{background:#f6f8fe;outline:0}
+.infra-type-row:focus-visible{box-shadow:inset 0 0 0 2px #adc2ef}
+.infra-type-title{display:flex;flex-direction:column;gap:4px;min-width:0}
+.infra-type-title strong{font-size:11px;color:#3a4e70;text-transform:capitalize}
+.infra-type-title span{font-size:9px;color:#9ba9bb}
+.infra-type-bar{background:#edf1f7;height:9px;border-radius:99px;overflow:hidden}
+.infra-type-bar>i{display:block;height:100%;background:#6687d9;border-radius:99px}
+.infra-type-metrics{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.infra-type-metrics strong{font-size:11px;color:#405a7d}
+.infra-type-metrics small{font-size:9px;color:#8b9db5}
+.infra-types-list>.infra-list-footer{margin:10px 6px 0}
+.infra-chart-empty{display:flex;min-height:218px;justify-content:center;align-items:center;
+  padding:24px;color:#92a0b3;font-size:11px;text-align:center}
+.infra-daily-volume{padding:0 22px 21px}
+.infra-daily-header{display:flex;justify-content:space-between;gap:16px;align-items:center;
+  margin:0 0 15px;color:#8091a8;font-size:10px}
+.infra-daily-header strong{font-size:11px;color:#415b82}
+.infra-daily-bars{display:flex;align-items:flex-end;gap:4px;height:162px;border-bottom:1px solid #dde4ee;
+  padding:0 0 16px;overflow:hidden}
+.infra-daily-bar{flex:1 1 0;min-width:4px;height:100%;display:flex;flex-direction:column;
+  justify-content:flex-end;position:relative;gap:0}
+.infra-daily-bar>div{min-height:2px;border-radius:3px 3px 0 0;transition:filter .12s}
+.infra-daily-bar:hover>div{filter:brightness(.83)}
+.infra-daily-bar>span{position:absolute;bottom:-17px;font-size:9px;color:#8798af}
+.infra-health-shell{margin-bottom:5px}
+.infra-health-table{min-width:630px}
+.infra-health-table th:first-child{width:22%}
+.infra-health-table tbody td{color:#566e91}
+.infra-confidence-foot{align-items:center;justify-content:space-between;
+  border-top:0;min-height:44px;flex-wrap:wrap}
+.infra-drill-dialog{height:min(700px,calc(100dvh - 34px))}
+.infra-drill-dialog .ed-evidence-table{min-width:580px}
+.infra-drill-dialog .ed-evidence-table td:nth-child(2){font-weight:650;color:#385883;white-space:nowrap}
+.infra-drill-foot{gap:15px}
+.infra-drill-foot>span{flex:1 1 auto;font-size:9px;line-height:15px;color:#8799ad}
+@media(max-width:750px){
+  .infra-donut-layout{gap:12px}
+  .infra-donut{width:175px}
+}
+@media(max-width:620px){
+  .infra-page .ed-filters>.ed-filter-label{flex:1 1 100%;min-width:0}
+  .infra-chart-shell{padding:0 12px 13px}
+  .infra-chart-summary{gap:12px}
+  .infra-chart-hint{width:100%;margin-left:0}
+  .infra-drivers{padding:0 10px 13px}
+  .infra-list-head,.infra-driver-row{grid-template-columns:minmax(110px,1.2fr) minmax(55px,1fr) 75px;gap:6px}
+  .infra-driver-name{font-size:9px}
+  .infra-donut-layout{padding:0 10px 14px}
+  .infra-donut{width:145px}
+  .infra-donut-breakdown strong{font-size:17px}
+  .infra-types-list{padding:0 10px 13px}
+  .infra-type-row{grid-template-columns:minmax(88px,1.1fr) minmax(36px,.8fr) 92px;gap:6px}
+  .infra-type-metrics strong{font-size:10px}
+  .infra-daily-volume{padding:0 12px 17px}
+  .infra-drill-dialog .ed-evidence-table{min-width:470px}
+}
+@media(prefers-reduced-motion:reduce){
+  .infra-daily-bar>div{transition:none}
+}

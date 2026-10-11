@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export type DashboardKey = "product" | "retention" | "companies" | "delivery";
+export type DashboardKey = "product" | "retention" | "companies" | "delivery" | "infra";
 export type DeliveryView = "overview" | "assignees";
 
 const ENGINEERING_PAGES = [
@@ -20,6 +20,10 @@ const ENGINEERING_PAGES = [
    description:"Sprint, flow and quality reporting",href:"/delivery"},
   {key:"assignees" as const,name:"Assignee Overview",
    description:"Ownership by module and issue type",href:"/delivery/assignees"},
+];
+const INFRA_PAGES = [
+  {key:"overview" as const,name:"Infrastructure Overview",
+   description:"Cloud spend, processing economics and data confidence",href:"/infra"},
 ];
 const DASHBOARDS = [
   {
@@ -64,8 +68,11 @@ export default function ProductMetricsHeader({
 }) {
   const router = useRouter();
   const isDelivery = current === "delivery";
+  const isInfra = current === "infra";
   const active = DASHBOARDS.find(item => item.key === current) ?? DASHBOARDS[0];
   const deliveryCurrent=ENGINEERING_PAGES.find(item=>item.key===deliveryView)??ENGINEERING_PAGES[0];
+  const sectionPages=isInfra?INFRA_PAGES:ENGINEERING_PAGES;
+  const sectionCurrent=isInfra?INFRA_PAGES[0]:deliveryCurrent;
 
   return (
     <header className="app-header product-metrics-header">
@@ -75,22 +82,22 @@ export default function ProductMetricsHeader({
           AI Accountant
         </div>
         <span className="brand-divider" />
-        <span className="product-name">{isDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
+        <span className="product-name">{isInfra?"Infrastructure Metrics":isDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
       </div>
 
-      <nav aria-label={isDelivery ? "Engineering navigation" : "Product metrics navigation"} className="top-nav">
-        {isDelivery ? (
+      <nav aria-label={isInfra?"Infrastructure navigation":isDelivery ? "Engineering navigation" : "Product metrics navigation"} className="top-nav">
+        {isDelivery || isInfra ? (
           <DropdownMenu>
             <DropdownMenuTrigger className="app-dashboard-trigger"
-              aria-label={"Engineering pages, currently "+deliveryCurrent.name}>
-              <span>{deliveryCurrent.name}</span>
+              aria-label={(isInfra?"Infrastructure pages, currently ":"Engineering pages, currently ")+sectionCurrent.name}>
+              <span>{sectionCurrent.name}</span>
               <HeaderIcon name="down" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent aria-label="Engineering pages" align="end" sideOffset={8}>
+            <DropdownMenuContent aria-label={isInfra?"Infrastructure pages":"Engineering pages"} align="end" sideOffset={8}>
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="app-dashboard-menu-label">Engineering</DropdownMenuLabel>
-                {ENGINEERING_PAGES.map(item=>{
-                  const selected=item.key===deliveryView;
+                <DropdownMenuLabel className="app-dashboard-menu-label">{isInfra?"Infrastructure":"Engineering"}</DropdownMenuLabel>
+                {sectionPages.map(item=>{
+                  const selected=isInfra?item.key==="overview":item.key===deliveryView;
                   return <DropdownMenuLinkItem key={item.key} href={item.href}
                     aria-current={selected?"page":undefined} className="app-dashboard-item"
                     onClick={event=>{

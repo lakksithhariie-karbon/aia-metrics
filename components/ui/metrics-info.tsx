@@ -91,9 +91,11 @@ export function MetricsInfoButton({
 export default function MetricsInfoDialog({
   definition,
   onClose,
+  sectionLabel = "Product Metrics",
 }: {
   definition: MetricsInfoDefinition;
   onClose: () => void;
+  sectionLabel?: string;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
@@ -123,7 +125,7 @@ export default function MetricsInfoDialog({
     >
       <header className="metrics-info-head">
         <div>
-          <p>Product Metrics · How it's counted</p>
+          <p>{sectionLabel} · How it's counted</p>
           <h2 id="metrics-info-title">{definition.title}</h2>
         </div>
         <button
