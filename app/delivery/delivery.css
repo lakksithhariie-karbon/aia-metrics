@@ -198,6 +198,10 @@
 .ed-flow-track{display:block;width:100%;height:7px;border-radius:6px;overflow:hidden;background:#eff1f4}
 .ed-flow-track>span{display:block;height:100%;background:#3765e8;border-radius:6px;min-width:2px}
 .ed-flow-track>.ed-flow-danger{background:#e33a43}
+.ed-flow-drill-row{cursor:pointer;outline:none}
+.ed-flow-drill-row:hover th,.ed-flow-drill-row:hover td,
+.ed-flow-drill-row:focus-visible th,.ed-flow-drill-row:focus-visible td{background:#f4f7ff}
+.ed-flow-drill-row:focus-visible{outline:2px solid #97b4f1;outline-offset:-2px}
 .ed-preview-note{
   grid-column:1/-1;display:block;
   color:#8793a5;font-size:9.5px;line-height:16px;
@@ -355,7 +359,7 @@
 .ed-trend-plot{position:relative;width:100%;outline:none;border-radius:6px;min-width:0}
 .ed-trend-plot:focus-visible{outline:2px solid #96b2f0;outline-offset:1px}
 .ed-trend-plot svg{display:block;width:100%;height:auto;max-height:220px;overflow:visible}
-.ed-trend-plot svg rect{cursor:crosshair}
+.ed-trend-plot svg rect{cursor:pointer}
 .ed-trend-tooltip{position:absolute;top:10px;min-width:166px;transform:translateX(-50%)}
 .ed-trend-note,.ed-aging-note{margin:5px 0 0;color:#90a0b4;font-size:9px;line-height:15px}
 .ed-chart-empty{display:flex;min-height:170px;align-items:center;justify-content:center;
@@ -363,7 +367,8 @@
 .ed-aging{padding:0 22px 15px;display:flex;flex-direction:column;gap:6px;flex:1 1 auto;min-height:0}
 .ed-aging-chart{position:relative;display:grid;flex:1 1 auto;gap:8px;grid-auto-rows:minmax(44px,1fr)}
 .ed-aging-row{position:relative;display:grid;grid-template-columns:65px minmax(0,1fr) 39px 48px;
-  align-items:center;gap:11px;min-height:44px;padding:0 5px;border-radius:5px;
+  align-items:center;gap:11px;min-height:44px;width:100%;padding:0 5px;border:0;border-radius:5px;
+  background:transparent;text-align:left;font-family:inherit;cursor:pointer;
   color:#677995;font-size:10px;outline:none}
 .ed-aging-row:hover,.ed-aging-row:focus-visible{background:#f7f9ff}
 .ed-aging-row:focus-visible{box-shadow:inset 0 0 0 2px #b7c9f1}

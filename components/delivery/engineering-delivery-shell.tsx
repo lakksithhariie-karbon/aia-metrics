@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import CompactMenuSelect from "../ui/compact-menu-select";
 import DeliveryEvidenceModal from "./delivery-evidence-modal";
+import DeliveryBacklogModal from "./delivery-backlog-modal";
 import type { ReactNode } from "react";
 import type {
   DeliveryDashboard, DeliveryFilters,
@@ -27,7 +28,8 @@ type Metric = {
   sprintId?: number | null;
   attention?: boolean;
 };
-type DrillTarget = { key: string; label: string; sprintId: number | null };
+type DrillTarget = { key: string; label: string; sprintId: number | null;
+  expectedCount?: number; detailNote?: string };
 const nf = new Intl.NumberFormat("en-IN",{maximumFractionDigits:0});
 const num = (v: number | null | undefined): string =>
   typeof v==="number" && Number.isFinite(v) ? nf.format(v) : "—";
@@ -278,13 +280,19 @@ function IssueTypes({data,open}:{data:DeliveryDashboard;open:(target:DrillTarget
     </div>
   </Surface>;
 }
-function FlowHealth({data,sprint}:{data:DeliveryDashboard;sprint:SprintRow}){
+function FlowHealth({data,sprint,open}:{
+  data:DeliveryDashboard;sprint:SprintRow;open:(target:DrillTarget)=>void;
+}){
   const stages=data.flow.stage_summary.filter(s=>s.sprint_id===sprint.sprint_id)
     .sort((a,b)=>(b.median_hours??0)-(a.median_hours??0));
   const cycle = data.selected_sprint_id != null ?
     data.core.cycle_time_by_sprint.find(x=>x.sprint_id===sprint.sprint_id) :
     data.core.cycle_time_org;
   const maxHours=Math.max(1,...stages.map(s=>s.median_hours??0));
+  const inspect=(s:FlowStageRow)=>open({
+    key:"stage:"+s.stage,label:shortSprint(sprint.sprint_name)+" · "+(s.stage==="Uat"?"UAT":s.stage),
+    sprintId:sprint.sprint_id,detailNote:hrs(s.median_hours)+" median dwell",
+  });
   return <Surface title="Flow health" subtitle={"Median stage dwell · "+shortSprint(sprint.sprint_name)}>
     <div className="ed-flow-summary"><div>
       <span>Engineering cycle time</span>
@@ -294,7 +302,13 @@ function FlowHealth({data,sprint}:{data:DeliveryDashboard;sprint:SprintRow}){
     <div className="ed-table-shell" role="region" tabIndex={0} aria-label="Stage dwell time in the selected sprint">
       <table className="ed-report-table ed-flow-table">
         <thead><tr><th>Stage</th><th>Median dwell</th><th>Duration / stays</th></tr></thead>
-        <tbody>{stages.map(s=><tr key={s.stage}>
+        <tbody>{stages.map(s=><tr key={s.stage} className="ed-flow-drill-row"
+          tabIndex={0} title={"Open matching Jira stage history for "+s.stage}
+          aria-label={s.stage+", "+num(s.issues_in_stage)+" measured issues, "+hrs(s.median_hours)+" median. Inspect Jira issues."}
+          onClick={()=>inspect(s)}
+          onKeyDown={event=>{
+            if(event.key==="Enter"||event.key===" "){event.preventDefault();inspect(s);}
+          }}>
           <th scope="row">{s.stage.toLowerCase()==="uat"?"UAT":s.stage}</th>
           <td><span className="ed-flow-track" aria-hidden="true"><span
             className={s.stage==="Blocked/Onhold"?"ed-flow-danger":""}
@@ -305,7 +319,7 @@ function FlowHealth({data,sprint}:{data:DeliveryDashboard;sprint:SprintRow}){
     </div>
   </Surface>;
 }
-function BacklogTrend({data}:{data:DeliveryDashboard}){
+function BacklogTrend({data,onOpen}:{data:DeliveryDashboard;onOpen:(week:string)=>void}){
   const [active,setActive]=useState<number|null>(null);
   const series=[...data.flow.backlog_trend].filter(row=>Number.isFinite(row.open_eod))
     .sort((a,b)=>a.week_start.localeCompare(b.week_start)).slice(-20);
@@ -338,7 +352,7 @@ function BacklogTrend({data}:{data:DeliveryDashboard}){
         </span>
       </div>
       {n>=2?<div className="ed-trend-plot" role="group" tabIndex={0}
-          aria-label={"Weekly open backlog across "+n+" weeks. Focus, then use left and right arrow keys to inspect."}
+          aria-label={"Weekly open backlog across "+n+" weeks. Use left and right arrow keys to choose a week, then Enter to investigate."}
           onFocus={()=>setActive(index=>index===null?n-1:index)}
           onBlur={()=>setActive(null)}
           onMouseLeave={()=>setActive(null)}
@@ -346,6 +360,9 @@ function BacklogTrend({data}:{data:DeliveryDashboard}){
             if(event.key==="ArrowLeft"||event.key==="ArrowRight"){
               event.preventDefault();
               setActive(index=>Math.min(n-1,Math.max(0,(index??n-1)+(event.key==="ArrowLeft"?-1:1))));
+            } else if(event.key==="Enter"||event.key===" "){
+              event.preventDefault();
+              onOpen(series[active??n-1].week_start);
             }
           }}>
         <svg viewBox={"0 0 "+width+" "+height} role="img"
@@ -382,7 +399,8 @@ function BacklogTrend({data}:{data:DeliveryDashboard}){
             width={Math.min(hitWidth,width-right-Math.max(left,x(index)-hitWidth/2))}
             height={plotBottom-top} fill="transparent"
             onMouseEnter={()=>setActive(index)}
-            onPointerMove={()=>setActive(index)} aria-hidden="true"/>)}
+            onPointerMove={()=>setActive(index)}
+             onClick={()=>onOpen(row.week_start)} aria-hidden="true"/>)}
           {ticks.map((index,i)=><text key={index} x={x(index)} y={height-8}
             textAnchor={i===0?"start":i===ticks.length-1?"end":"middle"}
             fontSize="11" fill="#8595ad">{date(series[index].week_start)}</text>)}
@@ -394,13 +412,14 @@ function BacklogTrend({data}:{data:DeliveryDashboard}){
           <span><b>{num(marked.open_eod)}</b> open issues</span>
           <small>{num(marked.created)} created · {num(marked.resolved)} resolved</small>
           <small>Net movement: {changeText(marked.net_movement)}</small>
+           <small>Click to inspect the week</small>
         </div>:null}
       </div>:<p className="ed-chart-empty">Not enough published weeks to plot the backlog trend.</p>}
-      <p className="ed-trend-note">Focus the chart and use ← → to inspect each week.</p>
+      <p className="ed-trend-note">Select a point, or focus the chart and press Enter, to inspect weekly totals.</p>
     </div>
   </Surface>;
 }
-function BugAging({data}:{data:DeliveryDashboard}){
+function BugAging({data,open}:{data:DeliveryDashboard;open:(target:DrillTarget)=>void}){
   const [active,setActive]=useState<number|null>(null);
   const rows=data.flow.bug_health.age_histogram;
   const total=data.flow.bug_health.open_bugs;
@@ -413,9 +432,10 @@ function BugAging({data}:{data:DeliveryDashboard}){
         <div><span>Median age</span><strong>{decimal(median)}<small> days</small></strong></div>
       </div>
       <div className="ed-aging-chart" role="group" aria-label="Open bug aging by time since creation">
-        {rows.map((row,index)=><div className="ed-aging-row" key={row.bucket}
-          tabIndex={0} role="group"
-          aria-label={row.bucket+": "+num(row.count)+" open bugs, "+pct(row.pct)+" of the total"}
+        {rows.map((row,index)=><button type="button" className="ed-aging-row" key={row.bucket}
+          aria-label={row.bucket+": "+num(row.count)+" open bugs, "+pct(row.pct)+" of the total. Inspect Jira issues."}
+          onClick={()=>open({key:"aging:"+row.bucket,label:"Open bugs · "+row.bucket,
+            sprintId:null,expectedCount:row.count,detailNote:pct(row.pct)+" of open bugs"})}
           onMouseEnter={()=>setActive(index)}
           onMouseLeave={()=>setActive(null)}
           onFocus={()=>setActive(index)}
@@ -432,9 +452,9 @@ function BugAging({data}:{data:DeliveryDashboard}){
             <span>{num(row.count)} open bugs</span>
             <small>{pct(row.pct)} of the current bug backlog</small>
           </div>:null}
-        </div>)}
+        </button>)}
       </div>
-      <p className="ed-aging-note">Hover or focus a range to inspect its count and share.</p>
+      <p className="ed-aging-note">Select an age range to inspect the matching Jira bugs.</p>
     </div>
   </Surface>;
 }
@@ -462,6 +482,7 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
 }){
   const [info,setInfo]=useState<Metric|null>(null);
   const [drill,setDrill]=useState<DrillTarget|null>(null);
+  const [backlogWeek,setBacklogWeek]=useState<string|null>(null);
   if(!data) {
     return <main className="rd-page ed-page">
       <div className="rd-page-head ed-page-head"><div className="ed-page-copy">
@@ -610,14 +631,14 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
       </section>
       <section className="metrics-grid-section ed-section" aria-label="Flow">
         <SectionHead title="Flow" question="Where does work wait, and how long does it take?"/>
-        <div className="ed-collection"><FlowHealth data={data} sprint={first}/></div>
+        <div className="ed-collection"><FlowHealth data={data} sprint={first} open={drillTo}/></div>
       </section>
       <section className="metrics-grid-section ed-section" aria-label="Quality">
         <SectionHead title="Quality" question="Defect stock, rejection, recovery and cycle time"/>
         <div className="ed-quality-kpis ed-kpi-grid po-kpis">{quality.map(m=>
           <MetricTile key={m.id} metric={m} onInfo={apply} onDrill={drillTo}/>)}</div>
         <div className="ed-collection">
-          <BugAging data={data}/><BacklogTrend data={data}/>
+          <BugAging data={data} open={drillTo}/><BacklogTrend data={data} onOpen={setBacklogWeek}/>
         </div>
       </section>
       <footer className="ed-preview-note">
@@ -626,5 +647,10 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
     </main>
     {info?<DefinitionDialog metric={info} onClose={()=>setInfo(null)}/>:null}
     {drill?<DeliveryEvidenceModal target={drill} data={data} filters={filters} onClose={()=>setDrill(null)}/>:null}
+    {backlogWeek?<DeliveryBacklogModal rows={data.flow.backlog_trend} weekStart={backlogWeek}
+      onClose={()=>{
+        setBacklogWeek(null);
+        requestAnimationFrame(()=>document.querySelector<HTMLElement>(".ed-trend-plot")?.focus({preventScroll:true}));
+      }}/>:null}
   </>;
 }

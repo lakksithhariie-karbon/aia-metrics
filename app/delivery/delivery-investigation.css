@@ -241,3 +241,32 @@
   .ed-investigation-toolbar.rd-drill-toolbar{flex-wrap:wrap}
   .ed-issue-field-pills{gap:4px}
 }
+
+/* Backlog investigation: the same Product-style modal and numbered table. */
+.ed-backlog-modal.ed-investigation-modal{width:min(1030px,calc(100vw - 36px))}
+.ed-backlog-tabs{display:flex;gap:7px;align-items:center;flex-wrap:wrap;
+  padding:13px 20px 10px;border-bottom:1px solid #edf1f6}
+.ed-backlog-tab{border:1px solid #dce5f2;border-radius:5px;
+  padding:9px 12px;color:#657994;background:#fff;font-size:10px;font-weight:600}
+.ed-backlog-tab[aria-current="page"]{background:#eef3ff;border-color:#c9d8f6;color:#3159bd}
+.ed-backlog-tab:disabled{opacity:.4;cursor:not-allowed}
+.ed-backlog-context{padding:11px 20px 13px;color:#8090a6;font-size:10px;
+  display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.ed-backlog-context strong{font-size:14px;color:#314c77}
+.ed-backlog-table{min-width:760px}
+.ed-backlog-table thead th:first-child{width:24%;padding-left:12px}
+.ed-backlog-table th:not(:first-child),.ed-backlog-table td:not(:first-child){text-align:right!important}
+.ed-backlog-table th:last-child,.ed-backlog-table td:last-child{padding-right:16px!important}
+.ed-backlog-week-button{color:#305ac6;font-weight:640;padding:4px 0;text-align:left}
+.ed-backlog-week-button:hover{text-decoration:underline}
+.ed-backlog-week-button:focus-visible{outline:2px solid #97b4f1;outline-offset:2px}
+.ed-backlog-selected td{background:#f1f5ff!important}
+.ed-backlog-net-positive{color:#b66b4e}
+.ed-backlog-net-negative{color:#44765e}
+.ed-backlog-scope-note{padding:8px 20px 14px;font-size:9.5px;line-height:17px;color:#8b99ad}
+@media(max-width:800px){
+  .ed-backlog-modal.ed-investigation-modal{width:calc(100vw - 18px)}
+  .ed-backlog-tabs{padding:11px 12px 9px}
+  .ed-backlog-context{padding:10px 12px}
+  .ed-backlog-scope-note{padding:8px 12px 12px}
+}
