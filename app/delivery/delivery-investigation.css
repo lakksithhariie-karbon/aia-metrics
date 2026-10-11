@@ -270,3 +270,16 @@
   .ed-backlog-context{padding:10px 12px}
   .ed-backlog-scope-note{padding:8px 12px 12px}
 }
+
+/* Engineering overview page only (.ed-shell): the pagination bar drops its
+   full-width divider — the table frame's own border is enough. */
+.ed-shell .ed-investigation-foot.rd-modal-foot{border-top:0}
+/* The issue-detail dialog matches the cohort drill's frame exactly (1220px,
+   content-hugging height capped like the drill) so stacked modals read as
+   one consistent drill. Small screens keep the shared near-fullscreen fit. */
+.ed-shell .ed-issue-dialog{width:min(1220px,calc(100vw - 36px));
+  height:auto;max-height:min(805px,calc(100dvh - 32px))}
+@media(max-width:800px){
+  .ed-shell .ed-issue-dialog{width:calc(100vw - 18px);
+    height:calc(100dvh - 18px);max-height:calc(100dvh - 18px)}
+}

@@ -10,6 +10,7 @@ const page = read("app/delivery/page.tsx");
 const shell = read("components/delivery/engineering-delivery-shell.tsx");
 const overviewCards = read("components/overview/overview-kpi-strip.tsx");
 const css = read("app/delivery/delivery.css");
+const invCss = read("app/delivery/delivery-investigation.css");
 const grid = read("app/metrics-page-grid.css");
 const server = read("lib/delivery/server.ts");
 const api = read("app/api/delivery/evidence/route.ts");
@@ -58,6 +59,12 @@ assert.doesNotMatch(css,/ed-metric-readout|ed-five-kpis|ed-metric-caption|ed-met
   "Do not copy Product card styling into a smaller grey Engineering lookalike.");
 assert.match(css,/bottom:12px/,"Metric info icons must match Product's bottom-right position.");
 assert.match(css,/\.ed-collection\{/);
+assert.match(invCss,/\.ed-shell \.ed-investigation-foot\.rd-modal-foot\{border-top:0\}/,
+  "Drill pagination footer drops the full-width divider on the Engineering overview page.");
+assert.match(invCss,/\.ed-shell \.ed-issue-dialog\{width:min\(1220px,calc\(100vw - 36px\)\)/,
+  "Issue-detail dialog matches the cohort drill's 1220px frame on this page.");
+assert.match(invCss,/\.ed-shell \.ed-issue-dialog\{width:calc\(100vw - 18px\)/,
+  "Small screens keep the shared near-fullscreen dialog fit.");
 assert.match(shell,/function WorkInFlight\(/);
 assert.match(shell,/const total=data.flow.flow_counts.open_total/);
 assert.match(shell,/const blocked=data.flow.flow_counts.blocked_all/);
