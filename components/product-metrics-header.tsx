@@ -12,7 +12,14 @@ import {
 } from "./ui/dropdown-menu";
 
 export type DashboardKey = "overview" | "retention" | "companies" | "delivery";
+export type DeliveryView = "overview" | "assignees";
 
+const ENGINEERING_PAGES = [
+  {key:"overview" as const,name:"Engineering Overview",
+   description:"Sprint, flow and quality reporting",href:"/delivery"},
+  {key:"assignees" as const,name:"Assignee Overview",
+   description:"Ownership by module and issue type",href:"/delivery/assignees"},
+];
 const DASHBOARDS = [
   {
     key: "overview" as const,
@@ -49,12 +56,14 @@ function HeaderIcon({ name }: { name: "down" | "check" }) {
  * hand-managed prototype popover. Chart help remains in individual cards.
  */
 export default function ProductMetricsHeader({
-  current,
+  current,deliveryView="overview",
 }: {
   current: DashboardKey;
+  deliveryView?:DeliveryView;
 }) {
   const isDelivery = current === "delivery";
   const active = DASHBOARDS.find(item => item.key === current) ?? DASHBOARDS[0];
+  const deliveryCurrent=ENGINEERING_PAGES.find(item=>item.key===deliveryView)??ENGINEERING_PAGES[0];
 
   return (
     <header className="app-header product-metrics-header">
@@ -69,9 +78,31 @@ export default function ProductMetricsHeader({
 
       <nav aria-label={isDelivery ? "Engineering navigation" : "Product metrics navigation"} className="top-nav">
         {isDelivery ? (
-          <span className="app-dashboard-trigger app-dashboard-current-section" aria-current="page">
-            Engineering &amp; Delivery
-          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="app-dashboard-trigger"
+              aria-label={"Engineering pages, currently "+deliveryCurrent.name}>
+              <span>{deliveryCurrent.name}</span>
+              <HeaderIcon name="down" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent aria-label="Engineering pages" align="end" sideOffset={8}>
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="app-dashboard-menu-label">Engineering</DropdownMenuLabel>
+                {ENGINEERING_PAGES.map(item=>{
+                  const selected=item.key===deliveryView;
+                  return <DropdownMenuLinkItem key={item.key} href={item.href}
+                    aria-current={selected?"page":undefined} className="app-dashboard-item"
+                    onClick={event=>{if(selected)event.preventDefault();}}>
+                    <span className="app-dashboard-item-label">
+                      <strong>{item.name}</strong><small>{item.description}</small>
+                    </span>
+                    {selected?<span className="app-dashboard-current" aria-hidden="true">
+                      <HeaderIcon name="check" />
+                    </span>:null}
+                  </DropdownMenuLinkItem>;
+                })}
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : <DropdownMenu>
           <DropdownMenuTrigger
             className="app-dashboard-trigger"

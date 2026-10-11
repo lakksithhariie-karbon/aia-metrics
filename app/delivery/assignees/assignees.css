@@ -1,0 +1,52 @@
+/* Assignee table deliberately inherits Companies' original customer.css.
+   Only header/column adjustments for different Jira dimensions are scoped here. */
+.assignee-page .metrics-section-kicker{margin:0 0 12px}
+.assignee-page .companies-page-heading{padding-bottom:20px}
+.assignee-page .assignee-current-scope{color:#8b98ab;font-size:10px}
+.assignee-page .companies-monthly-scroll{border-radius:0 0 9px 9px}
+.assignee-page .assignee-monthly-table .companies-month-header th:nth-child(2),
+.assignee-page .assignee-monthly-table .companies-month-header th:nth-child(3){text-align:left}
+.assignee-page .assignee-monthly-table .companies-module-header th{
+  min-width:86px;width:94px!important;white-space:nowrap;
+}
+.assignee-page .assignee-monthly-table .companies-module-header th>button{
+  justify-content:center;max-width:100%;gap:4px;padding:0 5px;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:9px;
+}
+.assignee-page .assignee-monthly-table .companies-module-header th>button .icon{
+  flex:0 0 11px;
+}
+.assignee-page .assignee-monthly-table tbody td:nth-child(4n+4),
+.assignee-page .assignee-monthly-table tfoot td:nth-child(4n+4){border-left:0}
+.assignee-page .assignee-monthly-table tbody td:nth-child(4),
+.assignee-page .assignee-monthly-table tfoot td:nth-child(4){border-left:1px solid #e1e6ee}
+.assignee-page .assignee-monthly-table .companies-module-head.assignee-attention-stale{
+  background:#fff9ee;color:#8a724f;
+}
+.assignee-page .assignee-monthly-table .companies-module-head.assignee-attention-blocked{
+  background:#fff1f0;color:#995e59;
+}
+.assignee-page .companies-nested-user-row .companies-user-month{color:#70809a!important}
+.assignee-page .companies-nested-user-row .companies-user-month .companies-module-button{margin:0}
+.assignee-page .assignee-monthly-table .companies-total-row .companies-total-label{font-size:10px}
+.assignee-page .assignee-columns-wrap{position:relative}
+.assignee-page .assignee-columns-menu{right:0}
+.assignee-option{display:block;width:100%;padding:9px 10px;border-radius:5px;
+  text-align:left;font-size:10px;color:#59708d}
+.assignee-option[aria-pressed="true"]{color:#3157c0;background:#f1f5ff;font-weight:660}
+.assignee-option:hover{background:#f4f7fc}
+.assignee-export.ui-control{height:36px;border-radius:6px;padding:0 11px;
+  font-size:10px;color:#53647d}
+.assignee-page-footer{padding:7px 0 14px;font-size:9.5px;color:#8a98aa;flex:0 0 auto}
+.assignee-page .po-record-tools{gap:8px;flex-wrap:wrap}
+.assignee-load{padding-bottom:20px}
+@media(max-width:900px){
+  .assignee-page .companies-toolbar-meta{display:flex;min-width:0}
+}
+@media(max-width:640px){
+  .assignee-page .companies-command-bar{align-items:flex-start;flex-direction:column}
+  .assignee-page .companies-command-bar .po-record-tools{width:100%;margin:0}
+  .assignee-page .companies-grid-card .po-search{flex:1 1 100%;max-width:none;width:100%}
+  .assignee-page .assignee-current-scope{display:none}
+  .assignee-page .assignee-monthly-table .companies-month-header th:nth-child(3){width:210px}
+}
