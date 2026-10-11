@@ -21,3 +21,20 @@ assert.equal((alignedCore.match(/join jira\.v_metric_cohorts_active_v1 mc/g) || 
 assert.doesNotMatch(alignedCore, /from metric_cohorts mc|join metric_cohorts mc/i);
 assert.doesNotMatch(alignedCore, /DROP\s+(?:MATERIALIZED VIEW|TABLE)|TRUNCATE\s+jira/i);
 console.log("Jira reporting source guards verified: deleted-exclusion parity, exact done_now, frozen cohort adapter.");
+
+const performanceSql = readFileSync(
+  new URL("../supabase/migrations/20261011_jira_delivery_dashboard_join_plan_v1.sql",import.meta.url),
+  "utf8",
+);
+assert.match(performanceSql,
+  /ALTER FUNCTION public\.read_jira_delivery_dashboard_v1\([\s\S]*?\) SET enable_nestloop = off;/,
+  "Optimizer change must apply only to the existing audited Jira dashboard facade.");
+const active = performanceSql.split("\n").filter(line=>!line.trim().startsWith("--")).join("\n");
+assert.equal((active.match(/\bALTER FUNCTION\b/g)||[]).length,1,
+  "Only the dashboard reader should receive an optimizer setting.");
+assert.doesNotMatch(active, /\b(?:GRANT|REVOKE|INSERT|UPDATE|DELETE|DROP|TRUNCATE|CREATE|ALTER TABLE)\b/i,
+  "Performance-only migration must not change data, authorization, or schema.");
+assert.doesNotMatch(active, /read_jira_delivery_evidence_v2/,
+  "Keep evidence's faster default query plan untouched.");
+console.log("Jira dashboard query-plan migration verified: one scoped optimizer setting, no data or access changes.");
+
