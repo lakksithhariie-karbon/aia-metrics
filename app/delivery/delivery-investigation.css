@@ -6,8 +6,8 @@
  */
 .ed-investigation-modal{
   width:min(1220px,calc(100vw - 36px));
-  height:min(805px,calc(100dvh - 32px));
-  min-height:0;max-height:calc(100dvh - 32px);
+  height:auto;min-height:0;
+  max-height:min(805px,calc(100dvh - 32px));
   display:flex;flex-direction:column;
   background:#fff;
 }
@@ -42,7 +42,7 @@
   font-size:9.5px;color:#8b99ac;
 }
 .ed-investigation-table-wrap.rd-table-wrap{
-  flex:1 1 auto;min-height:0;overflow:auto;
+  flex:0 1 auto;min-height:0;overflow:auto;
   margin:0 20px 3px;border:1px solid #e1e6ee;
   border-radius:6px;scrollbar-width:thin;
 }
@@ -220,7 +220,8 @@
 .ed-issue-unavailable{display:grid;gap:14px;place-items:center;min-height:170px;color:#8a9aae;font-size:10px}
 .ed-issue-unavailable button{color:#315ac0;font-size:11px;padding:7px 12px;border:1px solid #cbd8eb;border-radius:5px}
 @media(max-width:800px){
-  .ed-investigation-modal,.ed-issue-dialog{width:calc(100vw - 18px);height:calc(100dvh - 18px);max-height:calc(100dvh - 18px)}
+  .ed-investigation-modal{width:calc(100vw - 18px);height:auto;max-height:calc(100dvh - 18px)}
+  .ed-issue-dialog{width:calc(100vw - 18px);height:calc(100dvh - 18px);max-height:calc(100dvh - 18px)}
   .ed-investigation-toolbar.rd-drill-toolbar{padding:12px}
   .ed-investigation-caption{padding:4px 12px 10px}
   .ed-investigation-table-wrap.rd-table-wrap{margin:0 12px 3px}

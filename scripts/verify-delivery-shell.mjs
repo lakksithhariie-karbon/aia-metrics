@@ -103,6 +103,7 @@ const issueSQL = cohortV2;
 const modal = read("components/delivery/delivery-evidence-modal.tsx");
 const issueModal = read("components/delivery/delivery-issue-detail-modal.tsx");
 const modalCss = read("app/delivery/delivery-investigation.css");
+const loadingPage = read("app/delivery/loading.tsx");
 const issueRoute = read("app/api/delivery/issue/route.ts");
 assert.match(page,/delivery-investigation.css/);
 assert.match(shell,/<DeliveryEvidenceModal target=\{drill\}/);
@@ -198,6 +199,21 @@ assert.match(modal,/function EvidenceSkeleton\(/);
 assert.match(modal,/loading\?<EvidenceSkeleton review=\{target.key==="stage:Code Review"\}\/>/);
 assert.match(issueModal,/ed-issue-loading/);
 assert.match(modalCss,/\.ed-investigation-skeleton/);
+assert.match(modalCss,/\.ed-investigation-modal\{[^}]*height:auto;[^}]*max-height:min\(805px,/,
+  "Jira issue modal should size to its table, capped by the viewport.");
+assert.match(modalCss,/\.ed-investigation-table-wrap\.rd-table-wrap\{[^}]*flex:0 1 auto;/,
+  "The issue table must not stretch into unused vertical space.");
+assert.match(modalCss,/@media\(max-width:800px\)\{[\s\S]*?\.ed-investigation-modal\{[^}]*height:auto;/,
+  "Narrow screens must not reintroduce a full-height blank table.");
+assert.match(shell,/<footer className="ed-preview-note">\s*Last refresh: \{freshness\(data.synced_at\)\}/,
+  "The Engineering footer should display only the real sync refresh time.");
+assert.doesNotMatch(shell,/Verified source:|Last verified ingestion|Supabase snapshot/,
+  "The footer must not expose reporting provenance or snapshot IDs.");
+assert.match(loadingPage,/className="ed-loading-subtitle ed-skeleton-line"/);
+assert.match(loadingPage,/className="ed-skeleton-line"/);
+assert.match(css,/\.ed-loading-subtitle\.ed-skeleton-line\{/);
+assert.doesNotMatch(loadingPage,/Loading verified Jira reporting data…/,
+  "Cold-load must show animated skeletons instead of the loading sentence.");
 assert.doesNotMatch(shell,/function EvidenceDialog|function EvidenceTableSkeleton/);
 assert.doesNotMatch(modal,/Querying the published Jira snapshot|Loading issue evidence…/);
 assert.match(shell,/className="metric-card ed-metric"/);

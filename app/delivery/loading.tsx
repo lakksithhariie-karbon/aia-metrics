@@ -6,11 +6,11 @@ export default function LoadingDelivery() {
   return (
     <div className="ed-shell">
       <ProductMetricsHeader current="delivery"/>
-      <main className="rd-page ed-page" role="status" aria-busy="true" aria-label="Loading verified Jira delivery dashboard">
+      <main className="rd-page ed-page" role="status" aria-busy="true" aria-label="Loading Engineering and Delivery dashboard">
         <div className="rd-page-head ed-page-head">
           <div className="ed-page-copy">
             <h1>Engineering &amp; Delivery</h1>
-            <p>Loading verified Jira reporting data…</p>
+            <span className="ed-loading-subtitle ed-skeleton-line" aria-hidden="true"/>
           </div>
         </div>
         {["Sprint delivery","Attention","Delivery","Flow","Quality"].map(name=>(
@@ -19,7 +19,7 @@ export default function LoadingDelivery() {
             <div className="ed-loading-grid" aria-hidden="true">
               {Array.from({length:3},(_,index)=>(
                 <div key={index} className="ed-loading-card">
-                  <div/><div/><div/>
+                  <div className="ed-skeleton-line"/><div className="ed-skeleton-line"/><div className="ed-skeleton-line"/>
                 </div>
               ))}
             </div>

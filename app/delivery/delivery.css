@@ -502,9 +502,10 @@
 }
 .ed-definition-body h3:first-child{margin-top:0}
 .ed-definition-body p{font-size:11.5px;line-height:19px;color:#536580;margin:0}
+.ed-loading-subtitle.ed-skeleton-line{width:220px;height:10px;margin-top:9px}
 .ed-loading-grid{width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--metrics-page-gap)}
 .ed-loading-card{height:155px;display:flex;flex-direction:column;justify-content:center;gap:16px;padding:20px;background:#f8fafd;border:1px solid #e5eaf2;border-radius:6px}
-.ed-loading-card>div{height:12px;border-radius:4px;background:#e9eef5}
+.ed-loading-card>div{height:12px;border-radius:4px}
 .ed-loading-card>div:nth-child(1){width:54%}
 .ed-loading-card>div:nth-child(2){height:30px;width:32%}
 .ed-loading-card>div:nth-child(3){width:76%;height:9px}

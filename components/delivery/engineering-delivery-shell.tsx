@@ -621,10 +621,7 @@ export default function EngineeringDeliveryShell({data,filters,error}:{
         </div>
       </section>
       <footer className="ed-preview-note">
-        <strong>Verified source:</strong> Jira SPEND · Supabase snapshot {data.snapshot_id} ·
-        Last verified ingestion {freshness(data.synced_at)} ·
-        Filtered card values and issue evidence use the same reporting scope.
-        Historical sprint completion is based on current issue status.
+        Last refresh: {freshness(data.synced_at)}
       </footer>
     </main>
     {info?<DefinitionDialog metric={info} onClose={()=>setInfo(null)}/>:null}
