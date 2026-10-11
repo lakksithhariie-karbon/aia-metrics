@@ -216,7 +216,7 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
     </div>
     <div className="metrics-section-kicker">
       <span>Assignee workload</span>
-      <span className="metrics-section-description">Module ownership and attention</span>
+
     </div>
     <section className="companies-records po-record-layout companies-monthly-records companies-grid-card"
       aria-label="Assignee workload matrix">
