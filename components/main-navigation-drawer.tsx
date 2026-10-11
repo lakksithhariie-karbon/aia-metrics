@@ -5,21 +5,20 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const futureSections = [
-  "Product",
-  "AI Services",
-  "Infra",
-] as const;
+const futureSections = ["AI Services", "Infra"] as const;
 
 /**
  * App-wide section navigation. Dashboard-to-dashboard switching still lives
  * in the separate Base UI dropdown at the right of the header.
  *
- * Only Overview has a destination in the current app. The remaining section
- * entries respond with an honest placeholder until routes are defined.
+ * Overview, Product, and Engineering have distinct destinations. The remaining
+ * sections respond with an honest placeholder until routes are defined.
  */
 export default function MainNavigationDrawer() {
   const pathname = usePathname();
+  const isOverview = pathname === "/overview";
+  const onProduct = pathname === "/product" || pathname.startsWith("/product/") ||
+    pathname === "/retention" || pathname === "/customer";
   const onDelivery = pathname === "/delivery" || pathname.startsWith("/delivery/");
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
@@ -127,7 +126,7 @@ export default function MainNavigationDrawer() {
                   <div className="app-main-drawer-brand">
                     <strong>AI Accountant</strong>
                     <span className="app-main-drawer-brand-divider" aria-hidden="true" />
-                    <span>{onDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
+                    <span>{onDelivery ? "Engineering Metrics" : onProduct ? "Product Metrics" : "Overview"}</span>
                   </div>
                   <button
                     ref={closeRef}
@@ -150,11 +149,19 @@ export default function MainNavigationDrawer() {
                     <div className="app-main-drawer-sections">
                       <Link
                         href="/overview"
-                        className={"app-main-drawer-item" + (!onDelivery ? " is-current" : "")}
-                        aria-current={!onDelivery ? "page" : undefined}
+                        className={"app-main-drawer-item" + (isOverview ? " is-current" : "")}
+                        aria-current={isOverview ? "page" : undefined}
                         onClick={close}
                       >
                         Overview
+                      </Link>
+                      <Link
+                        href="/product"
+                        className={"app-main-drawer-item" + (onProduct ? " is-current" : "")}
+                        aria-current={onProduct ? "page" : undefined}
+                        onClick={close}
+                      >
+                        Product
                       </Link>
                       <Link
                         href="/delivery"

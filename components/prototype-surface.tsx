@@ -115,7 +115,7 @@ export function PrototypeSurface({
 
   return (
     <>
-      <ProductMetricsHeader current="overview" />
+      <ProductMetricsHeader current="product" />
       <div
         id="prototype-surface"
         data-overview-as-of={overviewKpis?.asOfDate ?? ""}
