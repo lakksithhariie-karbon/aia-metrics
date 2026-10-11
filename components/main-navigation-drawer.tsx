@@ -5,14 +5,14 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const futureSections = ["AI Services", "Infra"] as const;
+const futureSections = ["AI Services"] as const;
 
 /**
  * App-wide section navigation. Dashboard-to-dashboard switching still lives
  * in the separate Base UI dropdown at the right of the header.
  *
- * Overview, Product, and Engineering have distinct destinations. The remaining
- * sections respond with an honest placeholder until routes are defined.
+ * Overview, Product, Engineering, and Infra have distinct destinations. Only
+ * future sections respond with a placeholder until routes are defined.
  */
 export default function MainNavigationDrawer() {
   const pathname = usePathname();
@@ -20,6 +20,7 @@ export default function MainNavigationDrawer() {
   const onProduct = pathname === "/product" || pathname.startsWith("/product/") ||
     pathname === "/retention" || pathname === "/customer";
   const onDelivery = pathname === "/delivery" || pathname.startsWith("/delivery/");
+  const onInfra = pathname === "/infra" || pathname.startsWith("/infra/");
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -126,7 +127,7 @@ export default function MainNavigationDrawer() {
                   <div className="app-main-drawer-brand">
                     <strong>AI Accountant</strong>
                     <span className="app-main-drawer-brand-divider" aria-hidden="true" />
-                    <span>{onDelivery ? "Engineering Metrics" : onProduct ? "Product Metrics" : "Overview"}</span>
+                    <span>{onDelivery ? "Engineering Metrics" : onProduct ? "Product Metrics" : onInfra ? "Infrastructure Metrics" : "Overview"}</span>
                   </div>
                   <button
                     ref={closeRef}
@@ -170,6 +171,14 @@ export default function MainNavigationDrawer() {
                         onClick={close}
                       >
                         Engineering &amp; Delivery
+                      </Link>
+                      <Link
+                        href="/infra"
+                        className={"app-main-drawer-item" + (onInfra ? " is-current" : "")}
+                        aria-current={onInfra ? "page" : undefined}
+                        onClick={close}
+                      >
+                        Infra
                       </Link>
                       {futureSections.map(section => (
                         <button
