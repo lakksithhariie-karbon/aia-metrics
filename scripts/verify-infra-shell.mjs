@@ -86,7 +86,8 @@ assert.doesNotMatch(charts + shell, /↗/);
 for (const component of ["AwsSpendTrend", "ServiceDrivers", "AccountDistribution"]) assert.ok(charts.includes("function " + component));
 assert.match(charts, /Service breakdowns in this preview begin in May 2026/);
 assert.match(charts, /Account breakdowns in this preview begin in May 2026/);
-assert.match(shell, /Only the month total is captured before May 2026/);
+assert.doesNotMatch(shell, /Only the month total is captured before May 2026/,
+  "Removed footer copy must not be reintroduced.");
 
 // Existing AWS capture and arithmetic are unchanged.
 assert.equal(data.mode, "audited-preview-snapshot");
