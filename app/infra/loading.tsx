@@ -13,7 +13,7 @@ export default function LoadingInfra() {
         <h1>Infrastructure Overview</h1>
         <span className="ed-loading-subtitle ed-skeleton-line" aria-hidden="true"/>
       </div></div>
-      {["AWS cloud spending","Bill processing economics","Data confidence"].map(section=>
+      {["AWS cloud spending","Data confidence"].map(section=>
         <section key={section} className="metrics-grid-section ed-section">
           <div className="metrics-section-kicker"><span>{section}</span></div>
           <div className="ed-loading-grid" aria-hidden="true">

@@ -9,7 +9,7 @@ import "./infra.css";
 
 export const metadata: Metadata = {
   title: "AI Accountant | Infrastructure Overview",
-  description: "Read-only infrastructure dashboard preview using audited AWS and bill-processing aggregates.",
+  description: "Read-only infrastructure dashboard preview using audited AWS Cost Explorer aggregates.",
 };
 
 /** UI preview, NOT a live cost reader: no SQL or external billing API calls. */

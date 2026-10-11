@@ -5,13 +5,12 @@ import type { ReactNode } from "react";
 import CompactMenuSelect from "../ui/compact-menu-select";
 import MetricsInfoDialog, { MetricsInfoButton } from "../ui/metrics-info";
 import type { MetricsInfoDefinition } from "../ui/metrics-info";
-import type { InfraPreviewData, InfraAwsService, InfraAwsAccount, InfraDocType } from "../../lib/infra/types";
+import type { InfraPreviewData } from "../../lib/infra/types";
 import {
   AwsSpendTrend, ServiceDrivers, AccountDistribution,
-  BillVolumeEconomics, CostComposition, DocumentTypes, DailyBillVolume,
 } from "./infra-charts";
 
-type DrillKind = "aws-month"|"services"|"service"|"accounts"|"account"|"bill-month"|"doc-type"|"health";
+type DrillKind = "aws-month"|"services"|"service"|"accounts"|"account"|"health";
 type Drill = {kind:DrillKind; key?:string};
 type Metric = {id:string;label:string;value:string;unit?:string;period:string;caption:string;definition:string;source:string;drill:Drill};
 type DrillRow = {label:string;amount:string;extra:string;hint?:string;drill?:Drill};
@@ -103,12 +102,9 @@ function BreakdownDialog({target,month,data,onClose,onNext}:{
   },[onClose]);
 
   const aws=data.awsMonths.find(x=>x.month===month);
-  const bill=data.billMonths.find(x=>x.month===month);
   const serviceRows=data.awsServices.filter(x=>x.month===month);
   const accountRows=data.awsAccounts.filter(x=>x.month===month);
-  const typeRows=data.docTypes.filter(x=>x.month===month);
   let title="",subtitle="",note="",rows:DrillRow[]=[];
-  const costLabel="Recorded cost units";
 
   if(target.kind==="aws-month"||target.kind==="services"){
     title=target.kind==="aws-month"?"AWS spend · "+monthText(month):"Cloud services · "+monthText(month);
@@ -158,26 +154,6 @@ function BreakdownDialog({target,month,data,onClose,onNext}:{
         extra:m.estimated?"Estimated":"Completed"};
     });
     note="Only the nine largest linked accounts per month are stored in the preview. Missing rows do not imply zero spend.";
-  }else if(target.kind==="bill-month"){
-    title="Bill-processing economics · "+monthText(month);
-    subtitle="Processing records grouped by source document type";
-    rows=typeRows.map(r=>({
-      label:r.doc_type,amount:us(r.docs)+" bills",
-      extra:r.avg_measured==null?"Average unavailable":dec(r.avg_measured,5)+" avg cost units",
-      drill:{kind:"doc-type",key:r.doc_type},
-    }));
-    note=(bill?us(bill.docs)+" bill records · "+us(bill.measured)+" with both cost components measured. ":"")+
-      "No currency conversion is assumed; missing cost components are excluded from measured averages.";
-  }else if(target.kind==="doc-type"){
-    const name=target.key??"Unclassified";
-    title="Document type · "+name;
-    subtitle="Monthly volume and source-native processing cost";
-    rows=data.billMonths.map(m=>{
-      const item=data.docTypes.find(r=>r.month===m.month&&r.doc_type===name);
-      return {label:monthText(m.month),amount:item?us(item.docs)+" bills":"—",
-        extra:item&&item.avg_measured!=null?dec(item.avg_measured,5)+" measured average":"—"};
-    });
-    note="Grouping comes from bill_costs.doc_type. A measured average requires both extraction and enrichment costs.";
   }else{
     title="Data freshness and completeness";
     subtitle="Read-only preview source checks";
@@ -186,8 +162,6 @@ function BreakdownDialog({target,month,data,onClose,onNext}:{
       {label:"AWS linked accounts",amount:us(data.awsRun.accounts),extra:"Cost Explorer"},
       {label:"AWS source rows upserted",amount:us(data.awsRun.rows),extra:"Latest import"},
       {label:"Stored vs reference AWS amount",amount:usd(data.awsRun.storedDetailUsd),extra:usd(data.awsRun.referenceUsd)+" reference"},
-      {label:"Bill processing capture",amount:"11 Oct 2026",extra:"Last table observation"},
-      {label:"Unmeasured cost components",amount:"2,380",extra:"Across all three captured bill months"},
     ];
     note="AWS per-account failures are currently tolerated by the ingestion function. This screenshot-ready preview does not certify that every account has a complete detail trail.";
   }
@@ -243,13 +217,11 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
   const current=data.awsMonths.find(x=>x.month===month);
   const currentIndex=data.awsMonths.findIndex(x=>x.month===month);
   const previous=currentIndex>0?data.awsMonths[currentIndex-1]:null;
-  const bill=data.billMonths.find(x=>x.month===month)??null;
   const services=data.awsServices.filter(x=>x.month===month);
   const accounts=data.awsAccounts.filter(x=>x.month===month);
-  const types=data.docTypes.filter(x=>x.month===month);
   const diff=current&&!current.estimated&&previous&&!previous.estimated&&previous.usd>0
     ?(current.usd-previous.usd)/previous.usd*100:null;
-  const period=monthText(month),covered=Boolean(bill);
+  const period=monthText(month);
   const awsMetrics:Metric[]=[
     {id:"aws-cost",label:"AWS cloud spend",value:current?usd(current.usd):"—",period:period+(current?.estimated?" · Estimated":""),
       caption:"Monthly UnblendedCost · USD",definition:"Sum of all AWS Cost Explorer UnblendedCost amounts across the selected month and linked accounts. Tax and Savings Plans are included.",
@@ -258,7 +230,7 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
       period:period,caption:current?.estimated?"Incomplete months are not compared":"Compared with the previous completed month",
       definition:"Selected completed-month AWS spend minus previous completed-month AWS spend, divided by the prior month. Estimated current months have no comparable percentage.",
       source:"aia_infra.aws_costs / completed months only",drill:{kind:"aws-month"}},
-    {id:"accounts",label:"Billed AWS accounts",value:current?us(current.accounts):"—",
+    {id:"accounts",label:"Linked AWS accounts",value:current?us(current.accounts):"—",
       period:period,caption:"Distinct linked accounts with cost rows",
       definition:"Count of distinct LINKED_ACCOUNT values represented in recorded Cost Explorer rows for this month. It does not imply that each account is active or healthy.",
       source:"aia_infra.aws_costs · linked_account",drill:{kind:"accounts"}},
@@ -267,25 +239,6 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
       definition:"Distinct Cost Explorer SERVICE dimensions observed during the selected month. Financial lines such as Tax and Savings Plans are included as categories.",
       source:"aia_infra.aws_costs · service",drill:{kind:"services"}},
   ];
-  const billMetrics:Metric[]=[
-    {id:"bills",label:"Bills processed",value:bill?us(bill.docs):"—",
-      unit:bill?"bills":undefined,period:period,caption:bill?us(bill.companies)+" companies in the captured records":"Capture starts Aug 2026",
-      definition:"Count of distinct prediction records in the bill_costs source grouped by the UTC month of creation. Includes reviewed, needs-review, and deleted statuses.",
-      source:"aia_infra.bill_costs · prediction_uuid; captured 11 Oct 2026",drill:{kind:"bill-month"}},
-    {id:"unit-cost",label:"Avg measured cost / bill",value:bill?.avg_measured!=null?dec(bill.avg_measured,5):"—",
-      period:period,caption:"Only records with both components measured",
-      definition:"Average total_cost over bills with non-null extraction_cost and enrichment_cost in the selected UTC month. Records with missing cost components are excluded, not treated as free.",
-      source:"aia_infra.bill_costs; currency not recorded",drill:{kind:"bill-month"}},
-    {id:"bill-total",label:"Recorded processing cost",value:bill?dec(bill.total,2):"—",
-      unit:bill?"units":undefined,period:period,caption:"Source-native units · Currency unconfirmed",
-      definition:"Sum of total_cost stored in the bill-cost table. Some missing components default to zero; it must not be presented as final invoiced spend or combined with AWS USD.",
-      source:"aia_infra.bill_costs · total_cost; currency not recorded",drill:{kind:"bill-month"}},
-    {id:"missing",label:"Incomplete cost records",value:bill?us(bill.incomplete):"—",
-      unit:bill?"bills":undefined,period:period,
-      caption:bill?pct(bill.docs?bill.incomplete/bill.docs*100:0)+" missing one or both components":"Capture starts Aug 2026",
-      definition:"Bill records where either extraction_cost or enrichment_cost is null in the selected month. These records are excluded from measured unit-cost averages even when total_cost defaults to zero.",
-      source:"aia_infra.bill_costs · extraction_cost / enrichment_cost",drill:{kind:"bill-month"}},
-  ];
   const openInfo=(metric:Metric)=>setInfo({
     title:metric.label,logic:metric.definition,
     example:metric.caption,
@@ -293,15 +246,15 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
   });
   const reportInfo=(title:string,logic:string)=>setInfo({
     title,logic,example:"Select a chart value to inspect the captured source breakdown.",
-    note:sourcePreview+". AWS values are USD; bill costs use unverified source-native units.",
+    note:sourcePreview+". AWS values are USD UnblendedCost, including Tax and Savings Plans.",
   });
   return <>
     <main className="rd-page ed-page infra-page">
       <div className="rd-page-head ed-page-head">
         <div className="ed-page-copy">
           <div className="ed-titleline"><h1>Infrastructure Overview</h1></div>
-          <p>Cloud spend, processing economics and source integrity</p>
-          <p className="infra-preview-caption">Frozen audited preview · Not live · AWS as of 8 Oct · Bill processing as of 11 Oct</p>
+          <p>AWS cloud spending, service drivers and ingestion integrity</p>
+          <p className="infra-preview-caption">Frozen audited AWS cost preview · Not live · Data as of 8 Oct 2026</p>
         </div>
         <div className="ed-filters" role="group" aria-label="Infra reporting scope">
           <div className="ed-filter-label">
@@ -339,47 +292,13 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
         </div>
       </section>
 
-      <section className="metrics-grid-section ed-section" aria-label="Bill processing economics">
-        <SectionHead title="Bill processing economics" question="How many bills do we process, and what does each one cost?"/>
-        <div className="ed-sprint-kpis ed-kpi-grid po-kpis">{billMetrics.map(m=>
-          <MetricCard key={m.id} metric={m} onDrill={openDrill} onInfo={openInfo}/>)}</div>
-        <div className="ed-collection">
-          <Surface title="Volume versus unit economics"
-            subtitle="Processed bills (left) · Mean measured processing cost (right) · Source units"
-            onInfo={()=>reportInfo("Volume versus unit economics",
-              "Monthly bill volume is the source count. The measured average uses only bills with non-null extraction and enrichment costs; the currency is not confirmed.")}>
-            <BillVolumeEconomics months={data.billMonths} selected={month}
-              onSelect={setMonth}/>
-          </Surface>
-          <Surface half title="Processing cost split"
-            subtitle={"Extraction and enrichment · "+period+" · Recorded units"}
-            onInfo={()=>reportInfo("Processing cost split",
-              "The donut partitions the recorded processing-cost sum into extraction and enrichment components. Currency is not recorded.")}>
-            <CostComposition bill={bill}/>
-          </Surface>
-          <Surface half title="Document type breakdown"
-            subtitle={"Recorded bill volume and measured average · "+period}
-            onInfo={()=>reportInfo("Document type breakdown",
-              "The source doc_type dimension groups scanned, digital, handwritten, and unclassified bills. Measured averages exclude missing cost components.")}>
-            <DocumentTypes rows={types} month={month}
-              onSelect={key=>openDrill({kind:"doc-type",key})}/>
-          </Surface>
-          <Surface title="Daily processing workload"
-            subtitle="Daily volume for the selected reporting period · Asia/Kolkata"
-            onInfo={()=>reportInfo("Daily processing workload",
-              "Distinct processing records grouped by IST calendar day. UTC month selection may differ at day boundaries, so daily sums may not exactly equal UTC-month KPI counts.")}>
-            <DailyBillVolume rows={data.billDays} month={month}/>
-          </Surface>
-        </div>
-      </section>
-
       <section className="metrics-grid-section ed-section" aria-label="Data confidence">
         <SectionHead title="Data confidence" question="How recent and complete is the information?"/>
         <div className="ed-collection">
           <Surface title="Source integrity"
             subtitle="Latest captured observations · Explicit availability and reconciliation checks"
             onInfo={()=>reportInfo("Source integrity",
-              "AWS import metadata is recorded by aws_cost_sync_runs. Detail-to-reference parity has a small rounding difference. Bill-processing refresh is established by loaded_at, but the originating producer has not been identified.")}>
+              "AWS import metadata comes from aws_cost_sync_runs. Recorded detail and the independent Cost Explorer reference differ only by a small rounding amount.")}>
             <div className="ed-table-shell infra-health-shell">
               <table className="ed-report-table infra-health-table">
                 <thead><tr><th>Data source</th><th>Last observed</th><th>Coverage</th><th>Verification</th></tr></thead>
@@ -387,9 +306,6 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
                   <tr><th>AWS Cost Explorer</th><td>{dateText(data.awsRun.finishedAt)}</td>
                     <td>{us(data.awsRun.months)} months · {us(data.awsRun.accounts)} accounts</td>
                     <td>{usd(Math.abs(data.awsRun.referenceUsd-data.awsRun.storedDetailUsd))} stored difference</td></tr>
-                  <tr><th>Bill processing costs</th><td>{dateText(data.billAsOf)}</td>
-                    <td>{us(data.billMonths.reduce((s,r)=>s+r.docs,0))} bills · Aug–Oct</td>
-                    <td>{us(data.billMonths.reduce((s,r)=>s+r.incomplete,0))} incomplete cost records</td></tr>
                   <tr><th>October AWS period</th><td>{dateText(data.awsAsOf)}</td>
                     <td>Month to date</td><td>Estimated · not final</td></tr>
                 </tbody>
