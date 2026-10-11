@@ -157,7 +157,7 @@ assert.match(shell,/drillKey:reviewCount!==null\?"stage:Code Review":undefined/)
 assert.match(shell,/function BacklogTrend\(/);
 assert.match(shell,/id="ed-backlog-area"/);
 assert.match(shell,/role="tooltip"/);
-assert.match(shell,/aria-label=\{"Weekly open backlog across "/);
+assert.match(shell,/aria-label=\{"Weekly open bug backlog across "/);
 assert.match(shell,/event.key==="ArrowLeft"/);
 assert.match(shell,/onMouseEnter=\{\(\)=>setActive\(index\)\}/);
 assert.match(shell,/data.flow.backlog_trend/);
