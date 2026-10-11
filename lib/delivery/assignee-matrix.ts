@@ -21,7 +21,8 @@ export type AssigneeMatrix={
   totals:MatrixCounts&{assignees:number;untagged:number};
   assignees:AssigneeRow[];
   modules:Array<{key:string;name:string;count:number}>;
-  options:{sprints:Array<Pick<SprintRow,"sprint_id"|"sprint_name"|"state">>;severities:string[]};
+  options:{sprints:Array<Pick<SprintRow,"sprint_id"|"sprint_name"|"state">>;
+    modules:string[];sub_modules:string[];severities:string[]};
 };
 const count=(v:unknown):v is number=>typeof v==="number"&&Number.isSafeInteger(v)&&v>=0;
 const empty=():MatrixCounts=>({open:0,stale:0,blocked:0,modules:{}});
@@ -96,6 +97,8 @@ export async function readAssigneeMatrix(filters:DeliveryFilters):Promise<Assign
     assignees,modules:rankedModules,
     options:{sprints:dashboard.options.sprints.map(s=>({
       sprint_id:s.sprint_id,sprint_name:s.sprint_name,state:s.state,
-    })),severities:dashboard.options.severities},
+    })),modules:dashboard.options.modules,
+      sub_modules:dashboard.options.sub_modules,
+      severities:dashboard.options.severities},
   };
 }

@@ -1,12 +1,18 @@
 "use client";
 
-import { useMemo,useRef,useState } from "react";
+import { useEffect,useMemo,useRef,useState } from "react";
+import type { MouseEvent } from "react";
 import { useRouter } from "next/navigation";
 import type { AssigneeMatrix,AssigneeRow,MatrixCounts } from "../../lib/delivery/assignee-matrix";
 import { UNTAGGED_MODULE } from "../../lib/delivery/assignee-matrix";
 import type { AssigneeMatrixScope,DeliveryFilters } from "../../lib/delivery/types";
 import DeliveryEvidenceModal from "./delivery-evidence-modal";
 import { prefetchEvidencePage } from "./evidence-prefetch";
+import CompactMenuSelect from "../ui/compact-menu-select";
+import MetricsInfoDialog, {
+  metricsInfoDefinitions,
+  MetricsInfoButton,
+} from "../ui/metrics-info";
 
 type Target={
   key:string;label:string;sprintId:number|null;
@@ -43,11 +49,6 @@ const valueIn=(row:MatrixCounts,column:string,featured:ReadonlySet<string>):numb
   if(column==="__blocked__")return row.blocked;
   return row.modules[column]??0;
 };
-const escapeCSV=(raw:string|number):string=>{
-  const val=String(raw);
-  const guarded=/^[\s]*[=+@-]/.test(val)?"'"+val:val;
-  return '"'+guarded.replace(/"/g,'""')+'"';
-};
 export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
   const router=useRouter();
   const [query,setQuery]=useState("");
@@ -57,8 +58,19 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
   const [allModules,setAllModules]=useState(false);
   const [filtersOpen,setFiltersOpen]=useState(false);
   const [columnsOpen,setColumnsOpen]=useState(false);
+  const [sprintOpen,setSprintOpen]=useState(false);
   const [drill,setDrill]=useState<Target|null>(null);
+  const [infoOpen,setInfoOpen]=useState(false);
+  const infoTrigger=useRef<HTMLButtonElement|null>(null);
+  const openInfo=(event:MouseEvent<HTMLButtonElement>)=>{
+    event.preventDefault();
+    event.stopPropagation();
+    infoTrigger.current=event.currentTarget;
+    setInfoOpen(true);
+  };
   const sourceButton=useRef<HTMLButtonElement|null>(null);
+  const sprintTrigger=useRef<HTMLButtonElement|null>(null);
+  const scrollRef=useRef<HTMLDivElement|null>(null);
   const hoverTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
   const available=data.modules.filter(m=>m.key!==UNTAGGED_MODULE);
   const featured=available.slice(0,5);
@@ -71,7 +83,18 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
   ];
   const numericColumns=[...modules,{key:"__stale__",name:"Stale"},
     {key:"__blocked__",name:"Blocked"}];
+  const moduleOptions=[{value:"",label:"All modules"},
+    {value:"__untagged__",label:"Untagged"},
+    ...data.options.modules.map(m=>({value:m,label:m}))];
+  const submoduleOptions=[{value:"",label:"All sub-modules"},
+    {value:"__untagged__",label:"Untagged"},
+    ...data.options.sub_modules.map(m=>({value:m,label:m}))];
+  const severityOptions=[{value:"",label:"All severities"},
+    ...data.options.severities.map(s=>({value:s,label:s}))];
   const tableMinWidth=462+numericColumns.length*94;
+  // Sparse filtered views keep few numeric columns; cap the fixed-layout
+  // stretch at ~190px per column so cells never balloon across wide cards.
+  const tableMaxWidth=462+numericColumns.length*190;
   const sorted=useMemo(()=>{
     const needle=query.trim().toLocaleLowerCase();
     const matched=data.assignees.filter(row=>!needle||
@@ -95,18 +118,52 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
     }
     return result;
   },[sorted]);
+  // Sparse filtered views hug their content: when the toolbar + table fit in
+  // the space the viewport offers, the card gets a definite height and never
+  // leaves a dead strip below the sticky footer. Tall tables fall back to the
+  // original viewport-fill card and scroll internally exactly as before.
+  const [cardStyle,setCardStyle]=useState<Record<string,string|number>|null>(null);
+  useEffect(()=>{
+    const measure=()=>{
+      const section=scrollRef.current?.closest("section");
+      const toolbar=section?.querySelector<HTMLElement>(".po-record-toolbar");
+      const table=scrollRef.current?.querySelector<HTMLElement>("table");
+      if(!section||!toolbar||!table)return;
+      const available=window.innerHeight
+        -section.getBoundingClientRect().top-14;
+      const content=toolbar.offsetHeight+table.offsetHeight+2;
+      setCardStyle(content<=available
+        ?{flex:"0 0 auto",height:content}:null);
+    };
+    measure();
+    window.addEventListener("resize",measure);
+    return()=>window.removeEventListener("resize",measure);
+  },[data,sorted.length,expanded,query,allModules]);
   const changeSort=(next:SortCol)=>{
     if(sort===next)setDirection(previous=>previous==="asc"?"desc":"asc");
     else{setSort(next);setDirection(next==="name"?"asc":"desc");}
   };
   const selectedSort=(key:string):"ascending"|"descending"|undefined=>
     sort===key?(direction==="asc"?"ascending":"descending"):undefined;
-  const updateFilter=(key:"sprint"|"severity",value:string)=>{
+  const updateFilter=(key:"module"|"sub_module"|"severity",value:string)=>{
     const url=new URLSearchParams(window.location.search);
     if(value)url.set(key,value);else url.delete(key);
     const q=url.toString();
     router.replace("/delivery/assignees"+(q?"?"+q:""),{scroll:false});
     setFiltersOpen(false);
+  };
+  // The heading scope chip selects the reporting sprint only; module and
+  // sub-module scoping stay in the toolbar Filters menu.
+  const sprintLabel=data.filters.sprint==null?"All sprints":
+    (data.options.sprints.find(s=>s.sprint_id===data.filters.sprint)
+      ?.sprint_name??"Sprint "+data.filters.sprint).replace(/^SPEND /,"");
+  const applySprint=(id:number|null)=>{
+    const url=new URLSearchParams(window.location.search);
+    if(id)url.set("sprint",String(id));else url.delete("sprint");
+    const q=url.toString();
+    router.replace("/delivery/assignees"+(q?"?"+q:""),{scroll:false});
+    setSprintOpen(false);
+    requestAnimationFrame(()=>sprintTrigger.current?.focus({preventScroll:true}));
   };
   const targetFor=(row:AssigneeRow|null,issueType:string|undefined,
     column:string,n:number):Target=>{
@@ -163,26 +220,6 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
         }}>{fmt(value)}</button>
     </td>;
   };
-  const exportCSV=()=>{
-    const columns=["Assignee","Issue type","Open",...numericColumns.map(x=>x.name)];
-    const lines=[columns.map(escapeCSV).join(",")];
-    for(const row of sorted){
-      const values=(counts:MatrixCounts,type:string)=>[
-        row.name,type,counts.open,
-        ...numericColumns.map(column=>valueIn(counts,column.key,featuredKeys)),
-      ];
-      lines.push(values(row,"").map(escapeCSV).join(","));
-      if(expanded.has(row.key))for(const type of row.types){
-        lines.push(values(type,type.type).map(escapeCSV).join(","));
-      }
-    }
-    const blob=new Blob(["\uFEFF"+lines.join("\r\n")],{type:"text/csv;charset=utf-8"});
-    const url=URL.createObjectURL(blob);
-    const anchor=document.createElement("a");
-    anchor.href=url;anchor.download="jira-assignee-overview.csv";
-    document.body.appendChild(anchor);anchor.click();anchor.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  };
   const renderNumbers=(row:AssigneeRow,counts:MatrixCounts,issueType?:string)=>[
     ...modules.map(m=>cell(row,counts,m.key,issueType)),
     cell(row,counts,"__stale__",issueType),
@@ -210,22 +247,55 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
         <p>Open Jira work by assignee, module and issue type</p>
       </div>
       <div className="global-controls assignee-current-scope">
-        <span>Reporting scope</span>
-        <span className="assignee-scope-value">Open work · Current issue state</span>
+        <span className="global-control-label">Reporting scope</span>
+        <div className="assignee-scope-wrap">
+          <button type="button" ref={sprintTrigger} className="ui-control date-trigger"
+            aria-label={"Reporting scope: "+sprintLabel}
+            aria-expanded={sprintOpen}
+            onClick={()=>{setFiltersOpen(false);setColumnsOpen(false);setSprintOpen(v=>!v);}}>
+            <svg className="icon" viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="4" y="5" width="16" height="16" rx="2"/>
+              <path d="M8 3v4m8-4v4M4 10h16m-12 4h2m4 0h2"/>
+            </svg>
+            <span>{sprintLabel}</span>
+            <span className="chevron"><Icon name="down"/></span>
+          </button>
+          {sprintOpen?<div className="companies-filter-popover po-filters assignee-sprint-menu">
+            <div className="po-filter-head"><strong>Reporting sprint</strong>
+              <button type="button" onClick={()=>setSprintOpen(false)}>Close</button>
+            </div>
+            <button type="button" className="assignee-option"
+              aria-pressed={data.filters.sprint==null} onClick={()=>applySprint(null)}>
+              All sprints
+            </button>
+            {data.options.sprints.map(s=><button type="button" key={s.sprint_id}
+              className="assignee-option" aria-pressed={data.filters.sprint===s.sprint_id}
+              onClick={()=>applySprint(s.sprint_id)}>
+              {s.sprint_name.replace(/^SPEND /,"")} · {s.state}
+            </button>)}
+          </div>:null}
+        </div>
       </div>
     </div>
     <div className="metrics-section-kicker">
       <span>Assignee workload</span>
-
+      <span className="metrics-section-description">Open work · Current issue state</span>
     </div>
     <section className="companies-records po-record-layout companies-monthly-records companies-grid-card"
-      aria-label="Assignee workload matrix">
+      aria-label="Assignee workload matrix"
+      style={{maxWidth:tableMaxWidth+2,...(cardStyle??{})}}>
+      {/* +2 covers the card's 1px borders, so the table fills the capped card
+        edge-to-edge and filtered views never show empty space inside it. */}
       <div className="po-record-toolbar companies-command-bar">
         <div className="companies-toolbar-meta">
           <strong>{fmt(data.totals.assignees)} assignees · {fmt(data.totals.open)} open issues</strong>
-          <span>{fmt(data.totals.stale)} stale · {fmt(data.totals.blocked)} blocked · {fmt(data.totals.untagged)} untagged</span>
+          <span>{fmt(data.totals.stale)} stale · {fmt(data.totals.blocked)} blocked · {fmt(data.totals.untagged)} untagged · updated {pretty(data.synced_at)}</span>
         </div>
         <div className="po-record-tools">
+          <MetricsInfoButton
+            label="How assignee workload is counted"
+            onClick={openInfo}
+          />
           <div className="po-search">
             <Icon name="search"/>
             <input type="search" autoComplete="off" value={query}
@@ -237,43 +307,40 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
           </div>
           <div className="po-filter-wrap companies-filter-wrap">
             <button type="button" className={"ui-control companies-filter-trigger"+
-              (data.filters.sprint||data.filters.severity?" has-filters":"")}
-              aria-expanded={filtersOpen} onClick={()=>{setColumnsOpen(false);setFiltersOpen(v=>!v);}}>
+              (data.filters.module||data.filters.sub_module||data.filters.severity?" has-filters":"")}
+              aria-expanded={filtersOpen} onClick={()=>{setColumnsOpen(false);setSprintOpen(false);setFiltersOpen(v=>!v);}}>
               <Icon name="filter"/><span>Filters</span>
-              {(data.filters.sprint||data.filters.severity)?<span className="companies-filter-badge">
-                {Number(!!data.filters.sprint)+Number(!!data.filters.severity)}</span>:null}
+              {(data.filters.module||data.filters.sub_module||data.filters.severity)?<span className="companies-filter-badge">
+                {Number(!!data.filters.module)+Number(!!data.filters.sub_module)+Number(!!data.filters.severity)}</span>:null}
             </button>
             {filtersOpen?<div className="companies-filter-popover po-filters">
               <div className="po-filter-head">
                 <strong>Filter assignees</strong>
-                <button type="button" disabled={!data.filters.sprint&&!data.filters.severity}
+                <button type="button" disabled={!data.filters.module&&!data.filters.sub_module&&!data.filters.severity}
                   onClick={()=>router.replace("/delivery/assignees",{scroll:false})}>Reset</button>
               </div>
-              <label htmlFor="assignee-sprint-filter">Sprint</label>
-              <span className="ui-select-host"><select id="assignee-sprint-filter"
-                className="ui-control ui-select-trigger"
-                value={data.filters.sprint??""}
-                onChange={e=>updateFilter("sprint",e.currentTarget.value)}>
-                <option value="">All sprints</option>
-                {data.options.sprints.map(s=><option key={s.sprint_id} value={s.sprint_id}>
-                  {s.sprint_name.replace(/^SPEND /,"")} · {s.state}
-                </option>)}
-              </select></span>
-              <label htmlFor="assignee-severity-filter">Severity</label>
-              <span className="ui-select-host"><select id="assignee-severity-filter"
-                className="ui-control ui-select-trigger"
-                value={data.filters.severity??""}
-                onChange={e=>updateFilter("severity",e.currentTarget.value)}>
-                <option value="">All severities</option>
-                {data.options.severities.map(s=><option key={s} value={s}>{s}</option>)}
-              </select></span>
+              <div className="assignee-filter-field"><span>Module</span>
+                <CompactMenuSelect value={data.filters.module??""}
+                  options={moduleOptions} onChange={value=>updateFilter("module",value)}
+                  ariaLabel="Filter by module" className="assignee-filter-select"/>
+              </div>
+              <div className="assignee-filter-field"><span>Sub-module</span>
+                <CompactMenuSelect value={data.filters.sub_module??""}
+                  options={submoduleOptions} onChange={value=>updateFilter("sub_module",value)}
+                  ariaLabel="Filter by sub-module" className="assignee-filter-select"/>
+              </div>
+              <div className="assignee-filter-field"><span>Severity</span>
+                <CompactMenuSelect value={data.filters.severity??""}
+                  options={severityOptions} onChange={value=>updateFilter("severity",value)}
+                  ariaLabel="Filter by severity" className="assignee-filter-select"/>
+              </div>
               <div className="po-filter-note">Filters apply to every cell and its Jira issue drill.</div>
             </div>:null}
           </div>
           <div className="companies-filter-wrap assignee-columns-wrap">
             <button type="button" className="ui-control companies-filter-trigger"
               aria-expanded={columnsOpen}
-              onClick={()=>{setFiltersOpen(false);setColumnsOpen(v=>!v);}}>
+              onClick={()=>{setFiltersOpen(false);setSprintOpen(false);setColumnsOpen(v=>!v);}}>
               <Icon name="grid"/><span>Columns</span>
             </button>
             {columnsOpen?<div className="companies-filter-popover po-filters assignee-columns-menu">
@@ -290,15 +357,12 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
               </button>
             </div>:null}
           </div>
-          <button type="button" className="ui-control assignee-export" onClick={exportCSV}>
-            Export CSV
-          </button>
         </div>
       </div>
-      <div className="po-record-scroll companies-monthly-scroll" role="region"
+      <div ref={scrollRef} className="po-record-scroll companies-monthly-scroll" role="region"
         tabIndex={0} aria-label="Assignee by module matrix, scroll horizontally to inspect modules">
         <table className="po-user-table companies-table companies-monthly-table assignee-monthly-table"
-          aria-label="Jira open issues by assignee and module" style={{minWidth:tableMinWidth}}>
+          aria-label="Jira open issues by assignee and module" style={{minWidth:tableMinWidth,maxWidth:tableMaxWidth}}>
           <thead>
             <tr className="companies-month-header">
               <th scope="col"><span className="sr-only">Expand issue types</span></th>
@@ -360,11 +424,15 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
         </table>
       </div>
     </section>
-    <footer className="assignee-page-footer">Last refresh: {pretty(data.synced_at)}</footer>
     {drill?<DeliveryEvidenceModal target={drill} data={data} filters={data.filters}
       onClose={()=>{
         setDrill(null);
         requestAnimationFrame(()=>sourceButton.current?.focus({preventScroll:true}));
+      }}/>:null}
+    {infoOpen?<MetricsInfoDialog definition={metricsInfoDefinitions.assignee_workload}
+      onClose={()=>{
+        setInfoOpen(false);
+        requestAnimationFrame(()=>infoTrigger.current?.focus({preventScroll:true}));
       }}/>:null}
   </main>;
 }

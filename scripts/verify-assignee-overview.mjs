@@ -47,8 +47,7 @@ assert.match(table,/matrixScope/);
 assert.match(table,/expectedCount:n/);
 assert.match(table,/DeliveryEvidenceModal target=\{drill\}/);
 assert.match(table,/prefetchEvidencePage/);
-assert.match(table,/Export CSV/);
-assert.match(table,/escapeCSV/);
+assert.doesNotMatch(table,/Export CSV|escapeCSV|assignee-export/);
 assert.match(matrix,/readDeliveryDashboard\(filters\)/);
 assert.match(matrix,/readDeliveryEvidence\(filters,key,snapshot,0,7000/);
 assert.match(matrix,/wip_open","stale_7d","blocked/);
@@ -85,4 +84,47 @@ assert.match(css,/\.assignee-page\.companies-page\{/);
 assert.match(css,/height:calc\(100dvh - 56px\)/);
 assert.match(css,/padding:0 30px!important/);
 assert.match(css,/\.assignee-page\.companies-page \.companies-records/);
-assert.match(table,/assignee-scope-value/);
+assert.match(table,/global-control-label/);
+assert.match(table,/Reporting scope/);
+assert.match(table,/ui-control date-trigger/);
+assert.match(table,/metrics-section-description/);
+assert.match(table,/MetricsInfoButton/);
+assert.match(table,/MetricsInfoDialog/);
+assert.match(table,/assignee-scope-wrap/);
+assert.match(table,/applySprint/);
+assert.match(table,/All sprints/);
+assert.match(table,/assignee-sprint-menu/);
+assert.match(table,/Filter by module/);
+assert.match(table,/Filter by sub-module/);
+assert.match(table,/Filter by severity/);
+assert.doesNotMatch(table,/assignee-sprint-filter/,
+  "Sprint scoping lives in the heading chip, not the toolbar Filters menu.");
+assert.doesNotMatch(table,/aria-haspopup="dialog"/,
+  "Scope chip opens the sprint popover; metric info stays on the toolbar button.");
+assert.match(table,/CompactMenuSelect/,
+  "Filter dropdowns must use the app-native CompactMenuSelect control.");
+assert.match(table,/assignee-filter-select/);
+assert.doesNotMatch(table,/<select[\s>]/,
+  "No browser-native select dropdowns on the assignees page.");
+assert.doesNotMatch(table,/ui-select-host/);
+assert.match(table,/maxWidth:tableMaxWidth/,
+  "Filtered sparse views cap the fixed-layout stretch instead of ballooning cells.");
+assert.match(table,/tableMaxWidth=462\+numericColumns\.length\*190/);
+assert.match(table,/aria-label="Assignee workload matrix"/);
+assert.match(table,/maxWidth:tableMaxWidth\+2/,
+  "The records card hugs the capped table width so no empty space shows inside it.");
+assert.match(table,/flex:"0 0 auto",height:content/,
+  "Short filtered tables hug vertically; tall tables keep viewport-fill internal scroll.");
+assert.match(css,/\.assignee-shell \.ed-investigation-foot\.rd-modal-foot\{border-top:0\}/,
+  "Drill pagination footer drops the full-width divider on this page only.");
+assert.match(css,/\.assignee-shell \.ed-issue-dialog\{width:min\(1080px,calc\(100vw - 64px\)\)/,
+  "Issue-detail dialog matches the first drill's frame size on this page.");
+assert.match(css,/\.assignee-shell \.ed-issue-dialog\{width:calc\(100vw - 18px\)/,
+  "Small screens keep the shared near-fullscreen dialog fit.");
+assert.match(table,/scrollRef/);
+assert.match(table,/window\.addEventListener\("resize",measure\)/);
+assert.doesNotMatch(css,/assignee-monthly-table\{margin:0 auto\}/,
+  "The card cap replaced table centering.");
+assert.match(css,/\.assignee-page \.assignee-scope-wrap\{position:relative\}/);
+assert.match(css,/\.assignee-page \.assignee-sprint-menu\{width:280px/);
+assert.match(matrix,/sub_modules:dashboard\.options\.sub_modules/);

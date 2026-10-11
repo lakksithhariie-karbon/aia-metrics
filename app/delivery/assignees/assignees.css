@@ -1,14 +1,15 @@
 /* Assignee table deliberately inherits Companies' original customer.css.
-   Only header/column adjustments for different Jira dimensions are scoped here. */
-.assignee-page .metrics-section-kicker{margin:0 0 12px}
-.assignee-page .companies-page-heading{padding-bottom:20px}
+   Only header/column adjustments for different Jira dimensions are scoped here.
+   Kicker spacing relies on the shared grid row-gap (12px), same as Companies.
+   Heading padding mirrors the shared grid rule (26px top, 8px bottom). */
+.assignee-page .companies-page-heading{padding-bottom:8px}
 .assignee-page .assignee-current-scope{display:flex;align-items:center;gap:12px;color:#8b98ab;font-size:10px}
 .assignee-page .assignee-scope-value{display:inline-flex;align-items:center;justify-content:space-between;min-width:156px;height:36px;padding:0 12px;border:1px solid #dce3ed;border-radius:6px;background:#fff;color:#53647d;font-size:10.5px}
 .assignee-page .companies-monthly-scroll{border-radius:0 0 9px 9px}
 .assignee-page .assignee-monthly-table .companies-month-header th:nth-child(2),
 .assignee-page .assignee-monthly-table .companies-month-header th:nth-child(3){text-align:left}
 .assignee-page .assignee-monthly-table .companies-module-header th{
-  min-width:86px;width:94px!important;white-space:nowrap;
+  width:66px!important;white-space:nowrap;
 }
 .assignee-page .assignee-monthly-table .companies-module-header th>button{
   justify-content:center;max-width:100%;gap:4px;padding:0 5px;
@@ -32,15 +33,53 @@
 .assignee-page .assignee-monthly-table .companies-total-row .companies-total-label{font-size:10px}
 .assignee-page .assignee-columns-wrap{position:relative}
 .assignee-page .assignee-columns-menu{right:0}
+/* Reporting-scope chip doubles as the sprint picker: the popover anchors to the
+   chip itself and drops right-aligned beneath it. */
+.assignee-page .assignee-scope-wrap{position:relative}
+.assignee-page .assignee-sprint-menu{width:280px;max-height:340px;overflow:auto}
+/* App-native CompactMenuSelect fields inside the Filters popover (replaces the
+   browser-native select dropdowns on this page only). */
+.assignee-page .assignee-filter-field>span{display:block;margin:10px 0 5px;
+  font-size:9px;color:#8896a9}
+.assignee-page .assignee-filter-select.compact-menu-select{width:100%;min-width:0;flex:1 1 auto}
+.assignee-page .assignee-filter-select .compact-menu-select-trigger{
+  height:36px;width:100%;min-width:0;max-width:100%;justify-content:space-between;
+  gap:8px;padding:0 9px 0 10px;border:1px solid #dce3ed;border-radius:6px;
+  background:#fff;color:#536176;font-size:10.5px}
+.assignee-page .assignee-filter-select .compact-menu-select-trigger>span{
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left;min-width:0}
+.assignee-page .assignee-filter-select .compact-menu-select-trigger:focus-visible{
+  outline:2px solid #a0b6ef;outline-offset:2px}
+.assignee-page .assignee-filter-select .compact-menu-select-menu{
+  left:0;right:auto;top:40px;min-width:max(100%,170px);width:max-content;
+  max-width:min(310px,calc(100vw - 32px));
+  max-height:min(280px,calc(100dvh - 120px));
+  overflow-x:hidden;overflow-y:auto;scrollbar-width:thin;
+  box-shadow:0 12px 28px rgba(31,48,78,.15),0 2px 7px rgba(31,48,78,.06)}
+.assignee-page .assignee-filter-select .compact-menu-select-option{
+  height:auto;min-height:32px;padding:7px 10px;line-height:15px}
+.assignee-page .assignee-filter-select .compact-menu-select-option>span{
+  overflow-wrap:anywhere}
+/* Sparse filtered views cap the card at the table's natural width (inline
+   maxWidth on the section), so the table fills it edge-to-edge and the
+   leftover window width stays outside the card as page margin. */
+/* Issue drill on this page: drop the full-width divider between the table
+   frame and the pagination bar — the table's own border is enough. */
+.assignee-shell .ed-investigation-foot.rd-modal-foot{border-top:0}
+/* The issue-detail dialog matches the first drill's frame exactly (1080px,
+   content-hugging height capped at the viewport) so stacked modals read as
+   one consistent drill. Small screens keep the shared near-fullscreen fit. */
+.assignee-shell .ed-issue-dialog{width:min(1080px,calc(100vw - 64px));
+  height:auto;max-height:calc(100dvh - 38px)}
+@media(max-width:800px){
+  .assignee-shell .ed-issue-dialog{width:calc(100vw - 18px);
+    height:calc(100dvh - 18px);max-height:calc(100dvh - 18px)}
+}
 .assignee-option{display:block;width:100%;padding:9px 10px;border-radius:5px;
   text-align:left;font-size:10px;color:#59708d}
 .assignee-option[aria-pressed="true"]{color:#3157c0;background:#f1f5ff;font-weight:660}
 .assignee-option:hover{background:#f4f7fc}
-.assignee-export.ui-control{height:36px;border-radius:6px;padding:0 11px;
-  font-size:10px;color:#53647d}
-.assignee-page-footer{padding:7px 0 14px;font-size:9.5px;color:#8a98aa;flex:0 0 auto}
 .assignee-page .po-record-tools{gap:8px;flex-wrap:wrap}
-.assignee-load{padding-bottom:20px}
 @media(max-width:900px){
   .assignee-page .companies-toolbar-meta{display:flex;min-width:0}
 }
@@ -60,13 +99,46 @@
   height:calc(100dvh - 56px);display:flex;flex-direction:column;
   overflow:hidden;background:#fff;padding:0 30px!important;
 }
-.assignee-page.companies-page .page-heading{flex:0 0 auto;margin:0;padding:27px 0 20px}
+.assignee-page.companies-page .page-heading{flex:0 0 auto;margin:0;padding:26px 0 8px}
 .assignee-page.companies-page .companies-records{
   flex:1;min-height:0;height:auto;max-height:none;margin:0 0 14px;
   display:flex;flex-direction:column;
 }
 .assignee-page.companies-page .po-record-scroll{flex:1;min-height:0;margin:0;overflow:auto}
-.assignee-page.companies-page .assignee-page-footer{padding:7px 0 14px;white-space:nowrap}
+
+/* Loading skeleton mirrors the real matrix geometry so the page outline
+   does not shift when the live table arrives. */
+.assignee-sk-chip{display:inline-block;width:230px;height:36px;border-radius:6px}
+.assignee-sk-meta-strong{width:210px;height:14px}
+.assignee-sk-meta-sub{width:330px;height:11px;margin-top:5px}
+.assignee-sk-tool{height:36px;border-radius:6px;flex:none}
+.assignee-sk-tool-info{width:36px}
+.assignee-sk-tool-search{width:278px}
+.assignee-sk-tool-filter{width:96px}
+.assignee-sk-tool-columns{width:104px}
+.assignee-sk-table{min-width:0}
+.assignee-sk-row{display:flex;align-items:center}
+.assignee-sk-cell{display:flex;align-items:center;flex:none;padding:0 12px;border-right:1px solid #e7ebf1;height:100%}
+.assignee-sk-row>span:last-child{border-right:0}
+.assignee-sk-month-head{height:40px;background:#f8fafc;border-bottom:1px solid #e3e8f0}
+.assignee-sk-type-head{height:31px;background:#f8fafc;border-bottom:1px solid #e2e7ef}
+.assignee-sk-body-row{height:45px;background:#fff;border-bottom:1px solid #edf0f4}
+.assignee-sk-foot{height:44px;background:#f5f8fc;border-top:1px solid #dbe2ec;box-shadow:0 -4px 12px -10px rgba(23,40,70,.55)}
+.assignee-sk-id1{width:38px;justify-content:center;padding:0}
+.assignee-sk-id2{width:124px;justify-content:center}
+.assignee-sk-id3{width:300px;box-shadow:5px 0 8px -8px rgba(31,48,77,.42),1px 0 #e5e9f0}
+.assignee-sk-module{flex:1 1 0;min-width:66px;justify-content:center}
+.assignee-sk-head-bar{width:36px;height:9px}
+.assignee-sk-head-left{margin-left:auto;margin-right:0}
+.assignee-sk-head-wide{width:110px}
+.assignee-sk-type-bar{width:30px;height:9px}
+.assignee-sk-expander{width:26px;height:26px;border-radius:6px}
+.assignee-sk-open{width:34px;height:11px}
+.assignee-sk-name{width:62%;height:11px}
+.assignee-sk-name-varies{width:48%}
+.assignee-sk-body-row:nth-child(odd) .assignee-sk-name{width:38%}
+.assignee-sk-count{width:22px;height:11px}
+.assignee-sk-foot-bar{width:64px;height:10px}
 @media(max-width:600px){
   .assignee-page.companies-page{padding:0 12px!important}
   .assignee-page .assignee-current-scope{display:none}
