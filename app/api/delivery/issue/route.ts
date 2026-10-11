@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { parseDeliveryFilters, readDeliveryIssue } from "../../../../lib/delivery/server";
+import type { AssigneeMatrixScope } from "../../../../lib/delivery/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 40;
@@ -29,7 +30,12 @@ export async function POST(request:Request){
       module:str(f.module),sub_module:str(f.sub_module),
       severity:str(f.severity),assignee:str(f.assignee),
     });
-    const detail=await readDeliveryIssue(filters,body.key,body.issue_key,body.snapshot_id);
+    const matrix=body.key.startsWith("matrix:");
+    if(matrix&&(typeof body.matrix_scope!=="object"||body.matrix_scope===null||
+       Array.isArray(body.matrix_scope)))return fail(400,"invalid_matrix_scope");
+    if(!matrix&&body.matrix_scope!==undefined)return fail(400,"invalid_matrix_scope");
+    const detail=await readDeliveryIssue(filters,body.key,body.issue_key,body.snapshot_id,
+      matrix?body.matrix_scope as AssigneeMatrixScope:undefined);
     return NextResponse.json(detail,{headers:{"Cache-Control":"no-store"}});
   }catch(error){
     console.error("delivery_issue_unavailable",

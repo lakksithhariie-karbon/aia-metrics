@@ -1,4 +1,4 @@
-import type { DeliveryDashboard, DeliveryEvidence, DeliveryEvidenceItem, DeliveryEvidenceSort, DeliveryIssueDetail, DeliveryFilters } from "./types";
+import type { DeliveryDashboard, DeliveryEvidence, DeliveryEvidenceItem, DeliveryEvidenceSort, DeliveryIssueDetail, DeliveryFilters, AssigneeMatrixScope } from "./types";
 
 /**
  * The same Vercel server-only environment used by Product Metrics.
@@ -140,8 +140,10 @@ export async function readDeliveryEvidence(
   filters:DeliveryFilters,key:string,snapshotId:number,offset:number,
   limit:number,search="",sort:DrillEvidenceSort="created_at",
   direction:"asc"|"desc"="desc",exportAll=false,expectedCount?:number,
+  matrixScope?:AssigneeMatrixScope,
 ):Promise<DeliveryEvidence>{
   const aging=key.startsWith("aging:");
+  const matrix=key.startsWith("matrix:");
   const bucket=key.slice(6);
   if(!count(snapshotId)||key.length>90||!key.trim()||
      !count(offset)||offset>25000||
@@ -151,8 +153,74 @@ export async function readDeliveryEvidence(
      (direction!=="asc"&&direction!=="desc")||search.length>120||
      (exportAll&&offset!==0)||
      (aging&&!AGING_BUCKETS.includes(bucket as AgingBucket))||
-     (expectedCount!==undefined&&!count(expectedCount))) {
+     (expectedCount!==undefined&&!count(expectedCount))||
+     (matrix&&!["matrix:open","matrix:stale","matrix:blocked"].includes(key))||
+     (matrix&&!matrixScope)||
+     (!matrix&&matrixScope!==undefined)) {
     throw Error("jira_delivery_invalid_evidence_request");
+  }
+  if(matrix){
+    const scope=matrixScope!;
+    if(!["all","single","other"].includes(scope.moduleMode)||
+       (scope.assignee!==undefined&&scope.assignee!==null&&
+         (typeof scope.assignee!=="string"||scope.assignee.length>160))||
+       (scope.moduleMode==="single"&&
+         (typeof scope.module!=="string"||scope.module.length>160))||
+       (scope.issueType!==undefined&&
+         (typeof scope.issueType!=="string"||scope.issueType.length>80))||
+       (scope.excludedModules!==undefined&&
+         (!Array.isArray(scope.excludedModules)||scope.excludedModules.length>35||
+          scope.excludedModules.some(x=>typeof x!=="string"||x.length>160)))||
+       (scope.moduleMode==="other"&&!Array.isArray(scope.excludedModules))){
+      throw Error("jira_delivery_invalid_matrix_scope");
+    }
+    const sourceKey=key==="matrix:stale"?"stale_7d":
+      key==="matrix:blocked"?"blocked":"wip_open";
+    // The base cohort is source-locked, snapshot-validated and complete.
+    const parent=await readDeliveryEvidence(filters,sourceKey,snapshotId,0,7000,
+      "","created_at","desc",true);
+    const moduleKey=(value:string|null)=>value?.trim()||"__untagged__";
+    const rows=parent.rows.filter(row=>{
+      const person=row.assignee?.trim()||null;
+      if(scope.assignee!==undefined&&scope.assignee!==person)return false;
+      const module=moduleKey(row.module);
+      if(scope.moduleMode==="single"&&module!==scope.module)return false;
+      if(scope.moduleMode==="other"&&
+         (module==="__untagged__"||scope.excludedModules!.includes(module)))return false;
+      if(scope.issueType!==undefined&&
+         (row.issue_type?.trim()||"Unspecified")!==scope.issueType)return false;
+      return true;
+    });
+    if(expectedCount!==undefined&&rows.length!==expectedCount){
+      throw Error("jira_delivery_matrix_evidence_count_mismatch");
+    }
+    const needle=search.trim().toLowerCase();
+    const filtered=rows.filter(row=>!needle||
+      [row.issue_key,row.summary,row.assignee,row.issue_type,row.status,
+       row.module,row.priority].filter(Boolean).join(" ").toLowerCase().includes(needle));
+    const sortValue=(row:DeliveryEvidenceItem):string|number|null=>{
+      if(sort==="issue_key")return Number(row.issue_key.replace(/^SPEND-/,""));
+      if(sort==="created_at"||sort==="resolved_at"){
+        const value=row[sort];return value?Date.parse(value):null;
+      }
+      return (row[sort as "severity"|"status"|"priority"|"assignee"]??null)?.toLowerCase()??null;
+    };
+    filtered.sort((a,b)=>{
+      const av=sortValue(a),bv=sortValue(b);
+      if(av===null)return bv===null?0:1;
+      if(bv===null)return -1;
+      const diff=av<bv?-1:av>bv?1:0;
+      if(diff)return direction==="asc"?diff:-diff;
+      return Number(b.issue_key.replace(/^SPEND-/,""))-Number(a.issue_key.replace(/^SPEND-/,""));
+    });
+    const selected=filtered.slice(offset,offset+limit);
+    if(exportAll&&selected.length!==filtered.length)throw Error("jira_delivery_export_incomplete");
+    return {
+      contract:"jira_delivery_evidence_v2",key,label:"Assignee workload",
+      snapshot_id:snapshotId,source_count:rows.length,total:filtered.length,
+      query:search,sort:databaseSort[sort as DeliveryEvidenceSort],
+      direction,offset,limit,rows:selected,
+    };
   }
   if(aging){
     // The existing audited bug cohort is fetched once on the server, never sent
@@ -245,6 +313,7 @@ type RawIssueRecord = Record<string,unknown> & {
 
 export async function readDeliveryIssue(
   filters:DeliveryFilters,cohortKey:string,issueKey:string,snapshotId:number,
+  matrixScope?:AssigneeMatrixScope,
 ):Promise<DeliveryIssueDetail>{
   if(!count(snapshotId)||cohortKey.length>90||!cohortKey.trim()||
      !/^SPEND-[0-9]{1,12}$/.test(issueKey)){
@@ -254,7 +323,8 @@ export async function readDeliveryIssue(
   // route must also prohibit arbitrary issue-key enumeration. Scope the
   // lookup to the exact verified cohort before returning any detailed data.
   const membership=await readDeliveryEvidence(
-    filters,cohortKey,snapshotId,0,50,issueKey,"issue_key","asc");
+    filters,cohortKey,snapshotId,0,50,issueKey,"issue_key","asc",
+    false,undefined,matrixScope);
   if(!membership.rows.some(row=>row.issue_key===issueKey)){
     throw Error("jira_delivery_issue_outside_cohort");
   }

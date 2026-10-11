@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { VALID_EVIDENCE_SORTS, parseDeliveryFilters, readDeliveryEvidence } from "../../../../lib/delivery/server";
 import type { DrillEvidenceSort } from "../../../../lib/delivery/server";
+import type { AssigneeMatrixScope } from "../../../../lib/delivery/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 35;
@@ -37,15 +38,19 @@ export async function POST(request: Request) {
   const limit=exportAll?7000:10;
   const aging=key.startsWith("aging:");
   const stage=key.startsWith("stage:");
+  const matrix=key.startsWith("matrix:");
   const expectedCount=body.expected_count;
   if(query.length>120 ||
      (!VALID_EVIDENCE_SORTS.some(x=>x===sort)&&!(aging&&sort==="age_days")) ||
-     ((aging||(stage&&expectedCount!==undefined))&&
+     ((aging||((stage||matrix)&&expectedCount!==undefined))&&
        (typeof expectedCount!=="number"||
         !Number.isSafeInteger(expectedCount)||expectedCount<0))||
      (direction!=="asc"&&direction!=="desc") || (exportAll&&offset!==0)) {
     return bad(400,"invalid_evidence_filter");
   }
+  if(matrix&&(typeof body.matrix_scope!=="object"||body.matrix_scope===null||
+     Array.isArray(body.matrix_scope)))return bad(400,"invalid_matrix_scope");
+  if(!matrix&&body.matrix_scope!==undefined)return bad(400,"invalid_matrix_scope");
   try {
     const readStarted=performance.now();
     const input = filterInput as Record<string,unknown>;
@@ -61,7 +66,8 @@ export async function POST(request: Request) {
     const result=await readDeliveryEvidence(filters,key,snapshot,offset,limit,query,
       sort as DrillEvidenceSort,
       direction as "asc"|"desc",exportAll,
-      aging||stage?expectedCount as number|undefined:undefined);
+      aging||stage||matrix?expectedCount as number|undefined:undefined,
+      matrix?body.matrix_scope as AssigneeMatrixScope:undefined);
     if(exportAll){
       // Sanitize spreadsheet formulas, even though source text is Jira-controlled.
       const safe=(value:unknown):string=>{

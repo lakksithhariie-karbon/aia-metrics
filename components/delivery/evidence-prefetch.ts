@@ -1,11 +1,11 @@
 "use client";
 
-import type { DeliveryEvidence, DeliveryEvidenceSort, DeliveryFilters } from "../../lib/delivery/types";
+import type { DeliveryEvidence, DeliveryEvidenceSort, DeliveryFilters, AssigneeMatrixScope } from "../../lib/delivery/types";
 
 export type EvidenceSort = DeliveryEvidenceSort | "age_days";
 export type EvidenceRequest = {
   key:string;snapshot_id:number;filters:DeliveryFilters;
-  expected_count?:number;offset:number;search:string;
+  expected_count?:number;matrix_scope?:AssigneeMatrixScope;offset:number;search:string;
   sort:EvidenceSort;direction:"asc"|"desc";
 };
 
@@ -23,7 +23,7 @@ function identity(request:EvidenceRequest):string{
   return JSON.stringify([
     request.snapshot_id,request.key,f.sprint,f.module,f.sub_module,
     f.severity,f.assignee,request.expected_count??null,request.offset,
-    request.search,request.sort,request.direction,
+    request.search,request.sort,request.direction,request.matrix_scope??null,
   ]);
 }
 function isFirstPage(request:EvidenceRequest):boolean{

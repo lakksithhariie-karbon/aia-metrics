@@ -114,6 +114,14 @@ export type DeliveryEvidenceItem = {
   stage_hours?: number | null;
   age_days?: number | null;
 };
+export type AssigneeMatrixScope = {
+  // Missing assignee means all assignees; null means currently unassigned.
+  assignee?: string|null;
+  moduleMode: "all"|"single"|"other";
+  module?: string;
+  excludedModules?: string[];
+  issueType?: string;
+};
 export type DeliveryEvidenceSort = "issue_key" | "created_at" | "resolved_at" | "severity" | "status" | "priority" | "assignee";
 export type DeliveryEvidence = {
   contract: "jira_delivery_evidence_v2";

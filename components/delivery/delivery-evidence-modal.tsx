@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type {
-  DeliveryDashboard,DeliveryEvidence,DeliveryEvidenceItem,DeliveryEvidenceSort,DeliveryFilters,
+  DeliveryDashboard,DeliveryEvidence,DeliveryEvidenceItem,DeliveryEvidenceSort,DeliveryFilters,AssigneeMatrixScope,
 } from "../../lib/delivery/types";
 import DeliveryIssueDetailModal from "./delivery-issue-detail-modal";
 import { loadEvidencePage } from "./evidence-prefetch";
 
-type DrillTarget={key:string;label:string;sprintId:number|null;expectedCount?:number;detailNote?:string};
+type DrillTarget={key:string;label:string;sprintId:number|null;expectedCount?:number;detailNote?:string;
+  matrixScope?:AssigneeMatrixScope};
 type DrillSort=DeliveryEvidenceSort|"age_days";
 const number=new Intl.NumberFormat("en-IN");
 const show=(v:string|null|undefined)=>v?.trim()||"—";
@@ -61,7 +62,7 @@ function EvidenceSkeleton({review,aging}:{review:boolean;aging:boolean}){
 }
 
 export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
-  target:DrillTarget;data:DeliveryDashboard;filters:DeliveryFilters;onClose:()=>void;
+  target:DrillTarget;data:Pick<DeliveryDashboard,"snapshot_id">;filters:DeliveryFilters;onClose:()=>void;
 }){
   const [query,setQuery]=useState("");
   const [search,setSearch]=useState("");
@@ -107,7 +108,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
     loadEvidencePage({
       key:target.key,snapshot_id:data.snapshot_id,
       offset:(page-1)*size,search,sort,direction,filters:scopedFilters,
-      expected_count:target.expectedCount,
+      expected_count:target.expectedCount,matrix_scope:target.matrixScope,
     },controller.signal).then(result=>{
       if(result.contract!=="jira_delivery_evidence_v2"||result.key!==target.key||
         result.snapshot_id!==data.snapshot_id||result.sort!==(sort==="age_days"?"age_days":({issue_key:"key",created_at:"created",resolved_at:"resolved",severity:"severity",status:"status",priority:"priority",assignee:"assignee"} as Record<DeliveryEvidenceSort,string>)[sort])||
@@ -120,7 +121,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
       if(!controller.signal.aborted){setError(true);setLoading(false);}
     });
     return ()=>controller.abort();
-  },[target.key,target.expectedCount,data.snapshot_id,scopedFilters,page,search,sort,direction,retry]);
+  },[target.key,target.expectedCount,target.matrixScope,data.snapshot_id,scopedFilters,page,search,sort,direction,retry]);
 
   const changeSort=(next:DrillSort)=>{
     setExpanded(null);setPage(1);scroll.current?.scrollTo({top:0});
@@ -146,7 +147,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({key:target.key,snapshot_id:data.snapshot_id,offset:0,
           search,sort,direction,export:true,filters:scopedFilters,
-          expected_count:target.expectedCount}),
+          expected_count:target.expectedCount,matrix_scope:target.matrixScope}),
       });
       if(!response.ok)throw new Error("export_unavailable");
       const blob=await response.blob();
@@ -168,7 +169,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
         <header className="rd-modal-head ed-investigation-head">
           <div>
             <p>Jira issues</p>
-            <h2 id="ed-cohort-title">{value?.label||target.label}</h2>
+            <h2 id="ed-cohort-title">{target.matrixScope?target.label:value?.label||target.label}</h2>
             <span>{target.detailNote?target.detailNote+" · ":""}{value?number.format(value.total)+(search?" matching issues":" issues"):"Issue breakdown"}</span>
           </div>
           <button type="button" className="rd-close ed-investigation-close"
@@ -280,6 +281,7 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
       </section>
     </div>
     {detailKey?<DeliveryIssueDetailModal issueKey={detailKey} cohortKey={target.key}
-      filters={scopedFilters} snapshotId={data.snapshot_id} onClose={closeIssue}/>:null}
+      filters={scopedFilters} snapshotId={data.snapshot_id}
+      matrixScope={target.matrixScope} onClose={closeIssue}/>:null}
   </>;
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { DeliveryFilters, DeliveryIssueDetail } from "../../lib/delivery/types";
+import type { DeliveryFilters, DeliveryIssueDetail, AssigneeMatrixScope } from "../../lib/delivery/types";
 
 /** Product-style second-level investigation. Returning preserves the primary
  * modal's current search, page, sort and expanded row.
@@ -20,8 +20,9 @@ const duration=(value:number|null|undefined)=>{
   return value>=48?(value/24).toFixed(1)+"d":value.toFixed(1)+"h";
 };
 
-export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,snapshotId,onClose}:{
-  issueKey:string;cohortKey:string;filters:DeliveryFilters;snapshotId:number;onClose:()=>void;
+export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,snapshotId,matrixScope,onClose}:{
+  issueKey:string;cohortKey:string;filters:DeliveryFilters;snapshotId:number;
+  matrixScope?:AssigneeMatrixScope;onClose:()=>void;
 }){
   const [value,setValue]=useState<DeliveryIssueDetail|null>(null);
   const [loading,setLoading]=useState(true);
@@ -44,6 +45,7 @@ export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,sna
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
         key:cohortKey,issue_key:issueKey,snapshot_id:snapshotId,filters,
+        matrix_scope:matrixScope,
       }),
     }).then(async response=>{
       if(!response.ok)throw new Error("jira_issue_read_failed");
@@ -58,7 +60,7 @@ export default function DeliveryIssueDetailModal({issueKey,cohortKey,filters,sna
       if(!controller.signal.aborted){setError(true);setLoading(false);}
     });
     return ()=>controller.abort();
-  },[issueKey,cohortKey,snapshotId,filters.sprint,filters.module,filters.sub_module,filters.severity,filters.assignee,retry]);
+  },[issueKey,cohortKey,snapshotId,filters.sprint,filters.module,filters.sub_module,filters.severity,filters.assignee,matrixScope,retry]);
   const issue=value?.issue;
   const stats=value?.service_levels;
   const fields=[
