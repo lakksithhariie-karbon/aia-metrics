@@ -9,6 +9,7 @@ import type { AssigneeMatrixScope,DeliveryFilters } from "../../lib/delivery/typ
 import DeliveryEvidenceModal from "./delivery-evidence-modal";
 import { prefetchEvidencePage } from "./evidence-prefetch";
 import CompactMenuSelect from "../ui/compact-menu-select";
+import { resetAssigneeToolbarFilters } from "../../lib/delivery/assignee-filter-url";
 import MetricsInfoDialog, {
   metricsInfoDefinitions,
   MetricsInfoButton,
@@ -150,6 +151,13 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
     if(value)url.set(key,value);else url.delete(key);
     const q=url.toString();
     router.replace("/delivery/assignees"+(q?"?"+q:""),{scroll:false});
+    setFiltersOpen(false);
+  };
+  const resetFilters=()=>{
+    router.replace(
+      resetAssigneeToolbarFilters(new URLSearchParams(window.location.search)),
+      {scroll:false},
+    );
     setFiltersOpen(false);
   };
   // The heading scope chip selects the reporting sprint only; module and
@@ -317,7 +325,7 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
               <div className="po-filter-head">
                 <strong>Filter assignees</strong>
                 <button type="button" disabled={!data.filters.module&&!data.filters.sub_module&&!data.filters.severity}
-                  onClick={()=>router.replace("/delivery/assignees",{scroll:false})}>Reset</button>
+                  onClick={resetFilters}>Reset</button>
               </div>
               <div className="assignee-filter-field"><span>Module</span>
                 <CompactMenuSelect value={data.filters.module??""}

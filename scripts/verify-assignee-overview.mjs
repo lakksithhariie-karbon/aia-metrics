@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { resetAssigneeToolbarFilters } from "../lib/delivery/assignee-filter-url.ts";
 import { readFileSync } from "node:fs";
 const read=(path)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 const table=read("components/delivery/assignee-overview-table.tsx");
@@ -128,3 +129,35 @@ assert.doesNotMatch(css,/assignee-monthly-table\{margin:0 auto\}/,
 assert.match(css,/\.assignee-page \.assignee-scope-wrap\{position:relative\}/);
 assert.match(css,/\.assignee-page \.assignee-sprint-menu\{width:280px/);
 assert.match(matrix,/sub_modules:dashboard\.options\.sub_modules/);
+
+/* Executable URL regression tests for the toolbar reset. */
+const originalParams = new URLSearchParams("sprint=1268&module=AP&sub_module=Payments&severity=L1");
+assert.equal(resetAssigneeToolbarFilters(originalParams), "/delivery/assignees?sprint=1268");
+assert.equal(originalParams.get("module"), "AP", "Reset helper must not mutate URL parameters.");
+assert.equal(
+  resetAssigneeToolbarFilters(new URLSearchParams("sprint=1238&module=AR&assignee=owner%40123&search=backlog")),
+  "/delivery/assignees?sprint=1238&assignee=owner%40123&search=backlog",
+  "Preserve selected sprint, assignee, and any unrelated URL context.",
+);
+assert.equal(
+  resetAssigneeToolbarFilters(new URLSearchParams("module=AP&sub_module=Payments&severity=L1")),
+  "/delivery/assignees",
+  "Reset only toolbar filters and return the default view when no scope is active.",
+);
+assert.equal(
+  resetAssigneeToolbarFilters(new URLSearchParams("sprint=1268")),
+  "/delivery/assignees?sprint=1268",
+  "Reset must not change reporting sprint when no toolbar filter is active.",
+);
+assert.ok(table.includes('onClick={resetFilters}>Reset</button>'),
+  "Reset button must use the scoped reset action.");
+assert.ok(table.includes('resetAssigneeToolbarFilters(new URLSearchParams(window.location.search))'),
+  "Reset must use current URL query parameters to preserve reporting scope.");
+assert.ok(!table.includes('onClick={()=>router.replace("/delivery/assignees",{scroll:false})}>Reset'),
+  "Reset must never clear the reporting scope by navigating to the bare route.");
+const infoDefinitions=read("components/ui/metrics-info.tsx");
+const assigneeInfo=infoDefinitions.split("assignee_workload: {")[1]?.split("\n  },")[0];
+assert.ok(assigneeInfo, "Assignee metric info definition must exist.");
+assert.doesNotMatch(assigneeInfo, /\b\d[\d,]* (?:assignees|open issues)\b/,
+  "Assignee metric example must not hardcode a moving global workload count.");
+console.log("Assignee toolbar reset and timeless metric info verified.");

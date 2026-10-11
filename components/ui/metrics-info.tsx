@@ -54,7 +54,7 @@ export const metricsInfoDefinitions: Record<MetricsInfoKey, MetricsInfoDefinitio
   assignee_workload: {
     title: "Assignee workload",
     logic: "The matrix groups every open Jira issue in its current state by assignee and module, using the same verified delivery classification as the Engineering & Delivery dashboard. Stale means an open issue with no update for 7+ days; blocked means a blocked status.",
-    example: "39 assignees · 792 open issues: an assignee with 3 open AP and 2 open AR issues shows AP 3, AR 2.",
+    example: "An assignee with 3 open AP issues and 2 open AR issues shows AP 3 and AR 2. Each issue contributes once to the assignee's open total.",
     note: "Counts are issue counts per assignee; cell drills list the underlying issues from the same published Jira snapshot.",
   },
 };
