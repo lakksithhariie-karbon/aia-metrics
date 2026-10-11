@@ -107,6 +107,8 @@ const issueModal = read("components/delivery/delivery-issue-detail-modal.tsx");
 const modalCss = read("app/delivery/delivery-investigation.css");
 const loadingPage = read("app/delivery/loading.tsx");
 const issueRoute = read("app/api/delivery/issue/route.ts");
+const backlogModal = read("components/delivery/delivery-backlog-modal.tsx");
+const stageExpansion = read("supabase/migrations/20261011_jira_delivery_all_stage_evidence_v1.sql");
 assert.match(page,/delivery-investigation.css/);
 assert.match(shell,/<DeliveryEvidenceModal target=\{drill\}/);
 assert.match(modal,/className="rd-modal rd-activation-modal ed-investigation-modal"/);
@@ -198,9 +200,42 @@ assert.match(modalCss,/\.ed-investigation-foot\.rd-modal-foot\{[\s\S]*?justify-c
   "Product-style numbered pagination stays centered without debug metadata.");
 assert.match(modalCss,/\.ed-investigation-foot \.rd-pagination\{/);
 assert.match(modal,/function EvidenceSkeleton\(/);
-assert.match(modal,/loading\?<EvidenceSkeleton review=\{target.key==="stage:Code Review"\}\/>/);
+assert.match(modal,/loading\?<EvidenceSkeleton review=\{stage\} aging=\{aging\}\/>/);
 assert.match(issueModal,/ed-issue-loading/);
 assert.match(modalCss,/\.ed-investigation-skeleton/);
+assert.match(shell,/function FlowHealth\(\{data,sprint,open\}/,
+  "Flow stages must use the native chart drill callback.");
+assert.match(shell,/key:"stage:"\+s.stage/,
+  "Each Flow stage must target its own exact stage-history cohort.");
+assert.match(shell,/onKeyDown=\{event=>\{[\s\S]*?inspect\(s\)/,
+  "Flow stage rows must be keyboard operable.");
+assert.match(shell,/key:"aging:"\+row.bucket/,
+  "Age bars must open the exact corresponding bucket.");
+assert.match(shell,/expectedCount:row.count/,
+  "Every aging drill carries the published bucket count for parity.");
+assert.match(server,/const parent=await readDeliveryEvidence\(filters,"open_bugs",snapshotId,0,7000,/,
+  "Aging issue evidence must come from the verified service-role parent cohort.");
+assert.match(server,/jira_delivery_bug_aging_evidence_mismatch/,
+  "Aging drill must fail closed on bucket/source parity drift.");
+assert.match(server,/const needle=search.trim\(\).toLowerCase\(\)/,
+  "Full-bucket search must run before paging.");
+assert.match(modal,/age_days/);
+assert.match(api,/expected_count:target.expectedCount|expectedCount=body.expected_count/);
+assert.match(shell,/onOpen=\{setBacklogWeek\}/);
+assert.match(backlogModal,/Weekly breakdown/);
+assert.match(backlogModal,/Historical issue-level lists are unavailable/);
+assert.match(backlogModal,/row.open_eod-row.net_movement/,
+  "Weekly opening stock must derive from verified closing and net movement.");
+assert.doesNotMatch(backlogModal,/readDeliveryEvidence|fetch\(|SPEND-[0-9]/,
+  "No present-day issue rows may be passed off as historic backlog.");
+assert.match(stageExpansion,/STAGED, NOT APPLIED/);
+assert.match(stageExpansion,/AND ss.stage=v_requested_stage/);
+assert.match(stageExpansion,/jira_delivery_stage_evidence_parity_mismatch/);
+assert.match(stageExpansion,/v_last_run IS DISTINCT FROM v_published/,
+  "All-stage evidence must reject partially synchronized source snapshots.");
+assert.match(stageExpansion,/TO service_role;/,
+  "All-stage drill RPC must remain service-role-only.");
+
 assert.match(modalCss,/\.ed-investigation-modal\{[^}]*height:auto;[^}]*max-height:min\(805px,/,
   "Jira issue modal should size to its table, capped by the viewport.");
 assert.match(modalCss,/\.ed-investigation-table-wrap\.rd-table-wrap\{[^}]*flex:0 1 auto;/,
