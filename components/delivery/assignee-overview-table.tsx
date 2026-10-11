@@ -209,7 +209,10 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
         <h1>Assignee Overview</h1>
         <p>Open Jira work by assignee, module and issue type</p>
       </div>
-      <div className="global-controls assignee-current-scope">Open work · Current issue state</div>
+      <div className="global-controls assignee-current-scope">
+        <span>Reporting scope</span>
+        <span className="assignee-scope-value">Open work · Current issue state</span>
+      </div>
     </div>
     <div className="metrics-section-kicker">
       <span>Assignee workload</span>
