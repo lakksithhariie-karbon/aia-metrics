@@ -342,9 +342,8 @@ export default function AssigneeOverviewTable({data}: {data:AssigneeMatrix}){
               </tr>;
               if(!open)return [parent];
               const children=row.types.map(type=><tr key={row.key+"|"+type.type} className="companies-nested-user-row">
-                <td className="companies-expander-cell"/><td className="companies-user-month">
-                  {cell(row,type,"__all__").props.children}
-                </td>
+                <td className="companies-expander-cell"/>
+                {cell(row,type,"__all__",type.type)}
                 <td className="companies-user-email">{type.type}</td>
                 {renderNumbers(row,type,type.type)}
               </tr>);
