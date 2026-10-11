@@ -108,6 +108,7 @@ export function ServiceDrivers({rows,total,month,onSelect}:{
   rows:InfraAwsService[];total:number;month:string;
   onSelect:(service:string)=>void;
 }){
+  if(!rows.length)return <div className="infra-chart-empty">Service breakdowns in this preview begin in May 2026.</div>;
   const sorted=[...rows].sort((a,b)=>b.usd-a.usd);
   const max=Math.max(1,...sorted.map(x=>x.usd));
   const display=sorted.slice(0,7);
@@ -135,6 +136,7 @@ export function ServiceDrivers({rows,total,month,onSelect}:{
 export function AccountDistribution({rows,total,onSelect}:{
   rows:InfraAwsAccount[];total:number;onSelect:(name:string)=>void;
 }){
+  if(!rows.length)return <div className="infra-chart-empty">Account breakdowns in this preview begin in May 2026.</div>;
   const sorted=[...rows].sort((a,b)=>b.usd-a.usd);
   const max=Math.max(1,...sorted.map(x=>x.usd));
   return <div className="ed-table-shell infra-accounts-scroll" role="region"

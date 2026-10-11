@@ -119,9 +119,12 @@ function BreakdownDialog({target,month,data,onClose,onNext}:{
       drill:{kind:"service",key:r.service},
     }));
     const remaining=Math.max(0,(aws?.usd??0)-serviceRows.reduce((s,r)=>s+r.usd,0));
-    if(remaining>.005)rows.push({label:"Other services",amount:usd(remaining),extra:"Combined",
+    if(serviceRows.length&&remaining>.005)rows.push({
+      label:"Other services",amount:usd(remaining),extra:"Combined",
       hint:"Outside the preview's top 11 service categories"});
-    note="All services contribute to the monthly total. The preview only itemizes the 11 largest categories.";
+    note=serviceRows.length
+      ?"All services contribute to the monthly total. The preview only itemizes the 11 largest categories."
+      :"Only the month total is captured before May 2026. No service detail was included in this shell preview.";
   }else if(target.kind==="service"){
     const name=target.key??"";
     title=pretty(name);
@@ -142,8 +145,10 @@ function BreakdownDialog({target,month,data,onClose,onNext}:{
       drill:{kind:"account",key:r.label},
     }));
     const remaining=Math.max(0,(aws?.usd??0)-accountRows.reduce((s,r)=>s+r.usd,0));
-    if(remaining>.005)rows.push({label:"Other accounts",amount:usd(remaining),extra:"Combined"});
-    note="The preview masks AWS account IDs. Only the nine largest account totals are itemized.";
+    if(accountRows.length&&remaining>.005)rows.push({label:"Other accounts",amount:usd(remaining),extra:"Combined"});
+    note=accountRows.length
+      ?"The preview masks AWS account IDs. Only the nine largest account totals are itemized."
+      :"Only the month total is captured before May 2026. No account detail was included in this shell preview.";
   }else if(target.kind==="account"){
     title=target.key??"AWS account";
     subtitle="Captured monthly account spend · USD";
@@ -233,8 +238,8 @@ export default function InfraOverview({data}:{data:InfraPreviewData}){
     opener.current=document.activeElement instanceof HTMLElement?document.activeElement:null;
     setDrill(target);
   };
-  const options=useMemo(()=>data.awsMonths.filter(m=>m.month>="2026-05")
-    .slice().reverse().map(m=>({value:m.month,label:monthText(m.month)+(m.estimated?" · Estimated":"")})),[data.awsMonths]);
+  const options=useMemo(()=>data.awsMonths.slice().reverse()
+    .map(m=>({value:m.month,label:monthText(m.month)+(m.estimated?" · Estimated":"")})),[data.awsMonths]);
   const current=data.awsMonths.find(x=>x.month===month);
   const currentIndex=data.awsMonths.findIndex(x=>x.month===month);
   const previous=currentIndex>0?data.awsMonths[currentIndex-1]:null;

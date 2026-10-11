@@ -70,3 +70,10 @@ const dataSource=read("lib/infra/preview-snapshot.ts");
 assert.doesNotMatch(dataSource,/AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|SUPABASE_SERVICE_ROLE_KEY|company_uuid|prediction_uuid|\b[0-9]{12}\b/);
 assert.doesNotMatch(page,/read_jira_delivery|readPublishedOverview|fetch\(|postgres\(|service_role/);
 console.log("Infra preview verified: exact shared Product/Engineering design primitives, anonymized audit data, monthly reconciliation and interactive cost drills.");
+
+assert.match(shell,/data\.awsMonths\.slice\(\)\.reverse\(\)/,
+  "Every displayed AWS chart point must remain selectable from the reporting filter.");
+assert.match(charts,/Service breakdowns in this preview begin in May 2026/);
+assert.match(charts,/Account breakdowns in this preview begin in May 2026/);
+assert.match(shell,/Only the month total is captured before May 2026/);
+console.log("All-history filter alignment and missing detailed-breakdown guards verified.");
