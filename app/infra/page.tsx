@@ -5,6 +5,7 @@ import { infraPreviewData } from "../../lib/infra/preview-snapshot";
 import "../retention/retention.css";
 import "../metrics-page-grid.css";
 import "../delivery/delivery.css";
+import "../delivery/delivery-investigation.css";
 import "./infra.css";
 
 export const metadata: Metadata = {

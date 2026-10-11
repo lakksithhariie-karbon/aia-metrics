@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import ProductMonthRangePicker from "../ui/product-month-range-picker";
 import MetricsInfoDialog, { MetricsInfoButton } from "../ui/metrics-info";
+import MetricsInvestigationTable from "../ui/metrics-investigation-table";
 import type { MetricsInfoDefinition } from "../ui/metrics-info";
 import type { InfraPreviewData } from "../../lib/infra/types";
 import { completedPreset, monthLabel, rangeLabel, resolveRange } from "../../lib/infra/date-range";
@@ -53,6 +54,7 @@ function BreakdownDialog({ target, month, data, onClose, onNext }: {
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const [query, setQuery] = useState("");
   useEffect(() => {
     const before = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -97,17 +99,73 @@ function BreakdownDialog({ target, month, data, onClose, onNext }: {
     });
     note = "A dash indicates detail outside the captured monthly top categories or accounts. It does not mean zero spend.";
   }
-  return <div className="ed-overlay" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <section ref={panelRef} className="ed-evidence-dialog infra-drill-dialog" role="dialog" aria-modal="true" aria-labelledby="infra-drill-title">
-      <header><div><span>INFRASTRUCTURE · COST BREAKDOWN</span><h2 id="infra-drill-title">{title}</h2></div>
-        <button ref={closeRef} type="button" onClick={onClose} aria-label="Close breakdown">×</button></header>
-      <div className="ed-evidence-summary">{subtitle}</div>
-      <div className="ed-evidence-table-shell"><table className="ed-report-table ed-evidence-table">
-        <thead><tr><th scope="col">Dimension</th><th scope="col">Spend (USD)</th><th scope="col">Detail</th></tr></thead>
-        <tbody>{rows.map((r, i) => <tr key={r.label + i}><th scope="row">{r.drill ? <button type="button" className="ed-cell-drill" onClick={() => onNext(r.drill!)}>{r.label}</button> : r.label}</th><td>{r.amount}</td><td>{r.extra}</td></tr>)}
-          {!rows.length ? <tr><td colSpan={3}>No captured detail for this reporting month.</td></tr> : null}</tbody>
-      </table></div>
-      <footer className="ed-evidence-footer infra-drill-foot"><span>{note}</span><button type="button" onClick={onClose}>Close</button></footer>
+
+  // One Product / Engineering-style table for every Infra drill type.
+  // Search only narrows the displayed rows; it never changes the month total.
+  const search = query.trim().toLocaleLowerCase("en-US");
+  const visible = search ? rows.filter(r =>
+    [r.label,r.amount,r.extra].some(v => v.toLocaleLowerCase("en-US").includes(search))) : rows;
+  const isMonthlyBreakdown =
+    target.kind === "aws-month" || target.kind === "services" || target.kind === "accounts";
+  const valueHeader = "Spend (USD)";
+  const detailHeader = isMonthlyBreakdown ? "Share of month" : "Coverage";
+  const monthlyTotal = isMonthlyBreakdown && rows.length && aws ? {
+    label:"Full month total",value:usd(aws.usd),detail:"100.0%",
+  } : undefined;
+  const tableRows = visible.map((r,i) => ({
+    id:r.label+":"+i,label:r.label,value:r.amount,detail:r.extra,
+    muted:r.label.startsWith("Other "),onOpen:r.drill?()=>onNext(r.drill!):undefined,
+  }));
+  return <div className="ed-overlay" role="presentation"
+    onMouseDown={e => {if(e.target===e.currentTarget)onClose();}}>
+    <section ref={panelRef}
+      className="rd-modal rd-activation-modal ed-investigation-modal infra-drill-dialog"
+      role="dialog" aria-modal="true" aria-labelledby="infra-drill-title">
+      <header className="rd-modal-head ed-investigation-head">
+        <div>
+          <p>Infrastructure · Cost breakdown</p>
+          <h2 id="infra-drill-title">{title}</h2>
+          <span>{subtitle}</span>
+        </div>
+        <button ref={closeRef} className="rd-close ed-investigation-close"
+          type="button" onClick={onClose} aria-label="Close cost breakdown">×</button>
+      </header>
+      <div className="rd-drill-toolbar ed-investigation-toolbar">
+        <div className="rd-search ed-investigation-search">
+          <svg className="rd-icon" viewBox="0 0 24 24" aria-hidden="true"
+            fill="none" stroke="currentColor" strokeWidth="1.7">
+            <circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/>
+          </svg>
+          <input type="search" value={query}
+            onChange={e=>setQuery(e.currentTarget.value)}
+            aria-label="Search cost breakdown"
+            placeholder={isMonthlyBreakdown?"Search service or account...":"Search reporting months..."} />
+          {query?<button type="button" aria-label="Clear search"
+            onClick={()=>setQuery("")}>×</button>:null}
+        </div>
+        <span className="infra-drill-toolbar-context">
+          {isMonthlyBreakdown?"Selected month · "+monthLabel(month):"Captured monthly history"}
+        </span>
+      </div>
+      <div className="ed-investigation-caption">
+        <span>{isMonthlyBreakdown?"Ranked AWS cost breakdown":"Monthly history · missing detail is not zero"}</span>
+        <span>{visible.length} of {rows.length} rows</span>
+      </div>
+      <MetricsInvestigationTable
+        labelHeader={target.kind==="accounts"?"Linked account":
+          target.kind==="service"||target.kind==="account"?"Month":"Service / category"}
+        valueHeader={valueHeader} detailHeader={detailHeader}
+        rows={tableRows} fullTotal={monthlyTotal}
+        ariaLabel={title+" cost breakdown"}
+        emptyMessage={rows.length
+          ?"No rows match this search."
+          :"This month has no captured service or account breakdown."}/>
+      <footer className="rd-modal-foot rd-modal-foot-paginated ed-investigation-foot infra-drill-foot">
+        <div className="rd-table-summary">
+          <span>{note}</span>
+          <small>{visible.length} displayed · {rows.length} source rows</small>
+        </div>
+      </footer>
     </section>
   </div>;
 }

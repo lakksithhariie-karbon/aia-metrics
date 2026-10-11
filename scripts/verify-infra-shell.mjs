@@ -15,6 +15,9 @@ const source = read("lib/infra/preview-snapshot.ts");
 const layout = read("app/metrics-page-grid.css");
 const baseCss = read("app/delivery/delivery.css");
 const picker = read("components/ui/product-month-range-picker.tsx");
+const investigationTable = read("components/ui/metrics-investigation-table.tsx");
+const engineeringEvidence = read("components/delivery/delivery-evidence-modal.tsx");
+const engineeringCSS = read("app/delivery/delivery-investigation.css");
 const productCss = read("app/prototype.css");
 
 assert.match(drawer, /href="\/infra"/);
@@ -26,7 +29,7 @@ for (const token of [
   "rd-page ed-page infra-page", "rd-page-head ed-page-head", "metrics-grid-section ed-section",
   "metrics-section-kicker ed-section-heading", "ed-sprint-kpis ed-kpi-grid po-kpis", "metric-card ed-metric",
   "report-card ed-report", "report-header ed-report-heading", "ed-collection", "MetricsInfoButton", "MetricsInfoDialog",
-  "ed-evidence-dialog", "ed-evidence-table-shell", "ed-report-table", "ProductMonthRangePicker",
+  "rd-modal rd-activation-modal ed-investigation-modal", "MetricsInvestigationTable", "ProductMonthRangePicker",
 ]) assert.ok(shell.includes(token), "Missing shared Product primitive: " + token);
 assert.match(layout, /--metrics-page-max:1560px/);
 assert.match(layout, /--metrics-page-gap:24px/);
@@ -110,4 +113,39 @@ assert.doesNotMatch(charts, /InfraBillMonth|InfraDocType|InfraBillDay/);
 assert.ok(!("billMonths" in data) && !("billAsOf" in data) && !("docTypes" in data) && !("billDays" in data));
 assert.doesNotMatch(source, /AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|SUPABASE_SERVICE_ROLE_KEY|company_uuid|prediction_uuid|\b[0-9]{12}\b/);
 assert.doesNotMatch(page, /read_jira_delivery|readPublishedOverview|fetch\(|postgres\(|service_role/);
+// Every AWS spend, category, account, service-history and account-history
+// drill calls this one reusable component. Its markup and sizing inherit the
+// exact Product / Engineering table style classes, not the former Jira
+// evidence-table widths.
+assert.match(page,/delivery\/delivery-investigation\.css/);
+assert.match(engineeringEvidence,/className="rd-modal rd-activation-modal ed-investigation-modal"/);
+assert.match(engineeringEvidence,/className="rd-table-wrap ed-investigation-table-wrap"/);
+assert.match(engineeringEvidence,/className="rd-activation-table ed-investigation-table"/);
+for(const cssName of [".ed-investigation-table.rd-activation-table",".ed-investigation-table-wrap.rd-table-wrap"]) {
+  assert.ok(engineeringCSS.includes(cssName),"Missing approved Engineering table CSS "+cssName);
+}
+for(const token of [
+  "rd-table-wrap ed-investigation-table-wrap","rd-activation-table ed-investigation-table",
+  "ed-investigation-row","ed-investigation-key","infra-drill-align-right",
+  "Full month total","rd-modal-foot rd-modal-foot-paginated ed-investigation-foot",
+  "rd-drill-toolbar ed-investigation-toolbar","ed-investigation-caption"
+]) {
+  assert.ok((shell+investigationTable).includes(token),"Missing Product / Engineering modal primitive "+token);
+}
+assert.match(shell,/type DrillKind = "aws-month" \| "services" \| "service" \| "accounts" \| "account"/);
+assert.match(shell,/target.kind === "aws-month" \|\| target.kind === "services"/);
+assert.match(shell,/target.kind === "accounts"/);
+assert.match(shell,/target.kind === "service"/);
+assert.match(shell,/isMonthlyBreakdown && rows.length && aws/);
+assert.match(shell,/query\.trim\(\)\.toLocaleLowerCase/);
+assert.match(shell,/setQuery\("+"\)/);
+assert.match(shell,/fullTotal=\{monthlyTotal\}/);
+assert.match(investigationTable,/role="region" tabIndex=\{0\}/);
+assert.match(investigationTable,/aria-label=\{ariaLabel\}/);
+assert.match(investigationTable,/onClick=\{row\.onOpen\}/);
+assert.match(css,/infra-drill-table thead th:first-child\{width:55%/);
+assert.match(css,/infra-drill-table \.ed-investigation-row>td\.infra-drill-align-right/);
+assert.doesNotMatch(shell,/ed-evidence-table-shell|ed-report-table ed-evidence-table/);
+assert.doesNotMatch(css,/infra-drill-dialog \.ed-evidence-table/);
+console.log("Infra drill modal table verified: Product / Engineering shared primitives, five targets, search, cost alignment and totals.");
 console.log("Infra validated: Product date picker, completed-month presets, exact scope, shared breakdown table, responsive chart width, removed source panel and banner, unchanged AWS data.");
