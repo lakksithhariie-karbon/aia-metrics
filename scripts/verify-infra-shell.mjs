@@ -127,8 +127,8 @@ for(const cssName of [".ed-investigation-table.rd-activation-table",".ed-investi
 for(const token of [
   "rd-table-wrap ed-investigation-table-wrap","rd-activation-table ed-investigation-table",
   "ed-investigation-row","ed-investigation-key","infra-drill-align-right",
-  "Full month total","rd-modal-foot rd-modal-foot-paginated ed-investigation-foot",
-  "rd-drill-toolbar ed-investigation-toolbar","ed-investigation-caption"
+  "Full month total","rd-drill-toolbar ed-investigation-toolbar",
+  "ed-investigation-caption"
 ]) {
   assert.ok((shell+investigationTable).includes(token),"Missing Product / Engineering modal primitive "+token);
 }
@@ -147,5 +147,18 @@ assert.match(css,/infra-drill-table thead th:first-child\{width:55%/);
 assert.match(css,/infra-drill-table \.ed-investigation-row>td\.infra-drill-align-right/);
 assert.doesNotMatch(shell,/ed-evidence-table-shell|ed-report-table ed-evidence-table/);
 assert.doesNotMatch(css,/infra-drill-dialog \.ed-evidence-table/);
+// The Product table's th:first-child has zero padding / 38px width. Infra's
+// total label must explicitly override both, including on the bottom row.
+assert.match(css,/\.infra-drill-table\.rd-activation-table tfoot th:first-child\{/);
+assert.match(css,/width:55%;padding:0 18px 0 16px!important;text-align:left!important/);
+assert.doesNotMatch(css,/\.infra-drill-foot/);
+assert.doesNotMatch(shell,/rd-modal-foot|rd-table-summary|infra-drill-foot/);
+assert.doesNotMatch(shell,/displayed ·|source rows/);
+assert.doesNotMatch(shell,/The preview itemizes the eleven largest categories/);
+assert.doesNotMatch(shell,/A dash indicates detail outside the captured monthly top categories/);
+assert.doesNotMatch(shell,/<footer\b/);
+assert.match(investigationTable,/<tfoot>/);
+assert.match(investigationTable,/fullTotal\.label/);
+console.log("Infra modal cleanup verified: no footer notes; aligned first-column monthly totals.");
 console.log("Infra drill modal table verified: Product / Engineering shared primitives, five targets, search, cost alignment and totals.");
 console.log("Infra validated: Product date picker, completed-month presets, exact scope, shared breakdown table, responsive chart width, removed source panel and banner, unchanged AWS data.");

@@ -74,21 +74,19 @@ function BreakdownDialog({ target, month, data, onClose, onNext }: {
   const aws = data.awsMonths.find(x => x.month === month);
   const services = data.awsServices.filter(x => x.month === month);
   const accounts = data.awsAccounts.filter(x => x.month === month);
-  let title = "", subtitle = "", note = "", rows: DrillRow[] = [];
+  let title = "", subtitle = "", rows: DrillRow[] = [];
   if (target.kind === "aws-month" || target.kind === "services") {
     title = (target.kind === "aws-month" ? "AWS spend · " : "Cloud services · ") + monthLabel(month);
     subtitle = "USD · " + (aws?.estimated ? "Estimated period" : "Completed month");
     rows = services.map(r => ({ label: pretty(r.service), amount: usd(r.usd), extra: pct(aws?.usd ? r.usd / aws.usd * 100 : 0), drill: { kind: "service", key: r.service, month } }));
     const other = Math.max(0, (aws?.usd ?? 0) - services.reduce((s, r) => s + r.usd, 0));
     if (services.length && other > .005) rows.push({ label: "Other categories", amount: usd(other), extra: "Combined" });
-    note = services.length ? "The preview itemizes the eleven largest categories; other categories are included in the total." : "Only the month total is captured before May 2026. No service detail is available in this preview.";
   } else if (target.kind === "accounts") {
     title = "Linked AWS accounts · " + monthLabel(month);
     subtitle = "Masked account labels · USD";
     rows = accounts.map(r => ({ label: r.label, amount: usd(r.usd), extra: pct(aws?.usd ? r.usd / aws.usd * 100 : 0), drill: { kind: "account", key: r.label, month } }));
     const other = Math.max(0, (aws?.usd ?? 0) - accounts.reduce((s, r) => s + r.usd, 0));
     if (accounts.length && other > .005) rows.push({ label: "Other accounts", amount: usd(other), extra: "Combined" });
-    note = accounts.length ? "Full AWS account IDs are masked. This preview captures the nine largest accounts per month." : "Only the month total is captured before May 2026. No account detail is available in this preview.";
   } else {
     const isService = target.kind === "service";
     title = isService ? pretty(target.key ?? "Service") : target.key ?? "AWS account";
@@ -97,7 +95,6 @@ function BreakdownDialog({ target, month, data, onClose, onNext }: {
       const item = isService ? data.awsServices.find(s => s.month === m.month && s.service === target.key) : data.awsAccounts.find(a => a.month === m.month && a.label === target.key);
       return { label: monthLabel(m.month), amount: item ? usd(item.usd) : "—", extra: item ? m.estimated ? "Estimated" : "Completed" : "Not captured" };
     });
-    note = "A dash indicates detail outside the captured monthly top categories or accounts. It does not mean zero spend.";
   }
 
   // One Product / Engineering-style table for every Infra drill type.
@@ -160,12 +157,6 @@ function BreakdownDialog({ target, month, data, onClose, onNext }: {
         emptyMessage={rows.length
           ?"No rows match this search."
           :"This month has no captured service or account breakdown."}/>
-      <footer className="rd-modal-foot rd-modal-foot-paginated ed-investigation-foot infra-drill-foot">
-        <div className="rd-table-summary">
-          <span>{note}</span>
-          <small>{visible.length} displayed · {rows.length} source rows</small>
-        </div>
-      </footer>
     </section>
   </div>;
 }
