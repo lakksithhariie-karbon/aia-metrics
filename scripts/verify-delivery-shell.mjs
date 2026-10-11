@@ -334,3 +334,6 @@ assert.match(header,/router\.push\(item\.href\)/,
   "Engineering page switching must use a client navigation rather than a hard document reload.");
 assert.match(header,/event\.metaKey\|\|event\.ctrlKey/,
   "Navigation must respect modifier/new-tab clicks.");
+
+assert.match(page,/preferredRegion = "bom1"/);
+console.log("Engineering overview SSR uses the Supabase-adjacent Mumbai compute region.");

@@ -4,6 +4,7 @@ import type { AssigneeMatrixScope } from "../../../../lib/delivery/types";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 40;
+export const preferredRegion = "bom1"; // Jira SQL runs in ap-south-1.
 
 const fail=(status:number,error:string)=>NextResponse.json({error},{
   status,headers:{"Cache-Control":"no-store"},

@@ -173,3 +173,8 @@ assert.ok(assigneeInfo, "Assignee metric info definition must exist.");
 assert.doesNotMatch(assigneeInfo, /\b\d[\d,]* (?:assignees|open issues)\b/,
   "Assignee metric example must not hardcode a moving global workload count.");
 console.log("Assignee toolbar reset and timeless metric info verified.");
+
+assert.match(page,/preferredRegion="bom1"/);
+assert.match(evidenceApi,/preferredRegion = "bom1"/);
+assert.match(issueApi,/preferredRegion = "bom1"/);
+console.log("Assignee page and issue APIs use the Supabase-adjacent Mumbai compute region.");

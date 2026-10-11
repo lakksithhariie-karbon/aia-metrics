@@ -14,6 +14,8 @@ export const metadata: Metadata = {
 };
 export const dynamic = "force-dynamic";
 export const maxDuration = 45; // Jira validation and scoped flow queries need bounded headroom
+// Run beside the Supabase ap-south-1 database, not Vercel's iad1 default.
+export const preferredRegion = "bom1";
 
 /** The shared Product grid is retained. The only data source is the
  * service-role-only Jira reporting facade; screenshot fixtures are forbidden. */

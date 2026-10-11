@@ -17,6 +17,8 @@ export const metadata:Metadata={
 };
 export const dynamic="force-dynamic";
 export const maxDuration=45;
+// Keep the matrix renderer close to the shared Supabase ap-south-1 database.
+export const preferredRegion="bom1";
 
 export default async function AssigneePage({searchParams}:{
   searchParams:Promise<Record<string,string|string[]|undefined>>;
