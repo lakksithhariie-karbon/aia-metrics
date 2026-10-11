@@ -33,7 +33,7 @@ assert.match(table,/className="companies-month-header"/);
 assert.match(table,/className="companies-module-header"/);
 assert.match(table,/className="companies-frozen-header-spacer"/);
 assert.match(table,/className="companies-expander-cell"/);
-assert.match(table,/className="companies-module-button"/);
+assert.match(table,/className=\{"companies-module-button"\+/);
 assert.match(table,/className="companies-nested-user-row"/);
 assert.match(table,/className="companies-total-row"/);
 assert.match(table,/setExpanded/);
