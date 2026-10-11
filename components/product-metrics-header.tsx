@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export type DashboardKey = "overview" | "retention" | "companies" | "delivery";
+export type DashboardKey = "product" | "retention" | "companies" | "delivery";
 export type DeliveryView = "overview" | "assignees";
 
 const ENGINEERING_PAGES = [
@@ -23,10 +23,10 @@ const ENGINEERING_PAGES = [
 ];
 const DASHBOARDS = [
   {
-    key: "overview" as const,
+    key: "product" as const,
     name: "Product Overview",
     description: "Active usage, adoption and workflow health",
-    href: "/overview",
+    href: "/product",
   },
   {
     key: "retention" as const,

@@ -43,7 +43,7 @@ const MONTH_WINDOW_COUNT=6;
 const overviewQuery=new URLSearchParams(window.location.search);
 const qStart=overviewQuery.get('from'),qEnd=overviewQuery.get('to');
 const validOverviewMonth=s=>typeof s==='string'&&/^\d{4}-(0[1-9]|1[0-2])$/.test(s);
-let appliedRange=window.location.pathname==='/overview'
+let appliedRange=window.location.pathname==='/product'
   &&validOverviewMonth(qStart)&&validOverviewMonth(qEnd)&&qStart<=qEnd
   ?{preset:overviewQuery.get('preset')||'custom',start:qStart,end:qEnd}
   :{preset:'lifetime',start:null,end:null};
@@ -816,13 +816,13 @@ function chooseMonth(key){
  renderDatePicker(key);
 }
 function overviewReportingUrl(range){
- if(range.preset==='lifetime')return '/overview';
+ if(range.preset==='lifetime')return '/product';
  const q=new URLSearchParams({from:range.start,to:range.end,preset:range.preset||'custom'});
- return '/overview?'+q.toString();
+ return '/product?'+q.toString();
 }
 function applyDateRange(){
  if(!draftRange||draftRange.preset!=='lifetime'&&!(draftRange.start&&draftRange.end))return;
- if(window.location.pathname==='/overview'){
+ if(window.location.pathname==='/product'){
    window.location.assign(overviewReportingUrl(draftRange));
    return;
  }
@@ -830,8 +830,8 @@ function applyDateRange(){
  $('#range-live-status').textContent='Date range changed to '+rangeLabel(appliedRange)+'.';
 }
 function resetDateRange(){
- if(window.location.pathname==='/overview'){
-   window.location.assign('/overview');return;
+ if(window.location.pathname==='/product'){
+   window.location.assign('/product');return;
  }
  appliedRange=presetRange('lifetime');closeDatePicker(false);renderDashboard();
  $('#range-live-status').textContent='Date range reset to Lifetime.';
