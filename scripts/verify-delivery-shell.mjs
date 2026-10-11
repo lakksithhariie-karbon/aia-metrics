@@ -90,7 +90,7 @@ for (const term of [
   "data.core.metric_cohorts","data.flow.wip_by_status",
   "data.flow.stage_summary","data.flow.bug_health",
   "data.flow.backlog_trend","data.quality.metric_updates",
-  "data.issue_types","data.synced_at","data.snapshot_id",
+  "data.issue_types","data.synced_at",
 ]) assert.ok(shell.includes(term), "Unwired reporting source "+term);
 assert.match(server,/jira_delivery_reconciliation_failed/);
 assert.match(server,/jira_delivery_sprint_reconciliation_failed/);
@@ -101,6 +101,8 @@ assert.match(api,/readDeliveryEvidence\(filters,key,snapshot,offset,limit,query/
 const cohortV2 = read("supabase/migrations/20261011_jira_delivery_investigation_v2.sql");
 const issueSQL = cohortV2;
 const modal = read("components/delivery/delivery-evidence-modal.tsx");
+assert.match(modal,/snapshot_id:data.snapshot_id/,
+  "Drill evidence must retain the published snapshot guard.");
 const issueModal = read("components/delivery/delivery-issue-detail-modal.tsx");
 const modalCss = read("app/delivery/delivery-investigation.css");
 const loadingPage = read("app/delivery/loading.tsx");
