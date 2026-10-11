@@ -201,12 +201,12 @@ export default function DeliveryEvidenceModal({target,data,filters,onClose}:{
         <div className="rd-table-wrap ed-investigation-table-wrap" ref={scroll}>
           {error?<div className="ed-investigation-error" role="alert">
             <p>{stage&&target.key!=="stage:Code Review"
-              ?"Historical stage evidence awaits its verified reporting reader. No current-status substitute is shown."
+              ?"Verified stage history is unavailable for this selection. No current-status substitute is shown."
               :"Verified issue evidence is unavailable. No unverified data is shown."}</p>
             <button type="button" onClick={()=>setRetry(n=>n+1)}>Try again</button>
           </div>:loading?<EvidenceSkeleton review={stage} aging={aging}/>:
           !value||!value.rows.length?<div className="ed-investigation-empty">
-            No issues match your search. Try a different keyword.
+            {aging&&!search?"No bugs belong to this age range.":"No issues match your search. Try a different keyword."}
           </div>:
           <table className="rd-activation-table ed-investigation-table">
             <thead><tr>

@@ -67,8 +67,11 @@ export async function POST(request: Request) {
         const guarded=first!==""&&"=+-@".includes(first)?"\'"+s:s;
         return '"'+guarded.replace(/"/g,'""')+'"';
       };
-      const cols=["issue_key","summary","issue_type","created_at","resolved_at","severity",
-        "status","priority","module","sub_module","assignee","stage_hours","age_days"] as const;
+      const cols=aging
+        ?["issue_key","summary","issue_type","created_at","resolved_at","severity",
+          "status","priority","module","sub_module","assignee","age_days"] as const
+        :["issue_key","summary","issue_type","created_at","resolved_at","severity",
+          "status","priority","module","sub_module","assignee","stage_hours"] as const;
       const lines=[cols.map(safe).join(","),...result.rows.map(row=>
         cols.map(col=>safe(row[col])).join(","))];
       return new Response("\uFEFF"+lines.join("\r\n"),{

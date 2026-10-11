@@ -446,12 +446,12 @@ function BugAging({data,open}:{data:DeliveryDashboard;open:(target:DrillTarget)=
           </span>
           <strong>{num(row.count)}</strong>
           <small>{pct(row.pct)}</small>
-          {active===index?<div className="ed-chart-tooltip ed-aging-tooltip"
+          {active===index?<span className="ed-chart-tooltip ed-aging-tooltip"
               id="ed-aging-tooltip" role="tooltip">
             <strong>{row.bucket}</strong>
             <span>{num(row.count)} open bugs</span>
             <small>{pct(row.pct)} of the current bug backlog</small>
-          </div>:null}
+          </span>:null}
         </button>)}
       </div>
       <p className="ed-aging-note">Select an age range to inspect the matching Jira bugs.</p>
