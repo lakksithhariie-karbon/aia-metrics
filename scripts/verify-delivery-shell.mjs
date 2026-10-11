@@ -127,7 +127,7 @@ assert.match(modal,/ed-investigation-field-grid/);
 assert.match(modal,/DeliveryIssueDetailModal/);
 assert.match(modal,/const size=10/);
 assert.match(modal,/Export CSV/);
-assert.match(modal,/evidence_request_failed/);
+assert.match(evidencePrefetch,/evidence_request_failed/);
 assert.match(server,/read_jira_delivery_evidence_v2/);
 assert.match(server,/read_jira_delivery_issue_v1/);
 assert.match(issueModal,/Back to issues/);
