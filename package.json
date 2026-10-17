@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack --hostname 0.0.0.0 --port 8953",
-    "prebuild": "node scripts/verify-overview-drill-contract.mjs && node scripts/verify-companies-drill-contract.mjs && node scripts/verify-delivery-shell.mjs && node scripts/verify-assignee-overview.mjs && node scripts/verify-jira-foundation.mjs && node scripts/verify-jira-reporting-integrity.mjs && node scripts/verify-retention-range.mjs && node scripts/verify-section-navigation.mjs && node scripts/verify-infra-shell.mjs",
+    "prebuild": "node scripts/verify-overview-drill-contract.mjs && node scripts/verify-companies-drill-contract.mjs && node scripts/verify-delivery-shell.mjs && node scripts/verify-assignee-overview.mjs && node scripts/verify-jira-foundation.mjs && node scripts/verify-jira-reporting-integrity.mjs && node scripts/verify-retention-range.mjs && node scripts/verify-section-navigation.mjs && node scripts/verify-infra-shell.mjs && node scripts/verify-jira-published-cutoff.mjs",
     "build": "next build --webpack",
     "test:overview-drills": "node scripts/verify-overview-drill-contract.mjs",
     "start": "next start --hostname 0.0.0.0 --port 8953",
@@ -17,7 +17,8 @@
     "test:assignees": "node scripts/verify-assignee-overview.mjs",
     "test:retention-range": "node scripts/verify-retention-range.mjs",
     "test:section-navigation": "node scripts/verify-section-navigation.mjs",
-    "test:infra-shell": "node scripts/verify-infra-shell.mjs"
+    "test:infra-shell": "node scripts/verify-infra-shell.mjs",
+    "test:jira-published-cutoff": "node scripts/verify-jira-published-cutoff.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.9.0",
