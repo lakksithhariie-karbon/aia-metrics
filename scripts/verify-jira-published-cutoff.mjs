@@ -27,7 +27,10 @@ assert.doesNotMatch(active,/CREATE\s+(?:OR REPLACE\s+)?VIEW|\bGRANT\b|\bREVOKE\b
 assert.match(previous,/extract\(epoch from fs\.stale_calc_days\)/);
 assert.match(previous,/fs\.is_stale_blocked, fs\.is_open, fs\.is_stale, fs\.is_blocked/);
 assert.doesNotMatch(previous,/published_cutoff/);
-assert.match(server,/readDeliveryDashboard\(filters\)/);
+assert.match(page,/readDeliveryDashboard\(filters\)/,
+ "Engineering Overview must still call the shared validated dashboard reader.");
+assert.match(server,/return validate\(await rpc<DeliveryDashboard>/,
+ "The service-role facade and response contract must retain validation.");
 assert.match(server,/jira_delivery_reconciliation_failed/);
 assert.match(page,/Verified Jira metrics are temporarily unavailable/);
 assert.match(matrix,/readAssigneeMatrixEvidence\(filters,"stale_7d"\)/);
