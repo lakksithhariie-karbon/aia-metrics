@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const futureSections = ["AI Services"] as const;
+const futureSections = [] as const;
 
 /**
  * App-wide section navigation. Dashboard-to-dashboard switching still lives
@@ -21,6 +21,7 @@ export default function MainNavigationDrawer() {
     pathname === "/retention" || pathname === "/customer";
   const onDelivery = pathname === "/delivery" || pathname.startsWith("/delivery/");
   const onInfra = pathname === "/infra" || pathname.startsWith("/infra/");
+  const onAiServices = pathname === "/ai-services" || pathname.startsWith("/ai-services/");
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -127,7 +128,7 @@ export default function MainNavigationDrawer() {
                   <div className="app-main-drawer-brand">
                     <strong>AI Accountant</strong>
                     <span className="app-main-drawer-brand-divider" aria-hidden="true" />
-                    <span>{onDelivery ? "Engineering Metrics" : onProduct ? "Product Metrics" : onInfra ? "Infrastructure Metrics" : "Overview"}</span>
+                    <span>{onDelivery ? "Engineering Metrics" : onProduct ? "Product Metrics" : onInfra ? "Infrastructure Metrics" : onAiServices ? "AI Services Metrics" : "Overview"}</span>
                   </div>
                   <button
                     ref={closeRef}
@@ -179,6 +180,14 @@ export default function MainNavigationDrawer() {
                         onClick={close}
                       >
                         Infra
+                      </Link>
+                      <Link
+                        href="/ai-services"
+                        className={"app-main-drawer-item" + (onAiServices ? " is-current" : "")}
+                        aria-current={onAiServices ? "page" : undefined}
+                        onClick={close}
+                      >
+                        AI Services
                       </Link>
                       {futureSections.map(section => (
                         <button
