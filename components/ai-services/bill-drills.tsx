@@ -154,7 +154,7 @@ export function BillRecordsModal({ title, subtitle, coverage, scope, drillKind, 
 }) {
   const [query,setQuery]=useState("");
   const [search,setSearch]=useState("");
-  const [sortKey,setSortKey]=useState<SortKey>("createdAt");
+  const [sortKey,setSortKey]=useState<SortKey>(drillKind==="known_latency"||drillKind==="month_latency"?"knownTotalLatency":"createdAt");
   const [sortDir,setSortDir]=useState<"asc"|"desc">("desc");
   const [page,setPage]=useState(1);
   const [detail,setDetail]=useState<BillExtractionRecord|null>(null);

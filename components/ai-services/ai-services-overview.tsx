@@ -335,7 +335,7 @@ export default function AiServicesOverview() {
 
         {loading?<p role="status" className="ai-scope-warning">Updating verified reporting for the selected filters…</p>:null}
         {scope !== "verified" ? (
-          <p className="ai-scope-warning" role="note">{scopeNote}. Customer KPIs use verified scope only.</p>
+          <p className="ai-scope-warning" role="note">{scopeNote}. These KPIs include non-verified populations and are not customer-only metrics.</p>
         ) : null}
 
         <section className="metrics-grid-section ed-section ai-kpi-section" aria-label="Bill extraction key metrics">
