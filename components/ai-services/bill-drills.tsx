@@ -1,246 +1,302 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { BillExtractionRecord } from "../../lib/ai-services/types";
 
-function shortId(uuid: string) {
-  return uuid.slice(0, 8);
-}
+const number = new Intl.NumberFormat("en-IN");
+const PAGE_SIZE = 10;
 
+function shortId(uuid: string) { return uuid.slice(0, 8); }
 function fmtDate(iso: string) {
-  return iso.slice(0, 10);
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? "—" : new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
+  }).format(date);
+}
+function fmtCost(v: number | null) { return v === null ? "Unknown" : v.toFixed(3) + " units"; }
+function fmtLatency(v: number | null) { return v === null ? "Unknown" : number.format(v) + " units"; }
+function fmtStatus(value: string | null) {
+  return value === "needs_review" ? "Needs review" : value === "reviewed" ? "Reviewed" : value === "deleted" ? "Deleted" : "Unknown";
+}
+function pageNumbers(page: number, count: number): Array<number | "…"> {
+  if (count <= 6) return Array.from({ length: count }, (_, i) => i + 1);
+  const keep = new Set([1, count, page - 1, page, page + 1].filter(x => x >= 1 && x <= count));
+  const selected = [...keep].sort((a, b) => a - b);
+  const result: Array<number | "…"> = [];
+  selected.forEach((item, i) => {
+    if (i && item - selected[i - 1] > 1) result.push("…");
+    result.push(item);
+  });
+  return result;
 }
 
-function fmtCost(v: number | null) {
-  return v === null ? "unknown" : v.toFixed(3) + " units";
-}
-
-function fmtLatency(v: number | null) {
-  return v === null ? "unknown" : String(v) + " units";
-}
-
-/** Shared modal shell: focus close on mount, Escape, overlay click, scroll lock. */
-function ModalShell({ label, onClose, children, wide = false }: {
-  label: string;
-  onClose: () => void;
-  children: React.ReactNode;
-  wide?: boolean;
+/** The exact Product/Engineering overlay and header primitives, with a second
+ * focus-contained portal for record details. Neither modal is a browser alert. */
+function ModalShell({ title, eyebrow, description, onClose, children, wide = false, inactive = false, detail = false }: {
+  title: string; eyebrow: string; description: string; onClose: () => void;
+  children: React.ReactNode; wide?: boolean; inactive?: boolean; detail?: boolean;
 }) {
+  const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
   useEffect(() => {
+    if (inactive) return;
     const before = document.body.style.overflow;
-    const previous = document.activeElement as HTMLElement | null;
+    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     document.body.style.overflow = "hidden";
     closeRef.current?.focus({ preventScroll: true });
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); return; }
       if (event.key !== "Tab" || !panelRef.current) return;
-      const all = Array.from(
-        panelRef.current.querySelectorAll<HTMLElement>('button:not([disabled]),a[href],[tabindex]:not([tabindex="-1"]),input,select'),
-      ).filter(el => el.tabIndex >= 0 && el.getClientRects().length > 0);
-      if (!all.length) return;
-      if (event.shiftKey && document.activeElement === all[0]) {
-        event.preventDefault();
-        all[all.length - 1].focus();
-      } else if (!event.shiftKey && document.activeElement === all[all.length - 1]) {
-        event.preventDefault();
-        all[0].focus();
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(
+        'button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
+      )).filter(el => el.tabIndex >= 0 && el.getClientRects().length > 0);
+      if (!focusable.length) return;
+      if (event.shiftKey && document.activeElement === focusable[0]) {
+        event.preventDefault(); focusable[focusable.length - 1].focus();
+      } else if (!event.shiftKey && document.activeElement === focusable[focusable.length - 1]) {
+        event.preventDefault(); focusable[0].focus();
       }
     };
     document.addEventListener("keydown", onKey, true);
     return () => {
-      document.body.style.overflow = before;
       document.removeEventListener("keydown", onKey, true);
-      previous?.focus?.({ preventScroll: true });
+      document.body.style.overflow = before;
+      previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [onClose]);
-  return (
-    <div
-      className="ed-overlay"
-      onMouseDown={event => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <section
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-        className={"rd-modal rd-activation-modal ed-investigation-modal" + (wide ? " ai-drill-wide" : "")}
-      >
-        <header className="rd-modal-head ed-investigation-head">
-          <h2>{label}</h2>
-          <button ref={closeRef} type="button" className="rd-close ed-investigation-close" onClick={onClose} aria-label="Close dialog">
-            ✕
+  }, [inactive, onClose]);
+  return createPortal(
+    <div className={"ed-overlay ai-modal-overlay" + (detail ? " ai-modal-level-two" : "")}
+      role="presentation"
+      onMouseDown={event => { if (event.target === event.currentTarget && !inactive) onClose(); }}>
+      <section ref={panelRef} role="dialog" aria-modal={!inactive} aria-hidden={inactive || undefined}
+        aria-labelledby={titleId}
+        className={"rd-modal rd-activation-modal ed-investigation-modal ai-investigation-modal" + (wide ? " ai-drill-wide" : "") + (detail ? " ai-detail-modal" : "")}>
+        <header className="rd-modal-head ed-investigation-head ai-investigation-head">
+          <div>
+            <p>{eyebrow}</p>
+            <h2 id={titleId}>{title}</h2>
+            <span>{description}</span>
+          </div>
+          <button ref={closeRef} type="button" className="rd-close ed-investigation-close"
+            onClick={onClose} aria-label={"Close " + title}>
+            <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19" stroke="currentColor" fill="none" strokeWidth="1.8" strokeLinecap="round" /></svg>
           </button>
         </header>
         {children}
       </section>
-    </div>
+    </div>, document.body,
   );
+}
+
+function DrillSummary({ rows }: { rows: Array<{ label: string; value: string; note?: string }> }) {
+  return <div className="ai-drill-summary" aria-label="Investigation summary">
+    {rows.map(row => <div key={row.label}>
+      <span>{row.label}</span><strong>{row.value}</strong>{row.note ? <small>{row.note}</small> : null}
+    </div>)}
+  </div>;
+}
+
+function DrillSearch({ query, onChange, placeholder }: { query: string; onChange: (v: string) => void; placeholder: string }) {
+  return <div className="rd-search ed-investigation-search ai-investigation-search">
+    <svg className="rd-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
+      <circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/>
+    </svg>
+    <input type="search" placeholder={placeholder} aria-label={placeholder}
+      value={query} onChange={event => onChange(event.currentTarget.value)} />
+    {query ? <button type="button" onClick={() => onChange("")} aria-label="Clear search">×</button> : null}
+  </div>;
+}
+
+function DrillPagination({ page, pages, shown, total, label, onPage }: {
+  page: number; pages: number; shown: number; total: number; label: string;
+  onPage: (page: number) => void;
+}) {
+  const first = shown ? (page - 1) * PAGE_SIZE + 1 : 0;
+  const last = shown ? first + shown - 1 : 0;
+  return <footer className="rd-modal-foot rd-modal-foot-paginated ai-investigation-foot">
+    <div className="rd-table-summary"><span>{label}</span>
+      <small>Showing {number.format(first)}–{number.format(last)} of {number.format(total)}</small>
+    </div>
+    {pages > 1 ? <nav className="rd-pagination" aria-label="Investigation pages">
+      <button type="button" disabled={page === 1} onClick={() => onPage(page - 1)} aria-label="Previous page">‹</button>
+      {pageNumbers(page, pages).map((item, i) => item === "…"
+        ? <span key={"ellipsis" + i} className="rd-page-ellipsis">…</span>
+        : <button type="button" key={item} aria-current={page === item ? "page" : undefined}
+            onClick={() => onPage(item)}>{item}</button>)}
+      <button type="button" disabled={page === pages} onClick={() => onPage(page + 1)} aria-label="Next page">›</button>
+    </nav> : null}
+  </footer>;
 }
 
 type SortKey = "createdAt" | "knownTotalCost" | "knownTotalLatency";
 
-const PAGE_SIZE = 10;
-
 export function BillRecordsModal({ title, subtitle, coverage, records, onClose }: {
-  title: string;
-  subtitle: string;
-  coverage: string;
-  records: BillExtractionRecord[];
-  onClose: () => void;
+  title: string; subtitle: string; coverage: string;
+  records: BillExtractionRecord[]; onClose: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);
   const [detail, setDetail] = useState<BillExtractionRecord | null>(null);
-
+  const tableRef = useRef<HTMLDivElement>(null);
+  const recordTrigger = useRef<HTMLButtonElement | null>(null);
+  const knownCostCount = records.filter(r => r.knownTotalCost !== null).length;
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const rows = q
-      ? records.filter(r =>
-          r.predictionUuid.toLowerCase().includes(q) ||
-          r.companyName.toLowerCase().includes(q) ||
-          (r.docType ?? "").includes(q),
-        )
-      : records;
-    const dir = sortDir === "asc" ? 1 : -1;
+    const q = query.trim().toLocaleLowerCase("en-US");
+    const rows = q ? records.filter(r =>
+      r.predictionUuid.toLowerCase().includes(q) || r.companyName.toLowerCase().includes(q) ||
+      (r.docType ?? "unknown").includes(q) || (r.reviewStatus ?? "unknown").replaceAll("_", " ").includes(q),
+    ) : records;
+    const direction = sortDir === "asc" ? 1 : -1;
     return [...rows].sort((a, b) => {
-      const av = a[sortKey];
-      const bv = b[sortKey];
-      if (av === null && bv === null) return 0;
-      if (av === null) return 1;
+      const av = a[sortKey], bv = b[sortKey];
+      if (av === null) return bv === null ? 0 : 1;
       if (bv === null) return -1;
-      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
-      return String(av).localeCompare(String(bv)) * dir;
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * direction;
+      return String(av).localeCompare(String(bv)) * direction;
     });
   }, [records, query, sortKey, sortDir]);
-
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, pages);
   const visible = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
   const toggleSort = (key: SortKey) => {
-    if (key === sortKey) setSortDir(d => (d === "asc" ? "desc" : "asc"));
-    else {
-      setSortKey(key);
-      setSortDir(key === "createdAt" ? "desc" : "desc");
-    }
-    setPage(1);
+    if (sortKey === key) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("desc"); }
+    setPage(1); tableRef.current?.scrollTo({ top: 0 });
   };
-
-  return (
-    <ModalShell label={title} onClose={detail ? () => setDetail(null) : onClose} wide>
-      <p className="ed-investigation-caption">{subtitle}</p>
-      <p className="ed-investigation-caption">{coverage} · {filtered.length} matching extractions</p>
-      <div className="rd-drill-toolbar ed-investigation-toolbar">
-        <input
-          type="search"
-          className="ai-drill-search"
-          placeholder="Search prediction, company, type"
-          aria-label="Search extractions"
-          value={query}
-          onChange={event => {
-            setQuery(event.target.value);
-            setPage(1);
-          }}
-        />
+  const changePage = (next: number) => { setPage(next); tableRef.current?.scrollTo({ top: 0 }); };
+  const openDetail = (record: BillExtractionRecord, button: HTMLButtonElement) => {
+    recordTrigger.current = button; setDetail(record);
+  };
+  const closeDetail = () => {
+    setDetail(null);
+    requestAnimationFrame(() => recordTrigger.current?.focus({ preventScroll: true }));
+  };
+  const headerSort = (key: SortKey, label: string) => <button type="button" className="ed-investigation-sort"
+    onClick={() => toggleSort(key)}>{label}<span aria-hidden="true">{sortKey === key ? sortDir === "asc" ? "↑" : "↓" : "↕"}</span></button>;
+  return <>
+    <ModalShell title={title} eyebrow="AI Services · Bill extraction" description={subtitle} onClose={onClose} wide inactive={!!detail}>
+      <DrillSummary rows={[
+        { label: "Matching extractions", value: number.format(records.length), note: "Selected chart / KPI population" },
+        { label: "Dashboard coverage", value: coverage, note: "Unknown values remain excluded" },
+        { label: "Known cost", value: number.format(knownCostCount) + " / " + number.format(records.length), note: "Cost currency unverified" },
+      ]} />
+      <div className="rd-drill-toolbar ed-investigation-toolbar ai-investigation-toolbar">
+        <DrillSearch query={query} onChange={v => { setQuery(v); setPage(1); }} placeholder="Search prediction, company, type or review" />
+        <span className="ai-investigation-toolbar-note">{number.format(filtered.length)} matching records · {sortKey === "createdAt" && sortDir === "desc" ? "newest first" : "sorted by " + sortKey.replace(/([A-Z])/g, " $1").toLowerCase()}</span>
       </div>
-      <div className="rd-table-wrap ed-investigation-table-wrap">
+      <div className="rd-table-wrap ed-investigation-table-wrap ai-records-table-wrap" ref={tableRef}>
         <table className="rd-activation-table ed-investigation-table ai-records-table">
-          <thead>
-            <tr>
-              <th scope="col">Prediction</th>
-              <th scope="col" aria-sort={sortKey === "createdAt" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
-                <button type="button" className="ed-investigation-sort" onClick={() => toggleSort("createdAt")}>Created</button>
-              </th>
-              <th scope="col">Company</th>
-              <th scope="col">Doc</th>
-              <th scope="col">Pages</th>
-              <th scope="col" aria-sort={sortKey === "knownTotalCost" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
-                <button type="button" className="ed-investigation-sort" onClick={() => toggleSort("knownTotalCost")}>Cost</button>
-              </th>
-              <th scope="col" aria-sort={sortKey === "knownTotalLatency" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
-                <button type="button" className="ed-investigation-sort" onClick={() => toggleSort("knownTotalLatency")}>Latency</button>
-              </th>
-              <th scope="col">Review</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.length ? visible.map(r => (
-              <tr key={r.predictionUuid} className="ed-investigation-row">
-                <td>
-                  <button type="button" className="ed-investigation-key" onClick={() => setDetail(r)} title={"Open " + r.predictionUuid}>
-                    {shortId(r.predictionUuid)}
-                  </button>
-                </td>
-                <td>{fmtDate(r.createdAt)}</td>
-                <td title={r.companyName}>{r.companyName}</td>
-                <td>{r.docType ?? "unknown"}</td>
-                <td>{r.totalPages ?? "—"}</td>
-                <td>{fmtCost(r.knownTotalCost)}</td>
-                <td>{fmtLatency(r.knownTotalLatency)}</td>
-                <td>{r.reviewStatus ?? "unknown"}</td>
-              </tr>
-            )) : (
-              <tr className="ed-investigation-row">
-                <td colSpan={8} className="ed-investigation-empty">No extractions match these filters.</td>
-              </tr>
-            )}
-          </tbody>
+          <thead><tr>
+            <th scope="col">Prediction</th>
+            <th scope="col" aria-sort={sortKey === "createdAt" ? sortDir === "asc" ? "ascending" : "descending" : "none"}>{headerSort("createdAt", "Created")}</th>
+            <th scope="col">Company</th><th scope="col">Document</th>
+            <th scope="col">Pages</th>
+            <th scope="col" aria-sort={sortKey === "knownTotalCost" ? sortDir === "asc" ? "ascending" : "descending" : "none"}>{headerSort("knownTotalCost", "Cost")}</th>
+            <th scope="col" aria-sort={sortKey === "knownTotalLatency" ? sortDir === "asc" ? "ascending" : "descending" : "none"}>{headerSort("knownTotalLatency", "Latency")}</th>
+            <th scope="col">Review status</th>
+          </tr></thead>
+          <tbody>{visible.length ? visible.map(r => <tr key={r.predictionUuid} className="ed-investigation-row">
+            <td><button type="button" className="ed-investigation-key ai-prediction-link"
+              onClick={event => openDetail(r, event.currentTarget)} title={r.predictionUuid}
+              aria-label={"Open extraction " + r.predictionUuid}>{shortId(r.predictionUuid)} <span aria-hidden="true">↗</span></button></td>
+            <td>{fmtDate(r.createdAt)}</td><td title={r.companyName}>{r.companyName}</td>
+            <td className="ai-capitalize">{r.docType ?? "Unknown"}</td><td>{r.totalPages ?? "—"}</td>
+            <td className={r.knownTotalCost === null ? "ai-unknown" : ""}>{fmtCost(r.knownTotalCost)}</td>
+            <td className={r.knownTotalLatency === null ? "ai-unknown" : ""}>{fmtLatency(r.knownTotalLatency)}</td>
+            <td><span className={"ai-review-pill ai-review-" + (r.reviewStatus ?? "unknown")}>{fmtStatus(r.reviewStatus)}</span></td>
+          </tr>) : <tr className="ed-investigation-row"><td colSpan={8} className="ai-records-empty">No extractions match this search.</td></tr>}</tbody>
         </table>
       </div>
-      <footer className="rd-modal-foot rd-modal-foot-paginated ed-investigation-foot">
-        <nav className="rd-pagination" aria-label="Extraction pages">
-          <button type="button" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Previous</button>
-          <span aria-current="page">Page {safePage} of {pages}</span>
-          <button type="button" disabled={safePage >= pages} onClick={() => setPage(p => Math.min(pages, p + 1))}>Next</button>
-        </nav>
-      </footer>
-      {detail ? <BillDetailModal record={detail} onClose={() => setDetail(null)} /> : null}
+      <DrillPagination page={safePage} pages={pages} shown={visible.length} total={filtered.length}
+        label="Prediction-level evidence · Synthetic demo" onPage={changePage} />
     </ModalShell>
-  );
+    {detail ? <BillDetailModal record={detail} onClose={closeDetail} /> : null}
+  </>;
+}
+
+export function BillCompaniesModal({ records, coverage, period, onClose }: {
+  records: BillExtractionRecord[]; coverage: string; period: string; onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<{ name: string; records: BillExtractionRecord[] } | null>(null);
+  const companies = useMemo(() => {
+    const byId = new Map<string, { id: string; name: string; records: BillExtractionRecord[] }>();
+    records.forEach(record => {
+      let company = byId.get(record.companyUuid);
+      if (!company) { company = { id: record.companyUuid, name: record.companyName, records: [] }; byId.set(record.companyUuid, company); }
+      company.records.push(record);
+    });
+    return [...byId.values()].sort((a, b) => b.records.length - a.records.length || a.name.localeCompare(b.name));
+  }, [records]);
+  const shown = companies.filter(c => c.name.toLowerCase().includes(query.toLowerCase().trim()));
+  const pages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
+  const safePage = Math.min(page, pages);
+  return <>
+    <ModalShell title="Active companies" eyebrow="AI Services · Company consumption"
+      description={period + " · distinct companies with at least one extraction"}
+      onClose={onClose} wide inactive={!!selected}>
+      <DrillSummary rows={[
+        { label: "Active companies", value: number.format(companies.length), note: "One row per company" },
+        { label: "Bill extractions", value: number.format(records.length), note: "Selected reporting period" },
+        { label: "Dashboard coverage", value: coverage, note: "Selected customer classification" },
+      ]} />
+      <div className="rd-drill-toolbar ed-investigation-toolbar ai-investigation-toolbar">
+        <DrillSearch query={query} onChange={v => { setQuery(v); setPage(1); }} placeholder="Search companies" />
+        <span className="ai-investigation-toolbar-note">Select a company to inspect its predictions</span>
+      </div>
+      <div className="rd-table-wrap ed-investigation-table-wrap ai-records-table-wrap">
+        <table className="rd-activation-table ed-investigation-table ai-companies-table">
+          <thead><tr><th scope="col">Company</th><th scope="col">Bills</th><th scope="col">Known cost</th><th scope="col">Cost coverage</th><th scope="col">Needs review</th></tr></thead>
+          <tbody>{shown.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE).map(c => {
+            const costRows = c.records.filter(r => r.knownTotalCost !== null);
+            const cost = costRows.reduce((sum, r) => sum + (r.knownTotalCost ?? 0), 0);
+            const review = c.records.filter(r => r.reviewStatus === "needs_review").length;
+            return <tr className="ed-investigation-row" key={c.id}>
+              <td><button type="button" className="ed-investigation-key" onClick={() => setSelected(c)}>{c.name} <span aria-hidden="true">↗</span></button></td>
+              <td>{number.format(c.records.length)}</td><td>{cost.toFixed(1)} units</td>
+              <td>{number.format(costRows.length)} / {number.format(c.records.length)}</td>
+              <td>{number.format(review)}</td>
+            </tr>;
+          })}{shown.length === 0 ? <tr className="ed-investigation-row"><td colSpan={5} className="ai-records-empty">No companies match this search.</td></tr> : null}</tbody>
+        </table>
+      </div>
+      <DrillPagination page={safePage} pages={pages} shown={shown.slice((safePage-1)*PAGE_SIZE,safePage*PAGE_SIZE).length}
+        total={shown.length} label="Company-level summary · Synthetic demo" onPage={setPage} />
+    </ModalShell>
+    {selected ? <BillRecordsModal title={"Extraction history · " + selected.name} subtitle={period}
+      coverage={coverage} records={selected.records} onClose={() => setSelected(null)} /> : null}
+  </>;
 }
 
 export function BillDetailModal({ record, onClose }: {
-  record: BillExtractionRecord;
-  onClose: () => void;
+  record: BillExtractionRecord; onClose: () => void;
 }) {
   const rows: Array<[string, string]> = [
-    ["Prediction", record.predictionUuid],
-    ["Company", record.companyName + " (" + record.companyScope + ")"],
-    ["Created", record.createdAt],
-    ["Loaded", record.loadedAt],
-    ["Review status", (record.reviewStatus ?? "unknown") + " — snapshot, not accuracy"],
-    ["Document type", record.docType ?? "unknown"],
-    ["Pages", record.totalPages === null ? "unknown" : String(record.totalPages)],
-    ["Legibility", record.legibilityScore === null ? "unknown (not a correctness score)" : record.legibilityScore.toFixed(2)],
-    ["Extraction cost", record.extractionCost === null ? "unknown" : String(record.extractionCost)],
-    ["Enrichment cost", record.enrichmentCost === null ? "unknown" : String(record.enrichmentCost)],
-    ["Known total cost", fmtCost(record.knownTotalCost) + (record.completeCostBreakdown ? "" : " (partial)")],
-    ["Extraction latency", record.extractionLatency === null ? "unknown" : String(record.extractionLatency)],
-    ["Enrichment latency", record.enrichmentLatency === null ? "unknown" : String(record.enrichmentLatency)],
-    ["Known total latency", fmtLatency(record.knownTotalLatency) + (record.completeLatencyBreakdown ? "" : " (partial)")],
-    ["Raw artifact", record.hasRaw ? "available" : "not stored"],
+    ["Prediction ID", record.predictionUuid], ["File ID", record.fileUuid ?? "Not recorded"],
+    ["Company", record.companyName], ["Customer classification", record.companyScope.replaceAll("_", " ")],
+    ["Created", fmtDate(record.createdAt)], ["Loaded", fmtDate(record.loadedAt)],
+    ["Review status", fmtStatus(record.reviewStatus)],
+    ["Document type", record.docType ?? "Unknown"], ["Pages", record.totalPages === null ? "Unknown" : String(record.totalPages)],
+    ["Legibility score", record.legibilityScore === null ? "Unknown" : record.legibilityScore.toFixed(2)],
+    ["Extraction cost", fmtCost(record.extractionCost)], ["Enrichment cost", fmtCost(record.enrichmentCost)],
+    ["Known total cost", fmtCost(record.knownTotalCost) + (record.completeCostBreakdown ? "" : " · incomplete breakdown")],
+    ["Extraction latency", fmtLatency(record.extractionLatency)], ["Enrichment latency", fmtLatency(record.enrichmentLatency)],
+    ["Known total latency", fmtLatency(record.knownTotalLatency) + (record.completeLatencyBreakdown ? "" : " · incomplete breakdown")],
+    ["Raw artifact", record.hasRaw ? "Available" : "Not stored"],
   ];
-  return (
-    <ModalShell label={"Extraction " + shortId(record.predictionUuid)} onClose={onClose}>
-      <button type="button" className="ed-investigation-key ai-record-back" onClick={onClose}>← Back to results</button>
-      <dl className="ai-record-detail">
-        {rows.map(([term, value]) => (
-          <div key={term}>
-            <dt>{term}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
-    </ModalShell>
-  );
+  return <ModalShell title={"Extraction " + shortId(record.predictionUuid)}
+    eyebrow="AI Services · Prediction detail" description="Recorded fields · point-in-time evidence"
+    onClose={onClose} detail>
+    <button type="button" className="ai-detail-back" onClick={onClose}>← Back to results</button>
+    <div className="ai-record-detail-scroll"><dl className="ai-record-detail">
+      {rows.map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
+    </dl></div>
+    <p className="ai-detail-footnote">Review status is a snapshot, not an extraction accuracy score. Cost currency and latency units are not yet verified.</p>
+  </ModalShell>;
 }

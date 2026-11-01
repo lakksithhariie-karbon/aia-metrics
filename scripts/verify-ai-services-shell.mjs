@@ -92,5 +92,12 @@ assert.match(overview, /ed-preview-note/, "freshness/caveat footer");
 const drills = read("components/ai-services/bill-drills.tsx");
 assert.match(drills, /role="dialog"/, "drill modal semantics");
 assert.match(drills, /aria-modal/, "drill modal semantics");
+assert.match(drills, /createPortal/, "investigations portal outside dashboard grid");
+assert.match(drills, /DrillSummary/, "Product-style evidence summary");
+assert.match(drills, /rd-table-summary/, "Product-style pagination summary");
+assert.match(drills, /BillCompaniesModal/, "active companies open a company population before prediction detail");
+assert.match(aiCss, /\.ai-records-table\.ed-investigation-table th:first-child/, "prediction ID column does not inherit 38px expander width");
+assert.match(overview, /className="ed-screenreader-only"/, "live announcement uses the shared visually-hidden class");
+assert.doesNotMatch(overview, /ed-screen-reader-only/, "do not leak announcements below the footer");
 
 console.log("AI Services bill-extraction mock shell verified: synthetic demo, shared primitives, no live wiring.");

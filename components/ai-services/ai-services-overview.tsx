@@ -23,7 +23,7 @@ import {
   reviewMix,
   summarize,
 } from "../../lib/ai-services/summary";
-import { BillRecordsModal } from "./bill-drills";
+import { BillCompaniesModal, BillRecordsModal } from "./bill-drills";
 
 const FIRST_MONTH = "2026-03";
 const DEMO_MONTH = DEMO_AS_OF.slice(0, 7);
@@ -245,6 +245,7 @@ export default function AiServicesOverview() {
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [drill, setDrill] = useState<Drill>(null);
+  const [companyDrill, setCompanyDrill] = useState(false);
   const [infoKey, setInfoKey] = useState<string | null>(null);
 
   const from = range.start ?? FIRST_MONTH;
@@ -337,7 +338,7 @@ export default function AiServicesOverview() {
           <MetricCard label="Bills processed" period={periodLabel} value={String(kpis.bills)} note="predictions in scope"
             onDrill={() => openDrill("Bills processed", periodLabel + " · " + coverage, filtered)} onInfo={() => setInfoKey("bills")} />
           <MetricCard label="Active companies" period={periodLabel} value={String(kpis.companies)} note="with extractions"
-            onDrill={() => openDrill("Active companies", periodLabel + " · " + coverage, filtered)} onInfo={() => setInfoKey("companies")} />
+            onDrill={() => setCompanyDrill(true)} onInfo={() => setInfoKey("companies")} />
           <MetricCard label="Recorded AI cost" period={periodLabel} value={kpis.knownCostTotal.toFixed(1)} note={"cost units · " + kpis.unknownCostCount + " unknown excluded"}
             onDrill={() => openDrill("Recorded AI cost", periodLabel + " · " + coverage, filtered.filter(r => r.knownTotalCost !== null))} onInfo={() => setInfoKey("cost")} />
           <MetricCard label="Avg known cost / bill" period={periodLabel} value={kpis.avgKnownCost === null ? "—" : kpis.avgKnownCost.toFixed(3)} note={"cost units / bill · " + coverage}
@@ -401,12 +402,14 @@ export default function AiServicesOverview() {
             </Surface>
             <Surface title="Company consumption" subtitle="Top companies by volume" infoKey="companies" onInfo={setInfoKey} half>
               <MetricsInvestigationTable
-                rows={companyRows.slice(0, 10).map(c => ({
+                rows={companyRows.slice(0, 6).map(c => ({
                   id: c.companyUuid, label: c.companyName + (c.scope === "verified_customer" ? "" : " (" + c.scope + ")"), value: String(c.bills), detail: c.knownCost.toFixed(1) + " units known",
                   onOpen: () => openDrill("Extraction history · " + c.companyName, periodLabel, filtered.filter(r => r.companyUuid === c.companyUuid)),
                 }))}
                 labelHeader="Company" valueHeader="Bills" detailHeader="Known cost" emptyMessage="No companies in scope." ariaLabel="Company consumption"
               />
+              {companyRows.length > 6 ? <button type="button" className="ai-view-all-link"
+                onClick={() => setCompanyDrill(true)}>View all {companyRows.length} companies →</button> : null}
             </Surface>
           </div>
         </section>
@@ -427,13 +430,16 @@ export default function AiServicesOverview() {
         </footer>
       </main>
 
+      {companyDrill ? (
+        <BillCompaniesModal records={filtered} coverage={coverage} period={periodLabel} onClose={() => setCompanyDrill(false)} />
+      ) : null}
       {drill ? (
         <BillRecordsModal title={drill.title} subtitle={drill.subtitle} coverage={coverage} records={drill.records} onClose={() => setDrill(null)} />
       ) : null}
       {infoKey && INFO[infoKey] ? (
         <MetricsInfoDialog definition={INFO[infoKey]} onClose={() => setInfoKey(null)} sectionLabel="AI Services" />
       ) : null}
-      <span className="ed-screen-reader-only" aria-live="polite">Showing {kpis.bills} synthetic extraction records.</span>
+      <span className="ed-screenreader-only" aria-live="polite">Showing {kpis.bills} synthetic extraction records.</span>
     </div>
   );
 }
