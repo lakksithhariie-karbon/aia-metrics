@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Static contract for the AI Services Bill Extraction mock shell.
- * Demo UI only: asserts synthetic-data guards, nav wiring, and shared
- * grid/table/modal primitives. No Supabase, API, or AWS changes allowed.
+ * Static contract for the AI Services Bill Extraction live reader and shell.
+ * Live UI with private server reader: asserts security, nav wiring, and shared
+ * grid/table/modal primitives; no source-table changes.
  */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -20,6 +20,9 @@ for (const path of [
   "lib/ai-services/types.ts",
   "lib/ai-services/summary.ts",
   "lib/ai-services/fixtures.ts",
+  "lib/ai-services/live.ts",
+  "app/api/ai-services/report/route.ts",
+  "supabase/migrations/20261101185848_ai_bill_extraction_live_read_v1_20261102.sql",
   "scripts/generate-ai-bill-demo.mjs",
   "testdata/ai-bill-extraction-demo.json",
 ]) {
@@ -39,20 +42,25 @@ assert.ok(
   "demo preserves unknown cost/latency (never zero-filled)",
 );
 
-// No live data access from the mock slice.
-for (const path of [
-  "lib/ai-services/types.ts",
-  "lib/ai-services/summary.ts",
-  "lib/ai-services/fixtures.ts",
-  "scripts/generate-ai-bill-demo.mjs",
-  "components/ai-services/ai-services-overview.tsx",
-  "components/ai-services/bill-drills.tsx",
-  "app/ai-services/page.tsx",
-]) {
-  const src = read(path);
-  assert.doesNotMatch(src, /SUPABASE_|service_role|from ["']@supabase|fetch\(/, path + ": no live data access");
-  assert.doesNotMatch(src, /aia_infra\.(aws_costs|bill_costs|companies)/, path + ": no direct source table reads");
-}
+// Client code never imports secrets or Supabase source data. Only the server
+// reader may use the service-role key, and production access fails closed.
+const overviewClient = read("components/ai-services/ai-services-overview.tsx");
+const evidenceClient = read("components/ai-services/bill-drills.tsx");
+assert.doesNotMatch(overviewClient + evidenceClient, /SUPABASE_SERVICE_ROLE_KEY|aia_infra\./);
+assert.doesNotMatch(overviewClient, /queryDemo|Synthetic preview|records={filtered}/);
+const live = read("lib/ai-services/live.ts");
+assert.match(live,/server-only/);
+assert.match(live,/VERCEL_ENV === "production"/);
+assert.match(live,/SUPABASE_SERVICE_ROLE_KEY/);
+assert.match(live,/ai_bill_extraction_live_v1/);
+assert.match(live,/knownCostCount \+ value.kpis.unknownCostCount/);
+const rpc=read("supabase/migrations/20261101185848_ai_bill_extraction_live_read_v1_20261102.sql");
+assert.match(rpc,/SECURITY DEFINER/);
+assert.match(rpc,/SET search_path = ''/);
+assert.match(rpc,/TO service_role/);
+assert.match(rpc,/REVOKE ALL/);
+assert.doesNotMatch(rpc,/UPDATE aia_infra\.|DELETE FROM aia_infra\.|INSERT INTO aia_infra\./);
+assert.match(read("app/api/ai-services/report/route.ts"),/ensurePreviewOnly/);
 
 // Missing-is-unknown semantics live in the aggregator, not the UI.
 const summary = read("lib/ai-services/summary.ts");
@@ -78,7 +86,7 @@ for (const css of ["metrics-page-grid.css", "delivery.css", "delivery-investigat
 const overview = read("components/ai-services/ai-services-overview.tsx");
 assert.match(overview, /ed-kpi-grid po-kpis/, "KPI grid primitive");
 assert.match(overview, /ai-kpi-section/, "KPI section spans the outer page grid");
-assert.match(overview, /search,\s*\n\s*\}\)/, "global search scopes every KPI and chart, not only drills");
+assert.match(overview,/debouncedSearch/,"global search scopes dashboard and evidence");
 assert.match(overview, /<DistributionRows/, "document and review comparison charts remain visual");
 assert.match(overview, /<LatencyComparison/, "latency compares P50 and P95 visually");
 const aiCss = read("app/ai-services/ai-services.css");
@@ -100,4 +108,4 @@ assert.match(aiCss, /\.ai-records-table\.ed-investigation-table th:first-child/,
 assert.match(overview, /className="ed-screenreader-only"/, "live announcement uses the shared visually-hidden class");
 assert.doesNotMatch(overview, /ed-screen-reader-only/, "do not leak announcements below the footer");
 
-console.log("AI Services bill-extraction mock shell verified: synthetic demo, shared primitives, no live wiring.");
+console.log("AI Services live contract verified: preview-only server reader, source scope, paginated evidence and shared primitives.");

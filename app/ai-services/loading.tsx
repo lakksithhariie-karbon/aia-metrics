@@ -5,7 +5,7 @@ export default function AiServicesLoading() {
         <div className="rd-page-head ed-page-head">
           <div className="ed-page-copy">
             <h1>Bill Extraction Overview</h1>
-            <p>Loading synthetic demo data…</p>
+            <p>Loading verified bill extraction data…</p>
           </div>
         </div>
         <section className="metrics-grid-section ed-section ai-kpi-section" aria-hidden="true">
