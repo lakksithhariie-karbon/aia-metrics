@@ -61,7 +61,9 @@ assert.match(runtime, /window\.location\.pathname==='\/product'/);
 assert.match(runtime, /return '\/product\?'\+q\.toString\(\)/);
 assert.match(runtime, /window\.location\.assign\('\/product'\)/);
 assert.doesNotMatch(runtime, /\/overview/);
-assert.match(root, /redirect\("\/overview"\)/,
-  "App root opens the independent Overview section.");
+assert.match(root, /redirect\("\/product"\)/,
+  "App root opens the live Product dashboard.");
+assert.doesNotMatch(root, /redirect\("\/overview"\)/,
+  "Empty Overview must not be the default landing page.");
 
 console.log("Section routing verified: Overview empty, Product Overview live at /product, historical picker and secondary page links preserved.");
