@@ -5,7 +5,7 @@ export type InfraAwsMonth = {
 export type InfraAwsService = { month:string; service:string; usd:number };
 export type InfraAwsAccount = { month:string; label:string; usd:number };
 export type InfraPreviewData = {
-  mode:"audited-preview-snapshot";
+  mode:"audited-preview-snapshot" | "live-aws-costs";
   awsAsOf:string;
   awsRun:{
     finishedAt:string;months:number;accounts:number;rows:number;

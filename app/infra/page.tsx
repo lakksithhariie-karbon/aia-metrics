@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import ProductMetricsHeader from "../../components/product-metrics-header";
 import InfraOverview from "../../components/infra/infra-overview";
-import { infraPreviewData } from "../../lib/infra/preview-snapshot";
+import { readInfraAwsLive } from "../../lib/infra/live";
 import "../retention/retention.css";
 import "../metrics-page-grid.css";
 import "../delivery/delivery.css";
@@ -10,13 +10,15 @@ import "./infra.css";
 
 export const metadata: Metadata = {
   title: "AI Accountant | Infrastructure Overview",
-  description: "Read-only infrastructure dashboard preview using audited AWS Cost Explorer aggregates.",
+  description: "Live AWS Cost Explorer spending, refreshed from verified daily Supabase syncs.",
 };
 
-/** UI preview, NOT a live cost reader: no SQL or external billing API calls. */
-export default function InfraPage() {
+/** Live read-only report. */
+export const dynamic = "force-dynamic";
+export default async function InfraPage() {
+  const data = await readInfraAwsLive();
   return <div className="ed-shell infra-shell">
     <ProductMetricsHeader current="infra" />
-    <InfraOverview data={infraPreviewData} />
+    <InfraOverview data={data} />
   </div>;
 }
