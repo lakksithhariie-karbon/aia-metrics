@@ -182,23 +182,23 @@ const compact = (value: number) => value >= 1000 ? new Intl.NumberFormat("en-IN"
 const monthName = (month: string) => new Date(month + "-01T12:00:00Z")
   .toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
 
-function MonthBars({ points, total, onSelect, emptyLabel }: {
+function MonthBars({ points, total, onSelect, emptyLabel, money }: {
   points: Array<{ month: string; value: number; note?: string }>;
   total: number;
   onSelect: (month: string) => void;
-  emptyLabel: string;
+  emptyLabel: string; money?: "unverified" | "USD";
 }) {
   const max = Math.max(1, ...points.map(p => p.value));
   if (!points.length || total === 0) return <p className="ed-chart-empty">{emptyLabel}</p>;
   return <div className="ai-chart" role="group" aria-label="Monthly values bar chart">
-    <div className="ai-chart-scale" aria-hidden="true"><span>{compact(max)}</span><span>{compact(max / 2)}</span><span>0</span></div>
+    <div className="ai-chart-scale" aria-hidden="true"><span>{money==="USD"?"$"+compact(max):compact(max)}</span><span>{money==="USD"?"$"+compact(max/2):compact(max / 2)}</span><span>0</span></div>
     <div className="ai-chart-plot">
       <div className="ai-chart-guides" aria-hidden="true"><span /><span /><span /></div>
       <div className="ai-bars">
         {points.map(p => <button type="button" key={p.month} className="ai-bar"
-          onClick={() => onSelect(p.month)} title={p.month + ": " + compact(p.value) + (p.note ? " · " + p.note : "")}
+          onClick={() => onSelect(p.month)} title={p.month + ": " + (money==="USD"?formatRecordedCost(p.value,"USD",2):compact(p.value)+" units") + (p.note ? " · " + p.note : "")}
           aria-label={p.month + ": " + p.value + (p.note ? ". " + p.note : "") + ". Open matching extractions."}>
-          <span className="ai-bar-value">{compact(p.value)}</span>
+          <span className="ai-bar-value">{money==="USD"?formatRecordedCost(p.value,"USD",0):compact(p.value)}</span>
           <span className="ai-bar-rail"><span className="ai-bar-fill" style={{ height: (p.value / max * 100).toFixed(2) + "%" }}/></span>
           <span className="ai-bar-month">{monthName(p.month)}</span>
         </button>)}
@@ -207,21 +207,21 @@ function MonthBars({ points, total, onSelect, emptyLabel }: {
   </div>;
 }
 
-function ComponentBreakdown({ stats, bills, onOpen }: { stats: LiveDashboard["components"]; bills: number; onOpen: (key: "extraction" | "enrichment") => void }) {
+function ComponentBreakdown({ stats, bills, currency, onOpen }: { stats: LiveDashboard["components"]; bills: number; currency:"unverified"|"USD"; onOpen: (key: "extraction" | "enrichment") => void }) {
   const values = [
     { key: "extraction" as const, label: "Extraction", value: stats.extraction },
     { key: "enrichment" as const, label: "Enrichment", value: stats.enrichment },
   ];
   const total = values.reduce((s, r) => s + r.value, 0);
   return <div className="ai-detail-chart">
-    <div className="ai-chart-headline"><strong>{total.toFixed(1)}</strong><span>cost units across {number.format(stats.count)} fully itemized bills</span></div>
+    <div className="ai-chart-headline"><strong>{total.toFixed(1)}</strong><span>{currency==="USD"?"USD":"cost units"} across {number.format(stats.count)} fully itemized bills</span></div>
     <div className="ai-split-bar" role="img" aria-label="Cost component proportions">
       {values.map((r, i) => <span key={r.key} className={"ai-split-section ai-split-" + i} style={{ width: (total ? r.value / total * 100 : 0) + "%" }} />)}
     </div>
     <div className="ai-distribution-list">
       {values.map((r, i) => <button className="ai-distribution-row" type="button" key={r.key} onClick={() => onOpen(r.key)}>
         <span className="ai-distribution-name"><i className={"ai-swatch ai-swatch-" + i} />{r.label}</span>
-        <strong>{r.value.toFixed(1)} <small>units</small></strong>
+        <strong>{formatRecordedCost(r.value,currency,1)}</strong>
         <span className="ai-distribution-percent">{total ? (r.value / total * 100).toFixed(1) : "0.0"}%</span>
       </button>)}
     </div>
@@ -496,8 +496,8 @@ export default function AiServicesOverview() {
                 onSelect={month => openDrill("Volume · " + month, scopeNote, "month", month)}
               />
             </Surface>
-            <Surface title="AI cost trend" subtitle="Known cost per month · unknown excluded" infoKey="cost" onInfo={setInfoKey} half>
-              <MonthBars
+            <Surface title="AI cost trend" subtitle={"Known cost per month · "+(currency==="USD"?"USD":"unverified units")+" · unknown excluded"} infoKey="cost" onInfo={setInfoKey} half>
+              <MonthBars money={currency}
                 points={months.map(m => ({ month: m.month, value: m.knownCost, note: m.unknownCostCount + " unknown" }))}
                 total={kpis.knownCostCount}
                 emptyLabel="No known-cost extractions match these filters."
@@ -507,7 +507,7 @@ export default function AiServicesOverview() {
           </div>
           <div className="ed-collection">
             <Surface title="Extraction vs enrichment" subtitle="Recorded component costs · complete breakdowns" infoKey="cost" onInfo={setInfoKey} half>
-              <ComponentBreakdown stats={data!.components} bills={kpis.bills} onOpen={kind => openDrill(kind === "extraction" ? "Extraction cost" : "Enrichment cost", periodLabel + " · complete breakdowns only", "components")} />
+              <ComponentBreakdown stats={data!.components} bills={kpis.bills} currency={currency} onOpen={kind => openDrill(kind === "extraction" ? "Extraction cost" : "Enrichment cost", periodLabel + " · complete breakdowns only", "components")} />
             </Surface>
             <Surface title="Processing latency" subtitle="Monthly P50 and P95 · known latency only" infoKey="latency" onInfo={setInfoKey} half>
               <LatencyComparison points={months} onSelect={month => openDrill("Latency · " + month, scopeNote, "month_latency", month)} />
