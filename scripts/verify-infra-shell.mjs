@@ -23,7 +23,20 @@ const productCss = read("app/prototype.css");
 assert.match(drawer, /href="\/infra"/);
 assert.match(header, /current === "infra"/);
 assert.match(page, /<ProductMetricsHeader current="infra"/);
-assert.match(page, /<InfraOverview data=\{infraPreviewData\}/);
+assert.match(page, /<InfraOverview data=\{data\}/);
+assert.match(page, /readInfraAwsLive\(\)/, "Infra should read current AWS data");
+assert.doesNotMatch(page, /infraPreviewData/, "Infra should not render frozen fixture");
+const live = read("lib/infra/live.ts");
+assert.match(live, /server-only/);
+assert.match(live, /SUPABASE_SERVICE_ROLE_KEY/);
+assert.match(live, /rest\/v1\/rpc\/read_infra_aws_live_v1/);
+assert.match(live, /cache: "no-store"/);
+const migration = read("supabase/migrations/20261102183908_infra_aws_live_read_daily_refresh_v1.sql");
+assert.match(migration, /SECURITY DEFINER/);
+assert.match(migration, /TO service_role/);
+assert.match(migration, /REVOKE ALL ON FUNCTION public.read_infra_aws_live_v1/);
+assert.match(migration, /interval ''20 hours''/);
+assert.doesNotMatch(migration, /DELETE FROM aia_infra\.aws_costs/);
 for (const token of ["retention/retention.css", "metrics-page-grid.css", "delivery/delivery.css"]) assert.ok(page.includes(token));
 for (const token of [
   "rd-page ed-page infra-page", "rd-page-head ed-page-head", "metrics-grid-section ed-section",
@@ -51,9 +64,9 @@ assert.match(picker, /setDraft\(value\)/, "Reopening resets uncommitted draft se
 assert.match(picker, /Presets use completed calendar months/);
 assert.doesNotMatch(shell, /CompactMenuSelect|infra-preview-caption|Frozen audited|Source integrity|Data confidence|kind:\s*"health"/);
 assert.doesNotMatch(loading, /Source integrity|Data confidence|Frozen audited/);
-assert.match(shell, /previewDisclosure/);
-assert.match(shell, /This preview is not a live billing feed/);
-assert.match(shell, /note: previewDisclosure/, "Keep captured-data disclosure in metric information.");
+assert.match(shell, /dataDisclosure/);
+assert.match(shell, /Live AWS Cost Explorer/);
+assert.match(shell, /note: disclosure/, "Explain last successful AWS sync in metric information.");
 
 const asOf = "2026-10-08T04:17:14Z";
 assert.deepEqual(completedPreset("3", asOf), { preset: "3", start: "2026-07", end: "2026-09" });
