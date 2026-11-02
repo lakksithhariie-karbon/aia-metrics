@@ -580,10 +580,10 @@ export default function AiServicesOverview() {
       </main>
 
       {companyDrill ? (
-        <BillCompaniesModal companies={companyRows} scope={liveScope} bills={kpis.bills} coverage={coverage} period={periodLabel} onClose={() => setCompanyDrill(false)} />
+        <BillCompaniesModal companies={companyRows} scope={liveScope} currency={currency} bills={kpis.bills} coverage={coverage} period={periodLabel} onClose={() => setCompanyDrill(false)} />
       ) : null}
       {drill ? (
-        <BillRecordsModal title={drill.title} subtitle={drill.subtitle} coverage={coverage} scope={drill.overrideScope??liveScope} drillKind={drill.kind} drillValue={drill.value} onClose={() => setDrill(null)} />
+        <BillRecordsModal title={drill.title} subtitle={drill.subtitle} coverage={coverage} scope={drill.overrideScope??liveScope} currency={currency} drillKind={drill.kind} drillValue={drill.value} onClose={() => setDrill(null)} />
       ) : null}
       {infoKey && INFO[infoKey] ? (
         <MetricsInfoDialog definition={INFO[infoKey]} onClose={() => setInfoKey(null)} sectionLabel="AI Services" />
