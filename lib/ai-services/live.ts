@@ -40,14 +40,19 @@ export function validateScope(input: unknown): LiveScope {
   return q as unknown as LiveScope;
 }
 
-export function ensurePreviewOnly() {
-  // No public live customer evidence endpoint on production without a reviewed
-  // access-control system. Vercel Authentication protects preview deployments.
-  if (process.env.VERCEL_ENV === "production") throw new Error("bill_reporting_production_disabled");
+export function ensureBillReportingAccess() {
+  // Production must be protected by Vercel Authentication with Deployment
+  // Protection scope "All Deployments", and explicitly enabled separately.
+  // A Vercel project setting change is NOT sufficient to enable the reader.
+  // If protection is ever disabled, immediately disable this production flag.
+  if (process.env.VERCEL_ENV === "production" &&
+      process.env.AI_BILL_REPORTING_PRODUCTION_ENABLED !== "true") {
+    throw new Error("bill_reporting_production_disabled");
+  }
 }
 
 async function rpc<T>(action: "dashboard" | "records", scope: LiveScope, params: Record<string,unknown> = {}): Promise<T> {
-  ensurePreviewOnly();
+  ensureBillReportingAccess();
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("bill_reporting_credentials_missing");
