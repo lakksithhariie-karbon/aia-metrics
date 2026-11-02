@@ -49,44 +49,6 @@
   font-size: 10.5px;
 }
 .ai-shell .ai-filter-toolbar .date-trigger { height: 36px; }
-.ai-shell .ai-search-field {
-  flex: 1 1 220px;
-  min-width: 185px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  border: 1px solid #e0e6ee;
-  border-radius: 5px;
-  background: #fff;
-  color: #8b99ae;
-}
-.ai-shell .ai-search-field:focus-within {
-  border-color: #839fe1;
-  box-shadow: 0 0 0 2px #dee7fb;
-}
-.ai-search-field svg {
-  flex: 0 0 15px;
-  width: 15px;
-  height: 15px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.7;
-}
-.ai-search-field input {
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #40516b;
-  font: inherit;
-  font-size: 11px;
-}
-.ai-search-field input::placeholder { color: #a1aabc; }
 .ai-shell .ai-reset.ui-control { height: 36px; font-size: 10.5px; padding: 0 14px; }
 .ai-shell .ai-scope-warning {
   margin: 0;
@@ -348,7 +310,6 @@
   .ai-shell .ai-kpi-section .ed-kpi-grid .ed-metric.metric-card { min-height: 129px; }
   .ai-shell .ai-kpi-section .metric-value { font-size: 33px; }
   .ai-shell .ai-kpi-section .metric-period { display: block; }
-  .ai-shell .ai-search-field { flex: 1 1 calc(100% - 83px); }
   .ai-shell .ai-reset.ui-control { margin: 0; }
   .ai-shell .metrics-section-kicker { align-items: flex-start; flex-wrap: wrap; }
   .ai-shell .metrics-section-description { text-align: left; }
@@ -489,4 +450,97 @@
   .ai-investigation-foot .rd-table-summary { max-width: 38%; }
   .ai-investigation-foot .rd-pagination { flex: 1; justify-content: flex-end; }
   .ai-record-detail { grid-template-columns: 1fr; gap: 8px; padding: 0 12px 12px; }
+}
+
+/* Additional operating KPI rows reuse Product's existing 3-up card grid. */
+.ai-daily-chart {display:flex;gap:4px;align-items:stretch;min-height:195px;padding:9px 22px 20px;overflow-x:auto;}
+.ai-daily-column {min-width:12px;flex:1 1 0;display:grid;grid-template-rows:16px 126px 18px;gap:5px;align-items:end;text-align:center;border:0;background:transparent;padding:0;cursor:pointer;}
+.ai-daily-track {display:flex;height:126px;background:#f4f7fc;align-items:end;border-radius:3px 3px 0 0;overflow:hidden;}
+.ai-daily-track i {display:block;width:100%;background:linear-gradient(#aac2f4,#638ee6);border-radius:3px 3px 0 0;}
+.ai-daily-column:hover .ai-daily-track i,.ai-daily-column:focus-visible .ai-daily-track i {filter:saturate(1.4) brightness(.95);}
+.ai-daily-column:focus-visible {outline:2px solid #7296e7;outline-offset:2px;}
+.ai-daily-value,.ai-daily-label {font-size:9px;color:#788ba6;white-space:nowrap;overflow:hidden;}
+.ai-economics-table-wrap {padding:2px 21px 15px;min-width:0;overflow-x:auto;}
+.ai-economics-table {width:100%;min-width:520px;font-variant-numeric:tabular-nums;}
+.ai-economics-table td,.ai-economics-table th {padding:12px 9px;text-align:left;white-space:nowrap;}
+.ai-economics-table td:first-child {min-width:104px;}
+.ai-economics-table td:last-child {white-space:normal;min-width:112px;}
+.ai-coverage-second {display:block;margin-top:3px;color:#8a9ab0;font-size:10px;}
+.ai-table-caveat {margin:8px 0 3px;color:#8696ab;font-size:10px;line-height:1.6;}
+@media(max-width:750px) {
+ .ai-daily-column {min-width:15px;}
+ .ai-daily-chart {padding-inline:12px;}
+ .ai-economics-table-wrap {padding-inline:12px;}
+}
+
+/* Tight, content-sized chart cards. Engineering's .ed-collection defaults to
+   stretching every sibling to the row's tallest card, which created the large
+   empty spaces visible below latency, review status, and comparison panels. */
+.ai-shell .ed-collection {
+  align-items: start;
+}
+.ai-shell .ed-collection > .ed-report.report-card {
+  align-self: start;
+  min-height: 0;
+}
+.ai-shell .ed-report-heading.report-header {
+  min-height: 64px;
+  padding-bottom: 9px;
+}
+.ai-shell .ai-detail-chart {
+  padding-top: 2px;
+  padding-bottom: 12px;
+}
+.ai-shell .ai-chart-headline { margin-bottom: 11px; }
+.ai-shell .ai-chart-footnote {
+  margin-top: 9px;
+  padding-top: 10px;
+  line-height: 1.5;
+}
+.ai-shell .ai-latency-chart .ai-latency-list { gap: 4px; }
+.ai-shell .ai-latency-chart .ai-latency-row {
+  min-height: 36px;
+  padding-block: 7px;
+}
+.ai-shell .ai-dist-chart .ai-distribution-row { padding-block: 8px; }
+.ai-shell .ai-dist-chart .ai-chart-footnote { margin-top: 8px; }
+.ai-shell .ai-economics-table-wrap {
+  padding-bottom: 10px;
+}
+.ai-shell .ai-economics-table {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}
+.ai-shell .ai-economics-table th,
+.ai-shell .ai-economics-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 10px 7px;
+  font-size: 10px;
+}
+.ai-shell .ai-economics-table th:nth-child(1) { width: 22%; }
+.ai-shell .ai-economics-table th:nth-child(2) { width: 14%; }
+.ai-shell .ai-economics-table th:nth-child(3) { width: 22%; }
+.ai-shell .ai-economics-table th:nth-child(4) { width: 19%; }
+.ai-shell .ai-economics-table th:nth-child(5) { width: 23%; }
+.ai-shell .ai-economics-table th { white-space: normal; line-height: 1.4; }
+.ai-shell .ai-economics-table td:first-child { min-width: 0; }
+.ai-shell .ai-economics-table td:last-child { min-width: 0; }
+.ai-shell .ai-economics-table .ed-investigation-key {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+.ai-shell .ai-table-caveat {
+  margin-top: 8px;
+  padding-top: 9px;
+  border-top: 1px solid #edf1f5;
+  line-height: 1.5;
+}
+@media (max-width: 620px) {
+  .ai-shell .ai-economics-table { min-width: 530px; }
+  .ai-shell .ai-detail-chart { padding-bottom: 13px; }
 }

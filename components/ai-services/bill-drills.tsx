@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { BillExtractionRecord } from "../../lib/ai-services/types";
 import type { LiveScope, LiveEvidence, LiveDashboard } from "../../lib/ai-services/live";
+import { formatRecordedCost } from "../../lib/ai-services/format";
 
 const number = new Intl.NumberFormat("en-IN");
 const PAGE_SIZE = 10;
@@ -15,7 +16,7 @@ function fmtDate(iso: string) {
     day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
   }).format(date);
 }
-function fmtCost(v: number | null) { return v === null ? "Unknown" : v.toFixed(3) + " units"; }
+function fmtCost(v: number | null, currency: "unverified" | "USD") { return formatRecordedCost(v, currency, 3); }
 function fmtLatency(v: number | null) { return v === null ? "Unknown" : number.format(v) + " units"; }
 function fmtStatus(value: string | null) {
   return value === "needs_review" ? "Needs review" : value === "reviewed" ? "Reviewed" : value === "deleted" ? "Deleted" : "Unknown";
@@ -148,8 +149,8 @@ async function fetchEvidence(scope: LiveScope, drill: string, value: string, que
   return data;
 }
 
-export function BillRecordsModal({ title, subtitle, coverage, scope, drillKind, drillValue, onClose }: {
-  title:string;subtitle:string;coverage:string;scope:LiveScope;
+export function BillRecordsModal({ title, subtitle, coverage, scope, currency, drillKind, drillValue, onClose }: {
+  title:string;subtitle:string;coverage:string;scope:LiveScope;currency:"unverified"|"USD";
   drillKind:string;drillValue:string;onClose:()=>void;
 }) {
   const [query,setQuery]=useState("");
@@ -185,7 +186,7 @@ export function BillRecordsModal({ title, subtitle, coverage, scope, drillKind, 
       <DrillSummary rows={[
         {label:"Matching extractions",value:loading?"…":number.format(data?.total??0),note:"Selected chart / KPI population"},
         {label:"Dashboard coverage",value:coverage,note:"Unknown values remain excluded"},
-        {label:"Known cost",value:loading?"…":number.format(data?.knownCostCount??0)+" / "+number.format(data?.total??0),note:"Cost currency unverified"},
+        {label:"Known cost",value:loading?"…":number.format(data?.knownCostCount??0)+" / "+number.format(data?.total??0),note:currency==="USD"?"USD display, source unit unverified":"Cost currency unverified"},
       ]}/>
       <div className="rd-drill-toolbar ed-investigation-toolbar ai-investigation-toolbar">
         <DrillSearch query={query} onChange={v=>{setQuery(v);setPage(1);}} disabled={!!scope.search} placeholder={scope.search?"Dashboard search is active":"Search prediction or company"} />
@@ -209,7 +210,7 @@ export function BillRecordsModal({ title, subtitle, coverage, scope, drillKind, 
                 aria-label={"Open extraction "+r.predictionUuid}>{shortId(r.predictionUuid)} <span aria-hidden="true">↗</span></button></td>
               <td>{fmtDate(r.createdAt)}</td><td title={r.companyName}>{r.companyName}</td>
               <td className="ai-capitalize">{r.docType??"Unknown"}</td><td>{r.totalPages??"—"}</td>
-              <td className={r.knownTotalCost===null?"ai-unknown":""}>{fmtCost(r.knownTotalCost)}</td>
+              <td className={r.knownTotalCost===null?"ai-unknown":""}>{fmtCost(r.knownTotalCost,currency)}</td>
               <td className={r.knownTotalLatency===null?"ai-unknown":""}>{fmtLatency(r.knownTotalLatency)}</td>
               <td><span className={"ai-review-pill ai-review-"+(r.reviewStatus??"unknown")}>{fmtStatus(r.reviewStatus)}</span></td>
             </tr>):<tr className="ed-investigation-row"><td colSpan={8} className="ai-records-empty">No extractions match this selection.</td></tr>}</tbody>
@@ -218,12 +219,12 @@ export function BillRecordsModal({ title, subtitle, coverage, scope, drillKind, 
       <DrillPagination page={page} pages={pages} shown={filtered.length} total={data?.total??0}
         label="Prediction-level evidence · Live Supabase" onPage={next=>{setPage(next);tableRef.current?.scrollTo({top:0});}} />
     </ModalShell>
-    {detail?<BillDetailModal record={detail} onClose={closeDetail}/>:null}
+    {detail?<BillDetailModal record={detail} currency={currency} onClose={closeDetail}/>:null}
   </>;
 }
 
-export function BillCompaniesModal({ companies, scope, bills, coverage, period, onClose }: {
-  companies:LiveDashboard["companies"];scope:LiveScope;bills:number;coverage:string;period:string;onClose:()=>void;
+export function BillCompaniesModal({ companies, scope, currency, bills, coverage, period, onClose }: {
+  companies:LiveDashboard["companies"];scope:LiveScope;currency:"unverified"|"USD";bills:number;coverage:string;period:string;onClose:()=>void;
 }) {
   const [query,setQuery]=useState("");
   const [page,setPage]=useState(1);
@@ -249,7 +250,7 @@ export function BillCompaniesModal({ companies, scope, bills, coverage, period, 
           <thead><tr><th scope="col">Company</th><th scope="col">Bills</th><th scope="col">Known cost</th><th scope="col">Cost coverage</th><th scope="col">Needs review</th></tr></thead>
           <tbody>{shown.slice((safePage-1)*PAGE_SIZE,safePage*PAGE_SIZE).map(c=><tr className="ed-investigation-row" key={c.companyUuid}>
             <td><button type="button" className="ed-investigation-key" onClick={()=>setSelected({id:c.companyUuid,name:c.companyName})}>{c.companyName} <span aria-hidden="true">↗</span></button></td>
-            <td>{number.format(c.bills)}</td><td>{c.knownCost.toFixed(1)} units</td>
+            <td>{number.format(c.bills)}</td><td>{formatRecordedCost(c.knownCost,currency,1)}</td>
             <td>{number.format(c.bills-c.unknownCostCount)} / {number.format(c.bills)}</td>
             <td>{number.format(c.needsReview)}</td>
           </tr>)}{shown.length===0?<tr className="ed-investigation-row"><td colSpan={5} className="ai-records-empty">No companies match this search.</td></tr>:null}</tbody>
@@ -259,12 +260,12 @@ export function BillCompaniesModal({ companies, scope, bills, coverage, period, 
         total={shown.length} label="Company-level summary · Live Supabase" onPage={setPage}/>
     </ModalShell>
     {selected?<BillRecordsModal title={"Extraction history · "+selected.name} subtitle={period} coverage={coverage}
-      scope={scope} drillKind="company" drillValue={selected.id} onClose={()=>setSelected(null)}/>:null}
+      scope={scope} currency={currency} drillKind="company" drillValue={selected.id} onClose={()=>setSelected(null)}/>:null}
   </>;
 }
 
-export function BillDetailModal({ record, onClose }: {
-  record: BillExtractionRecord; onClose: () => void;
+export function BillDetailModal({ record, currency, onClose }: {
+  record: BillExtractionRecord; currency:"unverified"|"USD"; onClose: () => void;
 }) {
   const rows: Array<[string, string]> = [
     ["Prediction ID", record.predictionUuid], ["File ID", record.fileUuid ?? "Not recorded"],
@@ -273,8 +274,8 @@ export function BillDetailModal({ record, onClose }: {
     ["Review status", fmtStatus(record.reviewStatus)],
     ["Document type", record.docType ?? "Unknown"], ["Pages", record.totalPages === null ? "Unknown" : String(record.totalPages)],
     ["Legibility score", record.legibilityScore === null ? "Unknown" : record.legibilityScore.toFixed(2)],
-    ["Extraction cost", fmtCost(record.extractionCost)], ["Enrichment cost", fmtCost(record.enrichmentCost)],
-    ["Known total cost", fmtCost(record.knownTotalCost) + (record.completeCostBreakdown ? "" : " · incomplete breakdown")],
+    ["Extraction cost", fmtCost(record.extractionCost,currency)], ["Enrichment cost", fmtCost(record.enrichmentCost,currency)],
+    ["Known total cost", fmtCost(record.knownTotalCost,currency) + (record.completeCostBreakdown ? "" : " · incomplete breakdown")],
     ["Extraction latency", fmtLatency(record.extractionLatency)], ["Enrichment latency", fmtLatency(record.enrichmentLatency)],
     ["Known total latency", fmtLatency(record.knownTotalLatency) + (record.completeLatencyBreakdown ? "" : " · incomplete breakdown")],
     ["Raw artifact", record.hasRaw ? "Available" : "Not stored"],
@@ -286,6 +287,6 @@ export function BillDetailModal({ record, onClose }: {
     <div className="ai-record-detail-scroll"><dl className="ai-record-detail">
       {rows.map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
     </dl></div>
-    <p className="ai-detail-footnote">Review status is a snapshot, not an extraction accuracy score. Cost currency and latency units are not yet verified.</p>
+    <p className="ai-detail-footnote">Review status is a snapshot, not an extraction accuracy score. Costs are displayed in USD at product direction; source currency is not independently verified. Latency units remain unverified.</p>
   </ModalShell>;
 }

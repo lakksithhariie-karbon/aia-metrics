@@ -1,0 +1,69 @@
+# AI Services: operating metrics and reporting coverage (2026-11-02)
+
+## Data source
+The production Bill Extraction dashboard calls a **server-only** Supabase RPC, not mock records.
+Base metric source: `aia_infra.bill_extraction_reporting_v1`; extended analytics:
+`public.read_ai_bill_analytics_v1`, restricted to `service_role`, migration
+`20261102030122_aia_bill_analytics_read_v1_20261102.sql`.
+
+Default scope: verified customer companies only. The dashboard no longer
+displays a customer-classification dropdown or header search input, so normal
+interactive reporting always uses `verified_customer`. The underlying read-only
+RPC remains capable of explicitly scoped internal access for diagnostic use.
+
+## Metrics and precise meaning
+
+| Requested | UI location | Computation and caveat |
+| --- | --- | --- |
+| AI Spend MTD | Operational economics | Current UTC month through now, **independent of historical date picker**, same company/doc/status/search filters. Sum known cost, unknown explicitly reported |
+| Cost per Prediction | At a glance | Average recorded cost among known-cost predictions only, not total cost divided by missing-cost predictions |
+| Predictions per Day | Operational economics + daily chart | Selected date range predictions divided by all calendar days including zeros; chart final 30 UTC days of selected range |
+| Median Latency | Operational economics | Median `known_total_latency` (nearest-rank/discrete P50); unknown excluded |
+| Cost × Latency by Document Type | Cost and throughput diagnostics | Per doc type, known recorded cost and median latency shown **separately** with individual coverage; not mathematical multiplication |
+| Cost and Latency by Page Band | Cost and throughput diagnostics | Per band 1, 2–5, 6–10, 11+, unknown; known recorded cost and median latency plus coverage, drill into paginated predictions |
+| Documents Processed | At a glance | Number of extraction predictions, **not** verified unique documents |
+| Spend on Processed Work | Operational economics | Proxy = known cost on non-deleted review statuses (reviewed + needs_review); **not proof of successful processing** |
+| Sunk Cost on Deleted Documents | Operational economics | UI intentionally calls it **Recorded cost on deleted**; unknown cost excluded. No evidence it is unrecoverable/sunk |
+| Documents Deleted | Operational economics + Review outcomes | Number of predictions whose **current** review status is `deleted`; not a deletion event history |
+
+All metrics use the same date, scope, document, review and global-search filters, except
+MTD is the current month regardless of historical date selection. Every chart/group
+offers supporting prediction evidence where applicable; page-band and day evidence
+are paginated server-side (10 per page). Query execution is read-only.
+
+## Critical money and unit caveat
+
+**The product owner requested USD ($) display on 2026-11-02.** The preview now
+formats all recorded cost numbers in USD using the shared `Intl.NumberFormat` formatter
+through KPI cards, cost charts, company tables, investigation evidence and detail modals.
+**No conversion is performed.** The upstream numeric source has no currency column,
+comment, or authoritative exporter specification, so the display denomination remains
+a product-direction assumption, **not independently verified source metadata**.
+The explanatory dashboard footer is hidden for the cleaner UI. Metric-definition
+dialogs and internal data-contract documentation retain this limitation.
+Please obtain an explicit producer confirmation before interpreting reported amounts as
+reconciled financial USD spend or promoting this change to production.
+
+Latency values also have unverified units and must not be labeled milliseconds or
+seconds without producer confirmation.
+
+## Live evidence checks
+
+For verified customers and Aug–Oct 2026, the service returns **34,364** predictions
+and **4,338** unknown-cost predictions. Extended analytics reconcile to the same
+34,364 and group them into four document types and five page bands. At the audit
+point, deleted-status count was **4,369**, recorded known deleted cost **149.64033849
+unverified cost units**, and November MTD contained **31** known-cost predictions.
+
+Database grants: `service_role` EXECUTE true; `anon` and `authenticated`
+EXECUTE false. Existing production Vercel Authentication + kill switch remain
+unchanged. Source ingestion/fields were not modified.
+
+## Evidence drill reconciliation (November 2 audit)
+
+- **Cost per prediction** drills to the 30,026 known-cost predictions contributing to the average, not all 34,364 records.
+- **Spend on processed work** drills to the 26,149 predictions with a known total cost and a non-deleted review status, matching the displayed known-cost numerator (929.6282839733333 recorded units).
+- **Recorded cost on deleted** drills to the 3,877 known-cost deleted predictions (149.64033849 recorded units); **Documents deleted** drills to all 4,369 deleted predictions, including 492 with unknown costs.
+- **Cost and latency by document type** is a paired comparison, not cost multiplied by latency.
+
+For May–October 2026, source verification on 2026-11-02 found 34,364 distinct verified-customer predictions and 34,364 distinct file UUIDs; 659 companies; 30,026 known costs, 4,338 unknown costs; 2,074 unknown latencies; and 9,813 / 13,570 / 10,981 predictions in August / September / October respectively. September had zero unknown costs and latencies. Source costs and latency units remain unverified. The verified customer's counts exclude 1,541 test-company and 259 directory-unmatched predictions.

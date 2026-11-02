@@ -23,6 +23,7 @@ for (const path of [
   "lib/ai-services/live.ts",
   "app/api/ai-services/report/route.ts",
   "supabase/migrations/20261101185848_ai_bill_extraction_live_read_v1_20261102.sql",
+  "supabase/migrations/20261102030122_aia_bill_analytics_read_v1_20261102.sql",
   "scripts/generate-ai-bill-demo.mjs",
   "testdata/ai-bill-extraction-demo.json",
 ]) {
@@ -56,6 +57,12 @@ assert.match(live,/ensureBillReportingAccess\(\)/, "server RPC must enforce prod
 assert.doesNotMatch(live,/export function ensurePreviewOnly/, "old blanket production block removed");
 assert.match(live,/SUPABASE_SERVICE_ROLE_KEY/);
 assert.match(live,/ai_bill_extraction_live_v1/);
+assert.match(live,/read_ai_bill_analytics_v1/, "new analytics RPC used server-side");
+assert.match(live,/analytics\.selected\?\.predictions !== value\.kpis\.bills/, "extended analytics reconcile with base KPIs");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/Cost and latency by document type/, "document cost and latency diagnostics");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/Cost and latency by page band/, "page band diagnostics");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/AI spend MTD/, "month-to-date KPI");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/Documents deleted/, "deleted status KPI");
 assert.match(live,/knownCostCount \+ value.kpis.unknownCostCount/);
 const rpc=read("supabase/migrations/20261101185848_ai_bill_extraction_live_read_v1_20261102.sql");
 assert.match(rpc,/SECURITY DEFINER/);
@@ -89,17 +96,30 @@ for (const css of ["metrics-page-grid.css", "delivery.css", "delivery-investigat
 const overview = read("components/ai-services/ai-services-overview.tsx");
 assert.match(overview, /ed-kpi-grid po-kpis/, "KPI grid primitive");
 assert.match(overview, /ai-kpi-section/, "KPI section spans the outer page grid");
-assert.match(overview,/debouncedSearch/,"global search scopes dashboard and evidence");
+assert.match(overview,/scopes:\["verified_customer"\]/,"verified-only dashboard scope");
+assert.match(overview,/search:""/,"global search is empty by default and not exposed");
+assert.doesNotMatch(overview,/ariaLabel="Customer scope"/,"customer-scope picker removed");
+assert.doesNotMatch(overview,/Search company or prediction/,"header search removed");
 assert.match(overview, /<DistributionRows/, "document and review comparison charts remain visual");
 assert.match(overview, /<LatencyComparison/, "latency compares P50 and P95 visually");
 const aiCss = read("app/ai-services/ai-services.css");
 assert.match(aiCss, /\.ai-shell \.ai-kpi-section[\s\S]*?grid-column: 1 \/ -1/, "KPI section spans all 12 columns");
 assert.match(summary, /\(r\.extractionCost === null\) !== \(r\.enrichmentCost === null\)/, "partial cost component guard");
 assert.match(overview, /MetricsInvestigationTable/, "investigation table primitive");
+assert.match(overview, /const currency: "USD" = "USD"/, "USD money display policy is consistent throughout the UI");
+assert.match(read("app/ai-services/ai-services.css"), /\.ai-shell \.ed-collection > \.ed-report\.report-card \{[\s\S]*?align-self: start;/, "paired chart cards do not stretch to tallest sibling");
+assert.match(read("components/ai-services/bill-drills.tsx"), /fmtCost\(r\.knownTotalCost,currency\)/, "evidence table formats money via shared currency setting");
+assert.match(overview, /formatRecordedCost\(total,currency,1\)/, "component chart headline formats money consistently");
+
+assert.match(live,/non_deleted_cost/, "known-cost non-deleted evidence must use a scoped database drill");
+assert.match(overview, /"Non-deleted prediction spend"[\s\S]*?"non_deleted_cost"/, "processed work drill matches its recorded-cost numerator");
+assert.match(overview, /"Average known cost"[\s\S]*?"known_cost"/, "average cost drill excludes unknown-cost records");
+assert.match(overview, /"Deleted prediction cost"[\s\S]*?"known_cost"[\s\S]*?status:"deleted"/, "deleted cost drill excludes unknown costs");
+assert.match(read("supabase/migrations/20261102063011_aia_bill_non_deleted_cost_evidence_v1_20261102.sql"), /p_drill='non_deleted_cost' AND known_total_cost IS NOT NULL AND review_status IS DISTINCT FROM 'deleted'/, "SQL drill population is exactly known-cost non-deleted work");
 assert.match(overview, /ProductMonthRangePicker/, "shared date control");
 assert.match(overview, /CompactMenuSelect/, "shared filter control");
 assert.match(overview, /BillRecordsModal/, "drill modal wiring");
-assert.match(overview, /ed-preview-note/, "freshness/caveat footer");
+assert.doesNotMatch(overview, /ed-preview-note/, "unnecessary page footer removed");
 const drills = read("components/ai-services/bill-drills.tsx");
 assert.match(drills, /role="dialog"/, "drill modal semantics");
 assert.match(drills, /aria-modal/, "drill modal semantics");

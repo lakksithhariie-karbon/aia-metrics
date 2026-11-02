@@ -10,10 +10,8 @@ import MetricsInvestigationTable from "../ui/metrics-investigation-table";
 import type { MetricsInvestigationRow } from "../ui/metrics-investigation-table";
 import { completedPreset } from "../../lib/infra/date-range";
 import type { MonthRange } from "../../lib/infra/date-range";
-import type { ScopeFilter } from "../../lib/ai-services/types";
-import { SCOPE_FILTER_LABELS } from "../../lib/ai-services/types";
-import { scopesForFilter } from "../../lib/ai-services/types";
-import type { LiveDashboard, LiveScope } from "../../lib/ai-services/live";
+import type { LiveDashboard, LiveScope, LiveAnalyticsRow } from "../../lib/ai-services/live";
+import { formatRecordedCost } from "../../lib/ai-services/format";
 
 import { BillCompaniesModal, BillRecordsModal } from "./bill-drills";
 
@@ -22,6 +20,48 @@ const CURRENT_MONTH = AS_OF.slice(0, 7);
 const EMPTY_KPIS = { bills:0,companies:0,knownCostTotal:0,knownCostCount:0,unknownCostCount:0,avgKnownCost:null,p50Latency:null,p95Latency:null,knownLatencyCount:0,unknownLatencyCount:0,needsReviewCount:0,needsReviewRate:null };
 
 const INFO: Record<string, MetricsInfoDefinition> = {
+  mtd: {
+    title: "AI spend month-to-date",
+    logic: "Sum of known recorded extraction costs from the start of the current UTC calendar month through now. Uses customer/document/review/search filters but deliberately ignores the historical date picker.",
+    example: "If 31 current-month predictions have cost, add those 31 known values and show unknown count separately.",
+    note: "Displayed in USD at product direction, without FX conversion. The source does not independently declare currency; recorded cost may omit historical records.",
+  },
+  daily: {
+    title: "Predictions per calendar day",
+    logic: "Total predictions in the selected full-month date interval divided by its total calendar days, including days with zero predictions.",
+    example: "310 predictions over 31 calendar days = 10.0 per day.",
+    note: "The daily chart shows at most the final 30 days of the selected interval.",
+  },
+  reviewedSpend: {
+    title: "Spend on processed work (non-deleted)",
+    logic: "Known recorded cost of predictions whose current review status is not deleted, including reviewed and needs_review. Unknown costs are excluded.",
+    example: "Reviewed plus needs-review costs, excluding records currently marked deleted.",
+    note: "This is a status-based proxy, not proof of successful processing or finalized accounting spend.",
+  },
+  deletedSpend: {
+    title: "Recorded cost on deleted predictions",
+    logic: "Known recorded cost of predictions whose current review status is deleted. Unknown costs are excluded.",
+    example: "A deleted record with a known cost contributes to the deleted-cost total.",
+    note: "Do not interpret this automatically as sunk or wasted cost; deletion reason and accounting treatment are not available.",
+  },
+  deleted: {
+    title: "Documents marked deleted",
+    logic: "Count of bill extraction predictions with current review status deleted.",
+    example: "42 predictions marked deleted = 42 deleted-status records.",
+    note: "A prediction is not necessarily a distinct document. The status is a snapshot, not a deletion event timeline.",
+  },
+  docEconomics: {
+    title: "Cost and latency by document type",
+    logic: "Groups recorded predictions by input document type. Displays known cost totals, median latency and separate coverage denominators.",
+    example: "Scanned documents: 100 predictions, 90 known costs, 95 known latencies.",
+    note: "Cost is displayed in USD at product direction, source currency pending verification. Latency units are unverified. These are separate measures, not multiplied.",
+  },
+  pageEconomics: {
+    title: "Cost and latency by page band",
+    logic: "Groups extractions into 1, 2–5, 6–10, 11+ pages, or unknown page count; shows recorded cost and median latency separately.",
+    example: "A 4-page prediction belongs to the 2–5 group.",
+    note: "Missing page counts are retained in the Unknown band and not silently discarded.",
+  },
   bills: {
     title: "Bills processed",
     logic: "Count of bill extraction predictions in the selected months and customer scope. Volume counts every prediction, including rows with unknown cost.",
@@ -37,13 +77,13 @@ const INFO: Record<string, MetricsInfoDefinition> = {
   cost: {
     title: "Recorded AI cost",
     logic: "Sum of known total cost: the source total unless both cost components are missing, in which case the row contributes nothing. Zero is never substituted for missing costs.",
-    example: "100 known rows summing to 250.5 cost units, 14 unknown rows excluded.",
-    note: "Verified source data. Cost currency is not confirmed — values are labeled cost units. This is not total spend.",
+    example: "100 known rows summing to $250.50 in displayed USD, 14 unknown rows excluded.",
+    note: "Dollar signs reflect the requested USD display convention. The source currency is not independently confirmed; this is not complete vendor spend.",
   },
   avg: {
     title: "Average known cost per bill",
     logic: "Sum of known total cost divided by the count of known-cost extractions in scope. Unknown-cost rows are excluded from numerator and denominator.",
-    example: "250.5 / 100 known = 2.505 cost units per bill.",
+    example: "$250.50 / 100 known = $2.505 per known-cost prediction.",
     note: "Verified source data. Disclose the excluded unknown count alongside this average.",
   },
   latency: {
@@ -59,10 +99,6 @@ const INFO: Record<string, MetricsInfoDefinition> = {
     note: "Verified source data. Do not read this as a failure or error rate.",
   },
 };
-
-const SCOPE_OPTIONS: ReadonlyArray<CompactSelectOption<ScopeFilter>> = (
-  Object.keys(SCOPE_FILTER_LABELS) as ScopeFilter[]
-).map(value => ({ value, label: SCOPE_FILTER_LABELS[value] }));
 
 const DOC_OPTIONS = [
   { value: "all", label: "All document types" },
@@ -80,7 +116,7 @@ const STATUS_OPTIONS = [
   { value: "unknown", label: "Unknown status" },
 ] as const;
 
-type Drill = { title: string; subtitle: string; kind: string; value: string } | null;
+type Drill = { title: string; subtitle: string; kind: string; value: string; overrideScope?: LiveScope } | null;
 
 function MetricCard({ label, period, value, note, onDrill, onInfo }: {
   label: string; period: string; value: string; note: string;
@@ -133,23 +169,23 @@ const compact = (value: number) => value >= 1000 ? new Intl.NumberFormat("en-IN"
 const monthName = (month: string) => new Date(month + "-01T12:00:00Z")
   .toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
 
-function MonthBars({ points, total, onSelect, emptyLabel }: {
+function MonthBars({ points, total, onSelect, emptyLabel, money }: {
   points: Array<{ month: string; value: number; note?: string }>;
   total: number;
   onSelect: (month: string) => void;
-  emptyLabel: string;
+  emptyLabel: string; money?: "unverified" | "USD";
 }) {
   const max = Math.max(1, ...points.map(p => p.value));
   if (!points.length || total === 0) return <p className="ed-chart-empty">{emptyLabel}</p>;
   return <div className="ai-chart" role="group" aria-label="Monthly values bar chart">
-    <div className="ai-chart-scale" aria-hidden="true"><span>{compact(max)}</span><span>{compact(max / 2)}</span><span>0</span></div>
+    <div className="ai-chart-scale" aria-hidden="true"><span>{money==="USD"?"$"+compact(max):compact(max)}</span><span>{money==="USD"?"$"+compact(max/2):compact(max / 2)}</span><span>0</span></div>
     <div className="ai-chart-plot">
       <div className="ai-chart-guides" aria-hidden="true"><span /><span /><span /></div>
       <div className="ai-bars">
         {points.map(p => <button type="button" key={p.month} className="ai-bar"
-          onClick={() => onSelect(p.month)} title={p.month + ": " + compact(p.value) + (p.note ? " · " + p.note : "")}
-          aria-label={p.month + ": " + p.value + (p.note ? ". " + p.note : "") + ". Open matching extractions."}>
-          <span className="ai-bar-value">{compact(p.value)}</span>
+          onClick={() => onSelect(p.month)} title={p.month + ": " + (money==="USD"?formatRecordedCost(p.value,"USD",2):number.format(p.value)+" predictions") + (p.note ? " · " + p.note : "")}
+          aria-label={p.month + ": " + (money==="USD"?formatRecordedCost(p.value,"USD",2):number.format(p.value)+" predictions") + (p.note ? ". " + p.note : "") + ". Open matching extractions."}>
+          <span className="ai-bar-value">{money==="USD"?formatRecordedCost(p.value,"USD",0):compact(p.value)}</span>
           <span className="ai-bar-rail"><span className="ai-bar-fill" style={{ height: (p.value / max * 100).toFixed(2) + "%" }}/></span>
           <span className="ai-bar-month">{monthName(p.month)}</span>
         </button>)}
@@ -158,21 +194,21 @@ function MonthBars({ points, total, onSelect, emptyLabel }: {
   </div>;
 }
 
-function ComponentBreakdown({ stats, bills, onOpen }: { stats: LiveDashboard["components"]; bills: number; onOpen: (key: "extraction" | "enrichment") => void }) {
+function ComponentBreakdown({ stats, bills, currency, onOpen }: { stats: LiveDashboard["components"]; bills: number; currency:"unverified"|"USD"; onOpen: (key: "extraction" | "enrichment") => void }) {
   const values = [
     { key: "extraction" as const, label: "Extraction", value: stats.extraction },
     { key: "enrichment" as const, label: "Enrichment", value: stats.enrichment },
   ];
   const total = values.reduce((s, r) => s + r.value, 0);
   return <div className="ai-detail-chart">
-    <div className="ai-chart-headline"><strong>{total.toFixed(1)}</strong><span>cost units across {number.format(stats.count)} fully itemized bills</span></div>
+    <div className="ai-chart-headline"><strong>{formatRecordedCost(total,currency,1)}</strong><span>across {number.format(stats.count)} fully itemized bills</span></div>
     <div className="ai-split-bar" role="img" aria-label="Cost component proportions">
       {values.map((r, i) => <span key={r.key} className={"ai-split-section ai-split-" + i} style={{ width: (total ? r.value / total * 100 : 0) + "%" }} />)}
     </div>
     <div className="ai-distribution-list">
       {values.map((r, i) => <button className="ai-distribution-row" type="button" key={r.key} onClick={() => onOpen(r.key)}>
         <span className="ai-distribution-name"><i className={"ai-swatch ai-swatch-" + i} />{r.label}</span>
-        <strong>{r.value.toFixed(1)} <small>units</small></strong>
+        <strong>{formatRecordedCost(r.value,currency,1)}</strong>
         <span className="ai-distribution-percent">{total ? (r.value / total * 100).toFixed(1) : "0.0"}%</span>
       </button>)}
     </div>
@@ -230,12 +266,48 @@ function LegibilityRows({ buckets, onSelect }: { buckets: Array<{ bucket: string
   </div>;
 }
 
+
+function DailyVolume({ points, onOpen }: {
+  points: Array<{ day: string; predictions: number }>;
+  onOpen: (day: string) => void;
+}) {
+  if (!points.length) return <p className="ed-chart-empty">No predictions in the last 30 days of this range.</p>;
+  const max = Math.max(1,...points.map(p=>p.predictions));
+  return <div className="ai-daily-chart" role="group" aria-label="Daily predictions in the last 30 days">
+    {points.map((point,i) => <button type="button" key={point.day} className="ai-daily-column"
+      onClick={()=>onOpen(point.day)} title={point.day+": "+point.predictions+" predictions"}
+      aria-label={point.day+": "+point.predictions+" predictions. Open evidence."}>
+      <span className="ai-daily-value">{point.predictions}</span>
+      <span className="ai-daily-track"><i style={{height:(100*point.predictions/max)+"%"}} /></span>
+      <span className="ai-daily-label">{i%5===0 || i===points.length-1 ? point.day.slice(8) : ""}</span>
+    </button>)}
+  </div>;
+}
+
+function EconomicsTable({ rows, unit, onSelect }: {
+  rows: LiveAnalyticsRow[]; unit: "unverified" | "USD"; onSelect: (key: string) => void;
+}) {
+  return <div className="ai-economics-table-wrap"><table className="rd-activation-table ed-investigation-table ai-economics-table">
+    <thead><tr><th scope="col">Segment</th><th scope="col">Predictions</th>
+      <th scope="col">Recorded cost</th><th scope="col">Median latency</th><th scope="col">Coverage</th></tr></thead>
+    <tbody>{rows.map(row => <tr key={row.label} className="ed-investigation-row">
+      <td><button type="button" className="ed-investigation-key" onClick={()=>onSelect(row.label)}
+        aria-label={"Inspect "+row.label+" extractions"}>{row.label.replaceAll("_"," ")} <span aria-hidden="true">↗</span></button></td>
+      <td>{number.format(row.predictions)}</td>
+      <td>{row.knownCostCount>0?formatRecordedCost(row.knownCost,unit,2):"Unknown"}</td>
+      <td>{row.medianLatency===null?"Unknown":row.medianLatency.toFixed(2)+" units"}</td>
+      <td><span title="Known cost / total predictions">Cost {row.knownCostCount}/{row.predictions}</span>
+        <span className="ai-coverage-second" title="Known latency / total predictions">Latency {row.knownLatencyCount}/{row.predictions}</span></td>
+    </tr>)}{!rows.length?<tr><td colSpan={5} className="ai-records-empty">No matching records.</td></tr>:null}</tbody>
+  </table>
+  <p className="ai-table-caveat">Known measurements only. Unknown costs and latencies are excluded from their respective aggregates. Select a segment for prediction-level evidence.</p>
+  </div>;
+}
+
 export default function AiServicesOverview() {
   const [range, setRange] = useState<MonthRange>(() => completedPreset("6", AS_OF));
-  const [scope, setScope] = useState<ScopeFilter>("verified");
   const [doc, setDoc] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
-  const [search, setSearch] = useState("");
   const [drill, setDrill] = useState<Drill>(null);
   const [companyDrill, setCompanyDrill] = useState(false);
   const [infoKey, setInfoKey] = useState<string | null>(null);
@@ -251,11 +323,11 @@ export default function AiServicesOverview() {
   const [loading, setLoading] = useState(true);
   
   const [error, setError] = useState(false);
-  const [debouncedSearch,setDebouncedSearch]=useState("");
-  useEffect(() => { const t=setTimeout(()=>setDebouncedSearch(search),260);return ()=>clearTimeout(t); },[search]);
+  // The dashboard is intentionally customer-only. The server report and all
+  // drill-down evidence receive exactly this verified-customer scope.
   const liveScope: LiveScope = useMemo(() => ({
-    from,to,scopes:scopesForFilter(scope),doc,status,search:debouncedSearch,
-  }),[from,to,scope,doc,status,debouncedSearch]);
+    from, to, scopes:["verified_customer"], doc, status, search:"",
+  }),[from,to,doc,status]);
   useEffect(() => {
     const abort = new AbortController();
     const q = new URLSearchParams({from:liveScope.from,to:liveScope.to,doc:liveScope.doc,status:liveScope.status,search:liveScope.search});
@@ -268,6 +340,10 @@ export default function AiServicesOverview() {
     return ()=>abort.abort();
   },[liveScope]);
   const kpis=data?.kpis??EMPTY_KPIS;
+  const analytics=data?.analytics;
+  // Product-requested USD display convention. The raw source currency remains
+  // unverified until the ingestion owner confirms it. Values are NOT converted.
+  const currency: "USD" = "USD";
   const months=data?.months??[];
   const docs=data?.docs??[];
   const reviews=data?.reviews??[];
@@ -276,18 +352,16 @@ export default function AiServicesOverview() {
   const exceptions=data?.exceptions??{missingCost:0,missingLatency:0,missingPages:0,missingDocType:0,missingLegibility:0,partialBreakdown:0,testScope:0,unverifiedScope:0};
 
   const coverage = kpis.knownCostCount + " known of " + kpis.bills + " bills";
-  const scopeNote = scope === "verified" ? "Verified customers" : "Includes " + SCOPE_FILTER_LABELS[scope].toLowerCase() + " — non-production scope";
+  const scopeNote = "Verified customers";
 
-  const openDrill = (title: string, subtitle: string, kind = "all", value = "") => {
-    if (!loading) setDrill({ title, subtitle, kind, value });
+  const openDrill = (title: string, subtitle: string, kind = "all", value = "", overrideScope?: LiveScope) => {
+    if (!loading) setDrill({ title, subtitle, kind, value, overrideScope });
   };
 
   const reset = () => {
     setRange(completedPreset("6", AS_OF));
-    setScope("verified");
     setDoc("all");
     setStatus("all");
-    setSearch("");
     setDrill(null);
   };
 
@@ -321,38 +395,65 @@ export default function AiServicesOverview() {
           </div>
           <div className="ed-filters ai-filter-toolbar" role="group" aria-label="Bill extraction filters">
             <ProductMonthRangePicker value={range} asOf={CURRENT_MONTH} firstMonth={(data?.firstMonth ?? "2026-08")} onApply={next => { setRange(next); setDrill(null); }} />
-            <CompactMenuSelect value={scope} options={SCOPE_OPTIONS} onChange={v => { setScope(v); setDrill(null); }} ariaLabel="Customer scope" />
             <CompactMenuSelect value={doc} options={DOC_OPTIONS} onChange={v => { setDoc(v); setDrill(null); }} ariaLabel="Document type" />
             <CompactMenuSelect value={status} options={STATUS_OPTIONS} onChange={v => { setStatus(v); setDrill(null); }} ariaLabel="Review status" />
-            <label className="ai-search-field">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-              <input type="search" placeholder="Search company or prediction" aria-label="Search company or prediction"
-                value={search} onChange={event => setSearch(event.target.value)} />
-            </label>
             <button type="button" className="ui-control ai-reset" onClick={reset}>Reset</button>
           </div>
         </div>
 
         {loading?<p role="status" className="ai-scope-warning">Updating verified reporting for the selected filters…</p>:null}
-        {scope !== "verified" ? (
-          <p className="ai-scope-warning" role="note">{scopeNote}. These KPIs include non-verified populations and are not customer-only metrics.</p>
-        ) : null}
-
         <section className="metrics-grid-section ed-section ai-kpi-section" aria-label="Bill extraction key metrics">
           <SectionHead title="At a glance" question="Volume, economics, performance and review outcomes" />
           <div className="ed-quality-kpis ed-kpi-grid po-kpis" role="group" aria-label="Bill extraction key metrics">
-          <MetricCard label="Bills processed" period={periodLabel} value={String(kpis.bills)} note="predictions in scope"
+          <MetricCard label="Documents processed" period={periodLabel} value={number.format(kpis.bills)} note="predictions in scope · not unique files"
             onDrill={() => openDrill("Bills processed", periodLabel + " · " + coverage, "all")} onInfo={() => setInfoKey("bills")} />
           <MetricCard label="Active companies" period={periodLabel} value={String(kpis.companies)} note="with extractions"
             onDrill={() => setCompanyDrill(true)} onInfo={() => setInfoKey("companies")} />
-          <MetricCard label="Recorded AI cost" period={periodLabel} value={kpis.knownCostTotal.toFixed(1)} note={"cost units · " + kpis.unknownCostCount + " unknown excluded"}
+          <MetricCard label="Recorded AI cost" period={periodLabel} value={formatRecordedCost(kpis.knownCostTotal,currency,1)} note={kpis.unknownCostCount + " unknown costs excluded"}
             onDrill={() => openDrill("Recorded AI cost", periodLabel + " · " + coverage, "known_cost")} onInfo={() => setInfoKey("cost")} />
-          <MetricCard label="Avg known cost / bill" period={periodLabel} value={kpis.avgKnownCost === null ? "—" : kpis.avgKnownCost.toFixed(3)} note={"cost units / bill · " + coverage}
-            onDrill={() => openDrill("Average known cost", periodLabel + " · " + coverage, "all")} onInfo={() => setInfoKey("avg")} />
+          <MetricCard label="Cost per prediction" period={periodLabel} value={kpis.avgKnownCost === null ? "—" : formatRecordedCost(kpis.avgKnownCost,currency,3)} note={"known-cost predictions only · " + coverage}
+            onDrill={() => openDrill("Average known cost", periodLabel + " · " + coverage, "known_cost")} onInfo={() => setInfoKey("avg")} />
           <MetricCard label="P95 processing latency" period={periodLabel} value={kpis.p95Latency === null ? "—" : String(kpis.p95Latency)} note={"latency units · " + kpis.unknownLatencyCount + " unknown"}
             onDrill={() => openDrill("Slowest extractions", periodLabel + " · known latency only", "known_latency")} onInfo={() => setInfoKey("latency")} />
           <MetricCard label="Needs-review rate" period={periodLabel} value={kpis.needsReviewRate === null ? "—" : (kpis.needsReviewRate * 100).toFixed(1) + "%"} note={kpis.needsReviewCount + " of " + kpis.bills + " · snapshot"}
             onDrill={() => openDrill("Needs review", periodLabel + " · status snapshot", "needs_review")} onInfo={() => setInfoKey("review")} />
+          </div>
+        </section>
+
+        <section className="metrics-grid-section ed-section ai-kpi-section" aria-label="Additional cost and workflow metrics">
+          <SectionHead title="Operational economics" question="Calendar pace, latency and review-status cost" />
+          <div className="ed-quality-kpis ed-kpi-grid po-kpis" role="group" aria-label="Operating economics key metrics">
+            <MetricCard label="AI spend MTD" period={analytics!.mtd.month}
+              value={formatRecordedCost(analytics!.mtd.knownCost,currency,3)}
+              note={analytics!.mtd.knownCount+" known of "+analytics!.mtd.predictions+" · current UTC month"}
+              onDrill={()=>openDrill("AI spend MTD",analytics!.mtd.month+" · current month, independent of date picker","month_cost",analytics!.mtd.month,
+                {...liveScope,from:analytics!.mtd.month,to:analytics!.mtd.month})}
+              onInfo={()=>setInfoKey("mtd")} />
+            <MetricCard label="Predictions per day" period={periodLabel}
+              value={analytics!.selected.dailyAverage===null?"—":analytics!.selected.dailyAverage.toFixed(1)}
+              note={"avg across "+analytics!.periodDays+" calendar days, including zeros"}
+              onDrill={()=>openDrill("Predictions per day",periodLabel,"all")}
+              onInfo={()=>setInfoKey("daily")} />
+            <MetricCard label="Median latency (P50)" period={periodLabel}
+              value={kpis.p50Latency===null?"—":kpis.p50Latency.toFixed(2)}
+              note={"latency units · "+kpis.unknownLatencyCount+" unknown excluded"}
+              onDrill={()=>openDrill("Median processing latency",periodLabel+" · known latency only","known_latency")}
+              onInfo={()=>setInfoKey("latency")} />
+            <MetricCard label="Spend on processed work" period={periodLabel}
+              value={formatRecordedCost(analytics!.selected.nonDeletedCost,currency,2)}
+              note={analytics!.selected.nonDeletedUnknown+" unknown · non-deleted statuses"}
+              onDrill={()=>openDrill("Non-deleted prediction spend",periodLabel+" · known-cost reviewed + needs-review records","non_deleted_cost")}
+              onInfo={()=>setInfoKey("reviewedSpend")} />
+            <MetricCard label="Recorded cost on deleted" period={periodLabel}
+              value={formatRecordedCost(analytics!.selected.deletedCost,currency,2)}
+              note={analytics!.selected.deletedUnknown+" deleted records with unknown cost"}
+              onDrill={()=>openDrill("Deleted prediction cost",periodLabel+" · known-cost deleted records","known_cost","",{...liveScope,status:"deleted"})}
+              onInfo={()=>setInfoKey("deletedSpend")} />
+            <MetricCard label="Documents deleted" period={periodLabel}
+              value={number.format(analytics!.selected.deletedCount)}
+              note="prediction records · current status snapshot"
+              onDrill={()=>openDrill("Deleted predictions",periodLabel,"review_status","deleted")}
+              onInfo={()=>setInfoKey("deleted")} />
           </div>
         </section>
 
@@ -367,8 +468,8 @@ export default function AiServicesOverview() {
                 onSelect={month => openDrill("Volume · " + month, scopeNote, "month", month)}
               />
             </Surface>
-            <Surface title="AI cost trend" subtitle="Known cost per month · unknown excluded" infoKey="cost" onInfo={setInfoKey} half>
-              <MonthBars
+            <Surface title="AI cost trend" subtitle="Known cost per month · USD display · unknown excluded" infoKey="cost" onInfo={setInfoKey} half>
+              <MonthBars money={currency}
                 points={months.map(m => ({ month: m.month, value: m.knownCost, note: m.unknownCostCount + " unknown" }))}
                 total={kpis.knownCostCount}
                 emptyLabel="No known-cost extractions match these filters."
@@ -378,10 +479,28 @@ export default function AiServicesOverview() {
           </div>
           <div className="ed-collection">
             <Surface title="Extraction vs enrichment" subtitle="Recorded component costs · complete breakdowns" infoKey="cost" onInfo={setInfoKey} half>
-              <ComponentBreakdown stats={data!.components} bills={kpis.bills} onOpen={kind => openDrill(kind === "extraction" ? "Extraction cost" : "Enrichment cost", periodLabel + " · complete breakdowns only", "components")} />
+              <ComponentBreakdown stats={data!.components} bills={kpis.bills} currency={currency} onOpen={kind => openDrill(kind === "extraction" ? "Extraction cost" : "Enrichment cost", periodLabel + " · complete breakdowns only", "components")} />
             </Surface>
             <Surface title="Processing latency" subtitle="Monthly P50 and P95 · known latency only" infoKey="latency" onInfo={setInfoKey} half>
               <LatencyComparison points={months} onSelect={month => openDrill("Latency · " + month, scopeNote, "month_latency", month)} />
+            </Surface>
+          </div>
+        </section>
+
+        <section className="metrics-grid-section ed-section" aria-label="Daily pace and unit economics">
+          <SectionHead title="Cost and throughput diagnostics" question="Daily predictions, document types and page bands" />
+          <Surface title="Daily prediction volume" subtitle="Final 30 days of the selected interval · UTC dates" infoKey="daily" onInfo={setInfoKey}>
+            <DailyVolume points={analytics!.daily}
+              onOpen={day=>openDrill("Predictions · "+day,periodLabel,"day",day)} />
+          </Surface>
+          <div className="ed-collection">
+            <Surface title="Cost and latency by document type" subtitle="Recorded cost and median latency, with coverage" infoKey="docEconomics" onInfo={setInfoKey} half>
+              <EconomicsTable rows={analytics!.docAnalytics} unit={currency}
+                onSelect={docType=>openDrill("Document type · "+docType,periodLabel,"doc_type",docType)} />
+            </Surface>
+            <Surface title="Cost and latency by page band" subtitle="1, 2–5, 6–10, 11+ or unknown pages" infoKey="pageEconomics" onInfo={setInfoKey} half>
+              <EconomicsTable rows={analytics!.pageAnalytics} unit={currency}
+                onSelect={band=>openDrill("Page band · "+band,periodLabel,"page_band",band)} />
             </Surface>
           </div>
         </section>
@@ -405,7 +524,7 @@ export default function AiServicesOverview() {
             <Surface title="Company consumption" subtitle="Top companies by volume" infoKey="companies" onInfo={setInfoKey} half>
               <MetricsInvestigationTable
                 rows={companyRows.slice(0, 6).map(c => ({
-                  id: c.companyUuid, label: c.companyName + (c.scope === "verified_customer" ? "" : " (" + c.scope + ")"), value: String(c.bills), detail: c.knownCost.toFixed(1) + " units known",
+                  id: c.companyUuid, label: c.companyName + (c.scope === "verified_customer" ? "" : " (" + c.scope + ")"), value: String(c.bills), detail: formatRecordedCost(c.knownCost,currency,1) + " known",
                   onOpen: () => openDrill("Extraction history · " + c.companyName, periodLabel, "company", c.companyUuid),
                 }))}
                 labelHeader="Company" valueHeader="Bills" detailHeader="Known cost" emptyMessage="No companies in scope." ariaLabel="Company consumption"
@@ -427,16 +546,13 @@ export default function AiServicesOverview() {
           </Surface>
         </section>
 
-        <footer className="ed-preview-note">
-          <strong>Live Supabase reporting.</strong> Source loaded {data.asOf ? new Date(data.asOf).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) + " IST" : "at an unknown time"}. Missing cost and latency are excluded from their respective calculations. Currency and latency units are not yet verified.
-        </footer>
       </main>
 
       {companyDrill ? (
-        <BillCompaniesModal companies={companyRows} scope={liveScope} bills={kpis.bills} coverage={coverage} period={periodLabel} onClose={() => setCompanyDrill(false)} />
+        <BillCompaniesModal companies={companyRows} scope={liveScope} currency={currency} bills={kpis.bills} coverage={coverage} period={periodLabel} onClose={() => setCompanyDrill(false)} />
       ) : null}
       {drill ? (
-        <BillRecordsModal title={drill.title} subtitle={drill.subtitle} coverage={coverage} scope={liveScope} drillKind={drill.kind} drillValue={drill.value} onClose={() => setDrill(null)} />
+        <BillRecordsModal title={drill.title} subtitle={drill.subtitle} coverage={coverage} scope={drill.overrideScope??liveScope} currency={currency} drillKind={drill.kind} drillValue={drill.value} onClose={() => setDrill(null)} />
       ) : null}
       {infoKey && INFO[infoKey] ? (
         <MetricsInfoDialog definition={INFO[infoKey]} onClose={() => setInfoKey(null)} sectionLabel="AI Services" />

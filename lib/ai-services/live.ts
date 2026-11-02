@@ -17,6 +17,29 @@ export type LiveDashboard = {
   companies: (CompanyRow & { needsReview: number })[];
   components: { count: number; extraction: number; enrichment: number };
   exceptions: ExceptionCounts;
+  analytics: LiveAnalytics;
+};
+
+export type LiveAnalyticsRow = {
+  label: string; predictions: number; knownCost: number;
+  knownCostCount: number; unknownCostCount: number;
+  medianLatency: number | null; p95Latency: number | null; knownLatencyCount: number;
+};
+export type LiveAnalytics = {
+  contract: "ai_bill_analytics_v1";
+  /** The source currently does not verify whether costs are in USD. */
+  currency: "unverified" | "USD";
+  periodDays: number;
+  selected: {
+    predictions: number; dailyAverage: number | null;
+    reviewedCount: number; reviewedCost: number; reviewedKnown: number; reviewedUnknown: number;
+    nonDeletedCost: number; nonDeletedKnown: number; nonDeletedUnknown: number;
+    deletedCount: number; deletedCost: number; deletedKnown: number; deletedUnknown: number;
+  };
+  mtd: { month: string; predictions: number; knownCost: number; knownCount: number; unknownCount: number };
+  daily: Array<{ day: string; predictions: number }>;
+  docAnalytics: LiveAnalyticsRow[];
+  pageAnalytics: LiveAnalyticsRow[];
 };
 export type LiveEvidence = {
   contract: "ai_bill_extraction_records_v1";
@@ -51,12 +74,12 @@ export function ensureBillReportingAccess() {
   }
 }
 
-async function rpc<T>(action: "dashboard" | "records", scope: LiveScope, params: Record<string,unknown> = {}): Promise<T> {
+async function rpc<T>(action: "dashboard" | "records", scope: LiveScope, params: Record<string,unknown> = {}, fn = "read_ai_bill_extraction_v1"): Promise<T> {
   ensureBillReportingAccess();
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error("bill_reporting_credentials_missing");
-  const response = await fetch(url.replace(/\/+$/, "") + "/rest/v1/rpc/read_ai_bill_extraction_v1", {
+  const response = await fetch(url.replace(/\/+$/, "") + "/rest/v1/rpc/" + fn, {
     method: "POST", cache: "no-store", signal: AbortSignal.timeout(27000),
     headers: { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json", "Cache-Control": "no-store" },
     body: JSON.stringify({
@@ -71,7 +94,10 @@ async function rpc<T>(action: "dashboard" | "records", scope: LiveScope, params:
 const nonNegativeInt = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0;
 
 export async function readBillDashboard(scope: LiveScope): Promise<LiveDashboard> {
-  const value = await rpc<LiveDashboard>("dashboard",scope);
+  const [value, analytics] = await Promise.all([
+    rpc<LiveDashboard>("dashboard",scope),
+    rpc<LiveAnalytics>("dashboard",scope,{}, "read_ai_bill_analytics_v1"),
+  ]);
   if (!value || value.contract !== "ai_bill_extraction_live_v1" ||
     !nonNegativeInt(value.kpis?.bills) || !nonNegativeInt(value.kpis?.knownCostCount) ||
     !nonNegativeInt(value.kpis?.unknownCostCount) ||
@@ -86,20 +112,35 @@ export async function readBillDashboard(scope: LiveScope): Promise<LiveDashboard
     !value.exceptions || value.exceptions.missingCost!==value.kpis.unknownCostCount) {
     throw new Error("bill_reporting_dashboard_contract_invalid");
   }
-  return value;
+  if (analytics?.contract !== "ai_bill_analytics_v1" ||
+      !["unverified","USD"].includes(analytics.currency) ||
+      !nonNegativeInt(analytics.periodDays) ||
+      analytics.selected?.predictions !== value.kpis.bills ||
+      !Array.isArray(analytics.docAnalytics) || !Array.isArray(analytics.pageAnalytics) ||
+      !Array.isArray(analytics.daily) || analytics.daily.length > 31 ||
+      analytics.docAnalytics.reduce((s,r)=>s+r.predictions,0) !== value.kpis.bills ||
+      analytics.pageAnalytics.reduce((s,r)=>s+r.predictions,0) !== value.kpis.bills ||
+      analytics.docAnalytics.reduce((s,r)=>s+r.knownCostCount,0) !== value.kpis.knownCostCount ||
+      analytics.pageAnalytics.reduce((s,r)=>s+r.knownCostCount,0) !== value.kpis.knownCostCount ||
+      !nonNegativeInt(analytics.mtd?.predictions) ||
+      analytics.mtd.knownCount + analytics.mtd.unknownCount !== analytics.mtd.predictions) {
+    throw new Error("bill_analytics_contract_invalid");
+  }
+  return {...value, analytics};
 }
 
 export async function readBillEvidence(scope: LiveScope, input: Record<string,unknown>): Promise<LiveEvidence> {
   const drill = input.drill, value = input.value, sort = input.sort, direction = input.direction, offset = input.offset;
-  const allowed = ["all","known_cost","known_latency","needs_review","month","month_cost","month_latency","components","doc_type","review_status","legibility","company","missing_cost","missing_latency","missing_pages","missing_doc","missing_legibility","partial_breakdown"];
+  const allowed = ["all","known_cost","known_latency","needs_review","month","month_cost","month_latency","components","doc_type","review_status","legibility","company","missing_cost","missing_latency","missing_pages","missing_doc","missing_legibility","partial_breakdown","non_deleted_cost","page_band","day"];
   if (!word(drill,allowed) || typeof value !== "string" || value.length>90 ||
     !word(sort,["createdAt","knownTotalCost","knownTotalLatency"]) ||
     !word(direction,["asc","desc"]) || !nonNegativeInt(offset) || (offset as number)>100000) {
     throw new Error("bill_reporting_invalid_evidence_request");
   }
+  const analyticsDrill = drill === "page_band" || drill === "day";
   const result = await rpc<LiveEvidence>("records",scope,{
     p_drill:drill,p_value:value,p_sort:sort,p_direction:direction,p_offset:offset,p_limit:10,
-  });
+  }, analyticsDrill ? "read_ai_bill_analytics_v1" : "read_ai_bill_extraction_v1");
   if (result?.contract!=="ai_bill_extraction_records_v1" ||
     !nonNegativeInt(result.total) || !nonNegativeInt(result.knownCostCount) ||
     result.knownCostCount>result.total || !Array.isArray(result.rows) || result.rows.length>10 ||
