@@ -516,3 +516,75 @@
  .ai-daily-chart {padding-inline:12px;}
  .ai-economics-table-wrap {padding-inline:12px;}
 }
+
+/* Tight, content-sized chart cards. Engineering's .ed-collection defaults to
+   stretching every sibling to the row's tallest card, which created the large
+   empty spaces visible below latency, review status, and comparison panels. */
+.ai-shell .ed-collection {
+  align-items: start;
+}
+.ai-shell .ed-collection > .ed-report.report-card {
+  align-self: start;
+  min-height: 0;
+}
+.ai-shell .ed-report-heading.report-header {
+  min-height: 64px;
+  padding-bottom: 9px;
+}
+.ai-shell .ai-detail-chart {
+  padding-top: 2px;
+  padding-bottom: 12px;
+}
+.ai-shell .ai-chart-headline { margin-bottom: 11px; }
+.ai-shell .ai-chart-footnote {
+  margin-top: 9px;
+  padding-top: 10px;
+  line-height: 1.5;
+}
+.ai-shell .ai-latency-chart .ai-latency-list { gap: 4px; }
+.ai-shell .ai-latency-chart .ai-latency-row {
+  min-height: 36px;
+  padding-block: 7px;
+}
+.ai-shell .ai-dist-chart .ai-distribution-row { padding-block: 8px; }
+.ai-shell .ai-dist-chart .ai-chart-footnote { margin-top: 8px; }
+.ai-shell .ai-economics-table-wrap {
+  padding-bottom: 10px;
+}
+.ai-shell .ai-economics-table {
+  min-width: 0;
+  width: 100%;
+  table-layout: fixed;
+}
+.ai-shell .ai-economics-table th,
+.ai-shell .ai-economics-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 10px 7px;
+  font-size: 10px;
+}
+.ai-shell .ai-economics-table th:nth-child(1) { width: 22%; }
+.ai-shell .ai-economics-table th:nth-child(2) { width: 14%; }
+.ai-shell .ai-economics-table th:nth-child(3) { width: 22%; }
+.ai-shell .ai-economics-table th:nth-child(4) { width: 19%; }
+.ai-shell .ai-economics-table th:nth-child(5) { width: 23%; }
+.ai-shell .ai-economics-table th { white-space: normal; line-height: 1.4; }
+.ai-shell .ai-economics-table td:first-child { min-width: 0; }
+.ai-shell .ai-economics-table td:last-child { min-width: 0; }
+.ai-shell .ai-economics-table .ed-investigation-key {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+.ai-shell .ai-table-caveat {
+  margin-top: 8px;
+  padding-top: 9px;
+  border-top: 1px solid #edf1f5;
+  line-height: 1.5;
+}
+@media (max-width: 620px) {
+  .ai-shell .ai-economics-table { min-width: 530px; }
+  .ai-shell .ai-detail-chart { padding-bottom: 13px; }
+}

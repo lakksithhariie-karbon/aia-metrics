@@ -33,7 +33,7 @@ const INFO: Record<string, MetricsInfoDefinition> = {
     title: "AI spend month-to-date",
     logic: "Sum of known recorded extraction costs from the start of the current UTC calendar month through now. Uses customer/document/review/search filters but deliberately ignores the historical date picker.",
     example: "If 31 current-month predictions have cost, add those 31 known values and show unknown count separately.",
-    note: "Currency is unverified. Recorded cost is not guaranteed complete vendor spend.",
+    note: "Displayed in USD at product direction, without FX conversion. The source does not independently declare currency; recorded cost may omit historical records.",
   },
   daily: {
     title: "Predictions per calendar day",
@@ -63,7 +63,7 @@ const INFO: Record<string, MetricsInfoDefinition> = {
     title: "Cost and latency by document type",
     logic: "Groups recorded predictions by input document type. Displays known cost totals, median latency and separate coverage denominators.",
     example: "Scanned documents: 100 predictions, 90 known costs, 95 known latencies.",
-    note: "Amounts/latency are recorded units; missing measurements are excluded. This is not cost multiplied by latency.",
+    note: "Cost is displayed in USD at product direction, source currency pending verification. Latency units are unverified. These are separate measures, not multiplied.",
   },
   pageEconomics: {
     title: "Cost and latency by page band",
@@ -86,13 +86,13 @@ const INFO: Record<string, MetricsInfoDefinition> = {
   cost: {
     title: "Recorded AI cost",
     logic: "Sum of known total cost: the source total unless both cost components are missing, in which case the row contributes nothing. Zero is never substituted for missing costs.",
-    example: "100 known rows summing to 250.5 cost units, 14 unknown rows excluded.",
-    note: "Verified source data. Cost currency is not confirmed — values are labeled cost units. This is not total spend.",
+    example: "100 known rows summing to $250.50 in displayed USD, 14 unknown rows excluded.",
+    note: "Dollar signs reflect the requested USD display convention. The source currency is not independently confirmed; this is not complete vendor spend.",
   },
   avg: {
     title: "Average known cost per bill",
     logic: "Sum of known total cost divided by the count of known-cost extractions in scope. Unknown-cost rows are excluded from numerator and denominator.",
-    example: "250.5 / 100 known = 2.505 cost units per bill.",
+    example: "$250.50 / 100 known = $2.505 per known-cost prediction.",
     note: "Verified source data. Disclose the excluded unknown count alongside this average.",
   },
   latency: {
@@ -196,8 +196,8 @@ function MonthBars({ points, total, onSelect, emptyLabel, money }: {
       <div className="ai-chart-guides" aria-hidden="true"><span /><span /><span /></div>
       <div className="ai-bars">
         {points.map(p => <button type="button" key={p.month} className="ai-bar"
-          onClick={() => onSelect(p.month)} title={p.month + ": " + (money==="USD"?formatRecordedCost(p.value,"USD",2):compact(p.value)+" units") + (p.note ? " · " + p.note : "")}
-          aria-label={p.month + ": " + p.value + (p.note ? ". " + p.note : "") + ". Open matching extractions."}>
+          onClick={() => onSelect(p.month)} title={p.month + ": " + (money==="USD"?formatRecordedCost(p.value,"USD",2):number.format(p.value)+" predictions") + (p.note ? " · " + p.note : "")}
+          aria-label={p.month + ": " + (money==="USD"?formatRecordedCost(p.value,"USD",2):number.format(p.value)+" predictions") + (p.note ? ". " + p.note : "") + ". Open matching extractions."}>
           <span className="ai-bar-value">{money==="USD"?formatRecordedCost(p.value,"USD",0):compact(p.value)}</span>
           <span className="ai-bar-rail"><span className="ai-bar-fill" style={{ height: (p.value / max * 100).toFixed(2) + "%" }}/></span>
           <span className="ai-bar-month">{monthName(p.month)}</span>
@@ -214,7 +214,7 @@ function ComponentBreakdown({ stats, bills, currency, onOpen }: { stats: LiveDas
   ];
   const total = values.reduce((s, r) => s + r.value, 0);
   return <div className="ai-detail-chart">
-    <div className="ai-chart-headline"><strong>{total.toFixed(1)}</strong><span>{currency==="USD"?"USD":"cost units"} across {number.format(stats.count)} fully itemized bills</span></div>
+    <div className="ai-chart-headline"><strong>{formatRecordedCost(total,currency,1)}</strong><span>across {number.format(stats.count)} fully itemized bills</span></div>
     <div className="ai-split-bar" role="img" aria-label="Cost component proportions">
       {values.map((r, i) => <span key={r.key} className={"ai-split-section ai-split-" + i} style={{ width: (total ? r.value / total * 100 : 0) + "%" }} />)}
     </div>
@@ -356,7 +356,9 @@ export default function AiServicesOverview() {
   },[liveScope]);
   const kpis=data?.kpis??EMPTY_KPIS;
   const analytics=data?.analytics;
-  const currency=analytics?.currency??"unverified";
+  // Product-requested USD display convention. The raw source currency remains
+  // unverified until the ingestion owner confirms it. Values are NOT converted.
+  const currency: "USD" = "USD";
   const months=data?.months??[];
   const docs=data?.docs??[];
   const reviews=data?.reviews??[];
@@ -496,7 +498,7 @@ export default function AiServicesOverview() {
                 onSelect={month => openDrill("Volume · " + month, scopeNote, "month", month)}
               />
             </Surface>
-            <Surface title="AI cost trend" subtitle={"Known cost per month · "+(currency==="USD"?"USD":"unverified units")+" · unknown excluded"} infoKey="cost" onInfo={setInfoKey} half>
+            <Surface title="AI cost trend" subtitle="Known cost per month · USD display · unknown excluded" infoKey="cost" onInfo={setInfoKey} half>
               <MonthBars money={currency}
                 points={months.map(m => ({ month: m.month, value: m.knownCost, note: m.unknownCostCount + " unknown" }))}
                 total={kpis.knownCostCount}
@@ -575,7 +577,7 @@ export default function AiServicesOverview() {
         </section>
 
         <footer className="ed-preview-note">
-          <strong>Live Supabase reporting.</strong> Source loaded {data.asOf ? new Date(data.asOf).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) + " IST" : "at an unknown time"}. Missing cost and latency are excluded from their respective calculations. Currency and latency units are not yet verified. The deleted review status is not proof of an accounting loss.
+          <strong>Live Supabase reporting.</strong> Source loaded {data.asOf ? new Date(data.asOf).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) + " IST" : "at an unknown time"}. Cost figures are displayed in USD at product direction, with no currency conversion; the source has not independently confirmed its currency. Missing cost and latency are excluded from their respective calculations. Latency units remain unverified. Deleted status is not proof of an accounting loss.
         </footer>
       </main>
 

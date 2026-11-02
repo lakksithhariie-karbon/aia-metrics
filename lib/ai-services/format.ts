@@ -1,4 +1,6 @@
-/** Neutral until the authoritative AI billing exporter verifies USD. */
+/** Shared Bill Extraction money formatter. USD is a display convention requested
+ * by the product owner; source currency verification is a separate dependency.
+ * Never apply FX conversion or invent missing numeric values. */
 export function formatRecordedCost(value: number | null, currency: "unverified" | "USD", digits = 2): string {
   if (value === null || !Number.isFinite(value)) return "Unknown";
   if (currency === "USD") {

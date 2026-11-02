@@ -186,7 +186,7 @@ export function BillRecordsModal({ title, subtitle, coverage, scope, currency, d
       <DrillSummary rows={[
         {label:"Matching extractions",value:loading?"…":number.format(data?.total??0),note:"Selected chart / KPI population"},
         {label:"Dashboard coverage",value:coverage,note:"Unknown values remain excluded"},
-        {label:"Known cost",value:loading?"…":number.format(data?.knownCostCount??0)+" / "+number.format(data?.total??0),note:"Cost currency unverified"},
+        {label:"Known cost",value:loading?"…":number.format(data?.knownCostCount??0)+" / "+number.format(data?.total??0),note:currency==="USD"?"USD display, source unit unverified":"Cost currency unverified"},
       ]}/>
       <div className="rd-drill-toolbar ed-investigation-toolbar ai-investigation-toolbar">
         <DrillSearch query={query} onChange={v=>{setQuery(v);setPage(1);}} disabled={!!scope.search} placeholder={scope.search?"Dashboard search is active":"Search prediction or company"} />
@@ -287,6 +287,6 @@ export function BillDetailModal({ record, currency, onClose }: {
     <div className="ai-record-detail-scroll"><dl className="ai-record-detail">
       {rows.map(([term, value]) => <div key={term}><dt>{term}</dt><dd>{value}</dd></div>)}
     </dl></div>
-    <p className="ai-detail-footnote">Review status is a snapshot, not an extraction accuracy score. Cost currency is {currency === "USD" ? "USD" : "unverified"}; latency units are not yet verified.</p>
+    <p className="ai-detail-footnote">Review status is a snapshot, not an extraction accuracy score. Costs are displayed in USD at product direction; source currency is not independently verified. Latency units remain unverified.</p>
   </ModalShell>;
 }

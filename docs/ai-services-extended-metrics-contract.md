@@ -31,15 +31,15 @@ are paginated server-side (10 per page). Query execution is read-only.
 
 ## Critical money and unit caveat
 
-**The source does not confirm USD.** There is no currency column, source-table
-currency comment, or authoritative exporter specification. It would be incorrect
-to relabel `1079.268622` recorded cost units as `$1,079.27` today.
-
-All current pages, KPI cards, charts, company tables, investigation tables and detail
-modals display neutral **cost units** via a shared formatter. That formatter has a
-USD mode with `Intl.NumberFormat('en-US',{style:'currency',currency:'USD'})` prepared
-for use **only after written source confirmation of USD** and a validated backend
-currency contract update. Do not convert values or infer FX from location.
+**The product owner requested USD ($) display on 2026-11-02.** The preview now
+formats all recorded cost numbers in USD using the shared `Intl.NumberFormat` formatter
+through KPI cards, cost charts, company tables, investigation evidence and detail modals.
+**No conversion is performed.** The upstream numeric source has no currency column,
+comment, or authoritative exporter specification, so the display denomination remains
+a product-direction assumption, **not independently verified source metadata**.
+A visible dashboard footer and modal explanations retain this limitation.
+Please obtain an explicit producer confirmation before interpreting reported amounts as
+reconciled financial USD spend or promoting this change to production.
 
 Latency values also have unverified units and must not be labeled milliseconds or
 seconds without producer confirmation.
