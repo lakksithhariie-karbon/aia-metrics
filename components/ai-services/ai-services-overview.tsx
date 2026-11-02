@@ -412,7 +412,7 @@ export default function AiServicesOverview() {
           <MetricCard label="Recorded AI cost" period={periodLabel} value={formatRecordedCost(kpis.knownCostTotal,currency,1)} note={kpis.unknownCostCount + " unknown costs excluded"}
             onDrill={() => openDrill("Recorded AI cost", periodLabel + " · " + coverage, "known_cost")} onInfo={() => setInfoKey("cost")} />
           <MetricCard label="Cost per prediction" period={periodLabel} value={kpis.avgKnownCost === null ? "—" : formatRecordedCost(kpis.avgKnownCost,currency,3)} note={"known-cost predictions only · " + coverage}
-            onDrill={() => openDrill("Average known cost", periodLabel + " · " + coverage, "all")} onInfo={() => setInfoKey("avg")} />
+            onDrill={() => openDrill("Average known cost", periodLabel + " · " + coverage, "known_cost")} onInfo={() => setInfoKey("avg")} />
           <MetricCard label="P95 processing latency" period={periodLabel} value={kpis.p95Latency === null ? "—" : String(kpis.p95Latency)} note={"latency units · " + kpis.unknownLatencyCount + " unknown"}
             onDrill={() => openDrill("Slowest extractions", periodLabel + " · known latency only", "known_latency")} onInfo={() => setInfoKey("latency")} />
           <MetricCard label="Needs-review rate" period={periodLabel} value={kpis.needsReviewRate === null ? "—" : (kpis.needsReviewRate * 100).toFixed(1) + "%"} note={kpis.needsReviewCount + " of " + kpis.bills + " · snapshot"}
@@ -442,12 +442,12 @@ export default function AiServicesOverview() {
             <MetricCard label="Spend on processed work" period={periodLabel}
               value={formatRecordedCost(analytics!.selected.nonDeletedCost,currency,2)}
               note={analytics!.selected.nonDeletedUnknown+" unknown · non-deleted statuses"}
-              onDrill={()=>openDrill("Non-deleted prediction spend",periodLabel+" · reviewed + needs review","all")}
+              onDrill={()=>openDrill("Non-deleted prediction spend",periodLabel+" · known-cost reviewed + needs-review records","non_deleted_cost")}
               onInfo={()=>setInfoKey("reviewedSpend")} />
             <MetricCard label="Recorded cost on deleted" period={periodLabel}
               value={formatRecordedCost(analytics!.selected.deletedCost,currency,2)}
               note={analytics!.selected.deletedUnknown+" deleted records with unknown cost"}
-              onDrill={()=>openDrill("Deleted prediction cost",periodLabel+" · current status snapshot","review_status","deleted")}
+              onDrill={()=>openDrill("Deleted prediction cost",periodLabel+" · known-cost deleted records","known_cost","",{...liveScope,status:"deleted"})}
               onInfo={()=>setInfoKey("deletedSpend")} />
             <MetricCard label="Documents deleted" period={periodLabel}
               value={number.format(analytics!.selected.deletedCount)}
@@ -494,7 +494,7 @@ export default function AiServicesOverview() {
               onOpen={day=>openDrill("Predictions · "+day,periodLabel,"day",day)} />
           </Surface>
           <div className="ed-collection">
-            <Surface title="Cost × latency by document type" subtitle="Recorded cost and median latency, with coverage" infoKey="docEconomics" onInfo={setInfoKey} half>
+            <Surface title="Cost and latency by document type" subtitle="Recorded cost and median latency, with coverage" infoKey="docEconomics" onInfo={setInfoKey} half>
               <EconomicsTable rows={analytics!.docAnalytics} unit={currency}
                 onSelect={docType=>openDrill("Document type · "+docType,periodLabel,"doc_type",docType)} />
             </Surface>

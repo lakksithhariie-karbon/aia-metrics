@@ -131,7 +131,7 @@ export async function readBillDashboard(scope: LiveScope): Promise<LiveDashboard
 
 export async function readBillEvidence(scope: LiveScope, input: Record<string,unknown>): Promise<LiveEvidence> {
   const drill = input.drill, value = input.value, sort = input.sort, direction = input.direction, offset = input.offset;
-  const allowed = ["all","known_cost","known_latency","needs_review","month","month_cost","month_latency","components","doc_type","review_status","legibility","company","missing_cost","missing_latency","missing_pages","missing_doc","missing_legibility","partial_breakdown","page_band","day"];
+  const allowed = ["all","known_cost","known_latency","needs_review","month","month_cost","month_latency","components","doc_type","review_status","legibility","company","missing_cost","missing_latency","missing_pages","missing_doc","missing_legibility","partial_breakdown","non_deleted_cost","page_band","day"];
   if (!word(drill,allowed) || typeof value !== "string" || value.length>90 ||
     !word(sort,["createdAt","knownTotalCost","knownTotalLatency"]) ||
     !word(direction,["asc","desc"]) || !nonNegativeInt(offset) || (offset as number)>100000) {

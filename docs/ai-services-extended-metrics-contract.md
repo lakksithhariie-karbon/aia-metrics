@@ -58,3 +58,12 @@ unverified cost units**, and November MTD contained **31** known-cost prediction
 Database grants: `service_role` EXECUTE true; `anon` and `authenticated`
 EXECUTE false. Existing production Vercel Authentication + kill switch remain
 unchanged. Source ingestion/fields were not modified.
+
+## Evidence drill reconciliation (November 2 audit)
+
+- **Cost per prediction** drills to the 30,026 known-cost predictions contributing to the average, not all 34,364 records.
+- **Spend on processed work** drills to the 26,149 predictions with a known total cost and a non-deleted review status, matching the displayed known-cost numerator (929.6282839733333 recorded units).
+- **Recorded cost on deleted** drills to the 3,877 known-cost deleted predictions (149.64033849 recorded units); **Documents deleted** drills to all 4,369 deleted predictions, including 492 with unknown costs.
+- **Cost and latency by document type** is a paired comparison, not cost multiplied by latency.
+
+For May–October 2026, source verification on 2026-11-02 found 34,364 distinct verified-customer predictions and 34,364 distinct file UUIDs; 659 companies; 30,026 known costs, 4,338 unknown costs; 2,074 unknown latencies; and 9,813 / 13,570 / 10,981 predictions in August / September / October respectively. September had zero unknown costs and latencies. Source costs and latency units remain unverified. The verified customer's counts exclude 1,541 test-company and 259 directory-unmatched predictions.

@@ -59,7 +59,7 @@ assert.match(live,/SUPABASE_SERVICE_ROLE_KEY/);
 assert.match(live,/ai_bill_extraction_live_v1/);
 assert.match(live,/read_ai_bill_analytics_v1/, "new analytics RPC used server-side");
 assert.match(live,/analytics\.selected\?\.predictions !== value\.kpis\.bills/, "extended analytics reconcile with base KPIs");
-assert.match(read("components/ai-services/ai-services-overview.tsx"),/Cost × latency by document type/, "document cost and latency diagnostics");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/Cost and latency by document type/, "document cost and latency diagnostics");
 assert.match(read("components/ai-services/ai-services-overview.tsx"),/Cost and latency by page band/, "page band diagnostics");
 assert.match(read("components/ai-services/ai-services-overview.tsx"),/AI spend MTD/, "month-to-date KPI");
 assert.match(read("components/ai-services/ai-services-overview.tsx"),/Documents deleted/, "deleted status KPI");
@@ -110,6 +110,12 @@ assert.match(overview, /const currency: "USD" = "USD"/, "USD money display polic
 assert.match(read("app/ai-services/ai-services.css"), /\.ai-shell \.ed-collection > \.ed-report\.report-card \{[\s\S]*?align-self: start;/, "paired chart cards do not stretch to tallest sibling");
 assert.match(read("components/ai-services/bill-drills.tsx"), /fmtCost\(r\.knownTotalCost,currency\)/, "evidence table formats money via shared currency setting");
 assert.match(overview, /formatRecordedCost\(total,currency,1\)/, "component chart headline formats money consistently");
+
+assert.match(live,/non_deleted_cost/, "known-cost non-deleted evidence must use a scoped database drill");
+assert.match(overview, /"Non-deleted prediction spend"[\s\S]*?"non_deleted_cost"/, "processed work drill matches its recorded-cost numerator");
+assert.match(overview, /"Average known cost"[\s\S]*?"known_cost"/, "average cost drill excludes unknown-cost records");
+assert.match(overview, /"Deleted prediction cost"[\s\S]*?"known_cost"[\s\S]*?status:"deleted"/, "deleted cost drill excludes unknown costs");
+assert.match(read("supabase/migrations/20261102063011_aia_bill_non_deleted_cost_evidence_v1_20261102.sql"), /p_drill='non_deleted_cost' AND known_total_cost IS NOT NULL AND review_status IS DISTINCT FROM 'deleted'/, "SQL drill population is exactly known-cost non-deleted work");
 assert.match(overview, /ProductMonthRangePicker/, "shared date control");
 assert.match(overview, /CompactMenuSelect/, "shared filter control");
 assert.match(overview, /BillRecordsModal/, "drill modal wiring");
