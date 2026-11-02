@@ -23,7 +23,8 @@ const pretty = (v: string) => ({
   "Amazon Elastic Container Service": "Amazon ECS", "AmazonCloudWatch": "CloudWatch",
   "Amazon Elastic Load Balancing": "Load Balancing", "Amazon EC2 Container Registry (ECR)": "Amazon ECR", "Amazon Virtual Private Cloud": "Amazon VPC",
 } as Record<string, string>)[v] ?? v;
-const previewDisclosure = "Captured AWS data as of 8 Oct 2026. This preview is not a live billing feed. October amounts are incomplete estimates.";
+const formatSyncDate = (iso: string) => new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }).format(new Date(iso));
+const dataDisclosure = (data: InfraPreviewData) => data.mode === "live-aws-costs" ? "Live AWS Cost Explorer UnblendedCost in USD. Last successful sync " + formatSyncDate(data.awsAsOf) + " IST. Refreshed daily. Current-month costs remain provisional until AWS finalizes billing." : "Historical snapshot, not a live billing feed.";
 
 function SectionHead({ title, question }: { title: string; question: string }) {
   return <div className="metrics-section-kicker ed-section-heading"><span>{title}</span><span className="metrics-section-description">{question}</span></div>;
@@ -91,7 +92,7 @@ function BreakdownDialog({ target, month, data, onClose, onNext }: {
     const isService = target.kind === "service";
     title = isService ? pretty(target.key ?? "Service") : target.key ?? "AWS account";
     subtitle = "Captured monthly costs · USD";
-    rows = data.awsMonths.filter(m => m.month >= "2026-05").map(m => {
+    rows = data.awsMonths.map(m => {
       const item = isService ? data.awsServices.find(s => s.month === m.month && s.service === target.key) : data.awsAccounts.find(a => a.month === m.month && a.label === target.key);
       return { label: monthLabel(m.month), amount: item ? usd(item.usd) : "—", extra: item ? m.estimated ? "Estimated" : "Completed" : "Not captured" };
     });
@@ -182,6 +183,7 @@ export default function InfraOverview({ data }: { data: InfraPreviewData }) {
     opener.current = document.activeElement instanceof HTMLElement || document.activeElement instanceof SVGElement ? document.activeElement : null;
     setDrill({ ...target, month: target.month ?? month });
   };
+  const disclosure = dataDisclosure(data);
   const metrics: Metric[] = [
     { id: "aws-cost", label: "AWS cloud spend", value: current ? usd(current.usd) : "—", period,
       caption: current?.estimated ? "Estimated month-to-date · USD" : "Monthly UnblendedCost · USD",
@@ -191,17 +193,17 @@ export default function InfraOverview({ data }: { data: InfraPreviewData }) {
       definition: "Change in end-month AWS spend relative to its preceding completed month. No comparison is shown for incomplete or missing periods.", drill: { kind: "aws-month" } },
     { id: "accounts", label: "Linked AWS accounts", value: current ? us(current.accounts) : "—", period,
       caption: "Distinct linked accounts with cost rows",
-      definition: "Distinct linked accounts recorded for the selected end month. Multi-month account counts are not summed. Account identifiers are masked in this preview.", drill: { kind: "accounts" } },
+      definition: "Distinct linked accounts recorded for the selected end month. Multi-month account counts are not summed. Account identifiers remain masked.", drill: { kind: "accounts" } },
     { id: "services", label: "Cost categories", value: current ? us(current.services) : "—", period,
       caption: "Services, taxes and commitments",
       definition: "Distinct Cost Explorer service dimensions in the selected end month, including financial categories. Multi-month category counts are not summed.", drill: { kind: "services" } },
   ];
-  const openInfo = (metric: Metric) => setInfo({ title: metric.label, logic: metric.definition, example: metric.caption, note: previewDisclosure });
-  const reportInfo = (title: string, logic: string) => setInfo({ title, logic, example: "Select a value to inspect the captured cost breakdown.", note: previewDisclosure });
+  const openInfo = (metric: Metric) => setInfo({ title: metric.label, logic: metric.definition, example: metric.caption, note: disclosure });
+  const reportInfo = (title: string, logic: string) => setInfo({ title, logic, example: "Select a value to inspect the captured cost breakdown.", note: disclosure });
   return <>
     <main className="rd-page ed-page infra-page">
       <div className="rd-page-head ed-page-head"><div className="ed-page-copy">
-        <div className="ed-titleline"><h1>Infrastructure Overview</h1></div><p>AWS cloud spending and cost drivers</p>
+        <div className="ed-titleline"><h1>Infrastructure Overview</h1></div><p>AWS cloud spending and cost drivers · Last synced {formatSyncDate(data.awsAsOf)} IST</p>
       </div><ProductMonthRangePicker value={range} asOf={data.awsAsOf} firstMonth={data.awsMonths[0].month} onApply={applyRange} /></div>
       <section className="metrics-grid-section ed-section" aria-label="AWS cloud spending">
         <SectionHead title="AWS cloud spending" question="Where is spend concentrated, and how is it changing?" />
