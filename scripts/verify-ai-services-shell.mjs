@@ -51,6 +51,9 @@ assert.doesNotMatch(overviewClient, /queryDemo|Synthetic preview|records={filter
 const live = read("lib/ai-services/live.ts");
 assert.match(live,/server-only/);
 assert.match(live,/VERCEL_ENV === "production"/);
+assert.match(live,/AI_BILL_REPORTING_PRODUCTION_ENABLED !== "true"/, "production must fail closed without explicit enable flag");
+assert.match(live,/ensureBillReportingAccess\(\)/, "server RPC must enforce production access gate");
+assert.doesNotMatch(live,/export function ensurePreviewOnly/, "old blanket production block removed");
 assert.match(live,/SUPABASE_SERVICE_ROLE_KEY/);
 assert.match(live,/ai_bill_extraction_live_v1/);
 assert.match(live,/knownCostCount \+ value.kpis.unknownCostCount/);
@@ -60,7 +63,7 @@ assert.match(rpc,/SET search_path = ''/);
 assert.match(rpc,/TO service_role/);
 assert.match(rpc,/REVOKE ALL/);
 assert.doesNotMatch(rpc,/UPDATE aia_infra\.|DELETE FROM aia_infra\.|INSERT INTO aia_infra\./);
-assert.match(read("app/api/ai-services/report/route.ts"),/ensurePreviewOnly/);
+assert.match(read("app/api/ai-services/report/route.ts"),/ensureBillReportingAccess/);
 
 // Missing-is-unknown semantics live in the aggregator, not the UI.
 const summary = read("lib/ai-services/summary.ts");
@@ -108,4 +111,4 @@ assert.match(aiCss, /\.ai-records-table\.ed-investigation-table th:first-child/,
 assert.match(overview, /className="ed-screenreader-only"/, "live announcement uses the shared visually-hidden class");
 assert.doesNotMatch(overview, /ed-screen-reader-only/, "do not leak announcements below the footer");
 
-console.log("AI Services live contract verified: preview-only server reader, source scope, paginated evidence and shared primitives.");
+console.log("AI Services live contract verified: protected production reader with explicit kill switch, source scope, paginated evidence and shared primitives.");

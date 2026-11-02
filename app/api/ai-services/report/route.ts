@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readBillDashboard, readBillEvidence, validateScope, ensurePreviewOnly } from "../../../../lib/ai-services/live";
+import { readBillDashboard, readBillEvidence, validateScope, ensureBillReportingAccess } from "../../../../lib/ai-services/live";
 import type { LiveScope } from "../../../../lib/ai-services/live";
 
 export const dynamic = "force-dynamic";
@@ -21,14 +21,14 @@ function scopeFromParams(url: URL): LiveScope {
 }
 export async function GET(req: NextRequest) {
   try {
-    ensurePreviewOnly();
+    ensureBillReportingAccess();
     const data=await readBillDashboard(scopeFromParams(req.nextUrl));
     return NextResponse.json(data,{headers:{"Cache-Control":"no-store"}});
   }catch(error){return fail(error);}
 }
 export async function POST(req: NextRequest) {
   try {
-    ensurePreviewOnly();
+    ensureBillReportingAccess();
     const origin=req.headers.get("origin");
     if(origin && origin!==req.nextUrl.origin) return NextResponse.json({error:"Forbidden"},{status:403});
     const body: unknown=await req.json();
