@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-export type DashboardKey = "product" | "retention" | "companies" | "delivery" | "infra";
+export type DashboardKey = "product" | "retention" | "companies" | "delivery" | "infra" | "ai-services";
 export type DeliveryView = "overview" | "assignees";
 
 const ENGINEERING_PAGES = [
@@ -24,6 +24,10 @@ const ENGINEERING_PAGES = [
 const INFRA_PAGES = [
   {key:"overview" as const,name:"Infrastructure Overview",
    description:"Cloud spend, processing economics and data confidence",href:"/infra"},
+];
+const AI_SERVICES_PAGES = [
+  {key:"overview" as const,name:"Bill Extraction Overview",
+   description:"Synthetic demo · AI bill processing and data confidence",href:"/ai-services"},
 ];
 const DASHBOARDS = [
   {
@@ -69,10 +73,12 @@ export default function ProductMetricsHeader({
   const router = useRouter();
   const isDelivery = current === "delivery";
   const isInfra = current === "infra";
+  const isAiServices = current === "ai-services";
   const active = DASHBOARDS.find(item => item.key === current) ?? DASHBOARDS[0];
   const deliveryCurrent=ENGINEERING_PAGES.find(item=>item.key===deliveryView)??ENGINEERING_PAGES[0];
-  const sectionPages=isInfra?INFRA_PAGES:ENGINEERING_PAGES;
-  const sectionCurrent=isInfra?INFRA_PAGES[0]:deliveryCurrent;
+  const sectionPages=isAiServices?AI_SERVICES_PAGES:isInfra?INFRA_PAGES:ENGINEERING_PAGES;
+  const sectionCurrent=isAiServices?AI_SERVICES_PAGES[0]:isInfra?INFRA_PAGES[0]:deliveryCurrent;
+  const sectionName=isAiServices?"AI Services":isInfra?"Infrastructure":"Engineering";
 
   return (
     <header className="app-header product-metrics-header">
@@ -82,22 +88,22 @@ export default function ProductMetricsHeader({
           AI Accountant
         </div>
         <span className="brand-divider" />
-        <span className="product-name">{isInfra?"Infrastructure Metrics":isDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
+        <span className="product-name">{isAiServices?"AI Services Metrics":isInfra?"Infrastructure Metrics":isDelivery ? "Engineering Metrics" : "Product Metrics"}</span>
       </div>
 
-      <nav aria-label={isInfra?"Infrastructure navigation":isDelivery ? "Engineering navigation" : "Product metrics navigation"} className="top-nav">
-        {isDelivery || isInfra ? (
+      <nav aria-label={isAiServices?"AI Services navigation":isInfra?"Infrastructure navigation":isDelivery ? "Engineering navigation" : "Product metrics navigation"} className="top-nav">
+        {isDelivery || isInfra || isAiServices ? (
           <DropdownMenu>
             <DropdownMenuTrigger className="app-dashboard-trigger"
-              aria-label={(isInfra?"Infrastructure pages, currently ":"Engineering pages, currently ")+sectionCurrent.name}>
+              aria-label={(isAiServices?"AI Services pages, currently ":isInfra?"Infrastructure pages, currently ":"Engineering pages, currently ")+sectionCurrent.name}>
               <span>{sectionCurrent.name}</span>
               <HeaderIcon name="down" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent aria-label={isInfra?"Infrastructure pages":"Engineering pages"} align="end" sideOffset={8}>
+            <DropdownMenuContent aria-label={isAiServices?"AI Services pages":isInfra?"Infrastructure pages":"Engineering pages"} align="end" sideOffset={8}>
               <DropdownMenuGroup>
-                <DropdownMenuLabel className="app-dashboard-menu-label">{isInfra?"Infrastructure":"Engineering"}</DropdownMenuLabel>
+                <DropdownMenuLabel className="app-dashboard-menu-label">{sectionName}</DropdownMenuLabel>
                 {sectionPages.map(item=>{
-                  const selected=isInfra?item.key==="overview":item.key===deliveryView;
+                  const selected=(isInfra||isAiServices)?item.key==="overview":item.key===deliveryView;
                   return <DropdownMenuLinkItem key={item.key} href={item.href}
                     aria-current={selected?"page":undefined} className="app-dashboard-item"
                     onClick={event=>{
