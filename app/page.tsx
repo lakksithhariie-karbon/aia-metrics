@@ -1,2 +1,6 @@
 import { redirect } from "next/navigation";
-export default function Home() { redirect("/overview"); }
+
+/** Send visitors straight to the live Product dashboard; Overview remains available at /overview. */
+export default function Home() {
+  redirect("/product");
+}
