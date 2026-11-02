@@ -96,7 +96,10 @@ for (const css of ["metrics-page-grid.css", "delivery.css", "delivery-investigat
 const overview = read("components/ai-services/ai-services-overview.tsx");
 assert.match(overview, /ed-kpi-grid po-kpis/, "KPI grid primitive");
 assert.match(overview, /ai-kpi-section/, "KPI section spans the outer page grid");
-assert.match(overview,/debouncedSearch/,"global search scopes dashboard and evidence");
+assert.match(overview,/scopes:\["verified_customer"\]/,"verified-only dashboard scope");
+assert.match(overview,/search:""/,"global search is empty by default and not exposed");
+assert.doesNotMatch(overview,/ariaLabel="Customer scope"/,"customer-scope picker removed");
+assert.doesNotMatch(overview,/Search company or prediction/,"header search removed");
 assert.match(overview, /<DistributionRows/, "document and review comparison charts remain visual");
 assert.match(overview, /<LatencyComparison/, "latency compares P50 and P95 visually");
 const aiCss = read("app/ai-services/ai-services.css");
@@ -110,7 +113,7 @@ assert.match(overview, /formatRecordedCost\(total,currency,1\)/, "component char
 assert.match(overview, /ProductMonthRangePicker/, "shared date control");
 assert.match(overview, /CompactMenuSelect/, "shared filter control");
 assert.match(overview, /BillRecordsModal/, "drill modal wiring");
-assert.match(overview, /ed-preview-note/, "freshness/caveat footer");
+assert.doesNotMatch(overview, /ed-preview-note/, "unnecessary page footer removed");
 const drills = read("components/ai-services/bill-drills.tsx");
 assert.match(drills, /role="dialog"/, "drill modal semantics");
 assert.match(drills, /aria-modal/, "drill modal semantics");

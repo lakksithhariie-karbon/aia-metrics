@@ -49,44 +49,6 @@
   font-size: 10.5px;
 }
 .ai-shell .ai-filter-toolbar .date-trigger { height: 36px; }
-.ai-shell .ai-search-field {
-  flex: 1 1 220px;
-  min-width: 185px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 11px;
-  border: 1px solid #e0e6ee;
-  border-radius: 5px;
-  background: #fff;
-  color: #8b99ae;
-}
-.ai-shell .ai-search-field:focus-within {
-  border-color: #839fe1;
-  box-shadow: 0 0 0 2px #dee7fb;
-}
-.ai-search-field svg {
-  flex: 0 0 15px;
-  width: 15px;
-  height: 15px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.7;
-}
-.ai-search-field input {
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: #40516b;
-  font: inherit;
-  font-size: 11px;
-}
-.ai-search-field input::placeholder { color: #a1aabc; }
 .ai-shell .ai-reset.ui-control { height: 36px; font-size: 10.5px; padding: 0 14px; }
 .ai-shell .ai-scope-warning {
   margin: 0;
@@ -348,7 +310,6 @@
   .ai-shell .ai-kpi-section .ed-kpi-grid .ed-metric.metric-card { min-height: 129px; }
   .ai-shell .ai-kpi-section .metric-value { font-size: 33px; }
   .ai-shell .ai-kpi-section .metric-period { display: block; }
-  .ai-shell .ai-search-field { flex: 1 1 calc(100% - 83px); }
   .ai-shell .ai-reset.ui-control { margin: 0; }
   .ai-shell .metrics-section-kicker { align-items: flex-start; flex-wrap: wrap; }
   .ai-shell .metrics-section-description { text-align: left; }
@@ -492,9 +453,6 @@
 }
 
 /* Additional operating KPI rows reuse Product's existing 3-up card grid. */
-.ai-shell .ai-scope-control { display:flex;align-items:center;gap:2px;min-width:0; }
-.ai-shell .ai-scope-control .metrics-info-trigger { flex:0 0 27px; width:27px;height:27px; }
-.ai-shell .ai-scope-control .compact-menu-select { min-width:155px; }
 .ai-daily-chart {display:flex;gap:4px;align-items:stretch;min-height:195px;padding:9px 22px 20px;overflow-x:auto;}
 .ai-daily-column {min-width:12px;flex:1 1 0;display:grid;grid-template-rows:16px 126px 18px;gap:5px;align-items:end;text-align:center;border:0;background:transparent;padding:0;cursor:pointer;}
 .ai-daily-track {display:flex;height:126px;background:#f4f7fc;align-items:end;border-radius:3px 3px 0 0;overflow:hidden;}
@@ -510,8 +468,6 @@
 .ai-coverage-second {display:block;margin-top:3px;color:#8a9ab0;font-size:10px;}
 .ai-table-caveat {margin:8px 0 3px;color:#8696ab;font-size:10px;line-height:1.6;}
 @media(max-width:750px) {
- .ai-shell .ai-scope-control {width:100%;}
- .ai-shell .ai-scope-control .compact-menu-select {flex:1 1 auto;}
  .ai-daily-column {min-width:15px;}
  .ai-daily-chart {padding-inline:12px;}
  .ai-economics-table-wrap {padding-inline:12px;}

@@ -10,9 +10,6 @@ import MetricsInvestigationTable from "../ui/metrics-investigation-table";
 import type { MetricsInvestigationRow } from "../ui/metrics-investigation-table";
 import { completedPreset } from "../../lib/infra/date-range";
 import type { MonthRange } from "../../lib/infra/date-range";
-import type { ScopeFilter } from "../../lib/ai-services/types";
-import { SCOPE_FILTER_LABELS } from "../../lib/ai-services/types";
-import { scopesForFilter } from "../../lib/ai-services/types";
 import type { LiveDashboard, LiveScope, LiveAnalyticsRow } from "../../lib/ai-services/live";
 import { formatRecordedCost } from "../../lib/ai-services/format";
 
@@ -23,12 +20,6 @@ const CURRENT_MONTH = AS_OF.slice(0, 7);
 const EMPTY_KPIS = { bills:0,companies:0,knownCostTotal:0,knownCostCount:0,unknownCostCount:0,avgKnownCost:null,p50Latency:null,p95Latency:null,knownLatencyCount:0,unknownLatencyCount:0,needsReviewCount:0,needsReviewRate:null };
 
 const INFO: Record<string, MetricsInfoDefinition> = {
-  scope: {
-    title: "Customer scope",
-    logic: "Verified customers: matched customer-directory companies not flagged as tests. Verified + test: adds test companies. Verified + unverified: adds companies not matched to the directory. All scopes: includes all three groups.",
-    example: "Use Verified customers for external/customer reporting; use other populations only for internal troubleshooting.",
-    note: "Classifications use company UUID and directory test flags. Unverified does not mean fraudulent; it means unmatched.",
-  },
   mtd: {
     title: "AI spend month-to-date",
     logic: "Sum of known recorded extraction costs from the start of the current UTC calendar month through now. Uses customer/document/review/search filters but deliberately ignores the historical date picker.",
@@ -108,10 +99,6 @@ const INFO: Record<string, MetricsInfoDefinition> = {
     note: "Verified source data. Do not read this as a failure or error rate.",
   },
 };
-
-const SCOPE_OPTIONS: ReadonlyArray<CompactSelectOption<ScopeFilter>> = (
-  Object.keys(SCOPE_FILTER_LABELS) as ScopeFilter[]
-).map(value => ({ value, label: SCOPE_FILTER_LABELS[value] }));
 
 const DOC_OPTIONS = [
   { value: "all", label: "All document types" },
@@ -319,10 +306,8 @@ function EconomicsTable({ rows, unit, onSelect }: {
 
 export default function AiServicesOverview() {
   const [range, setRange] = useState<MonthRange>(() => completedPreset("6", AS_OF));
-  const [scope, setScope] = useState<ScopeFilter>("verified");
   const [doc, setDoc] = useState<string>("all");
   const [status, setStatus] = useState<string>("all");
-  const [search, setSearch] = useState("");
   const [drill, setDrill] = useState<Drill>(null);
   const [companyDrill, setCompanyDrill] = useState(false);
   const [infoKey, setInfoKey] = useState<string | null>(null);
@@ -338,11 +323,11 @@ export default function AiServicesOverview() {
   const [loading, setLoading] = useState(true);
   
   const [error, setError] = useState(false);
-  const [debouncedSearch,setDebouncedSearch]=useState("");
-  useEffect(() => { const t=setTimeout(()=>setDebouncedSearch(search),260);return ()=>clearTimeout(t); },[search]);
+  // The dashboard is intentionally customer-only. The server report and all
+  // drill-down evidence receive exactly this verified-customer scope.
   const liveScope: LiveScope = useMemo(() => ({
-    from,to,scopes:scopesForFilter(scope),doc,status,search:debouncedSearch,
-  }),[from,to,scope,doc,status,debouncedSearch]);
+    from, to, scopes:["verified_customer"], doc, status, search:"",
+  }),[from,to,doc,status]);
   useEffect(() => {
     const abort = new AbortController();
     const q = new URLSearchParams({from:liveScope.from,to:liveScope.to,doc:liveScope.doc,status:liveScope.status,search:liveScope.search});
@@ -367,7 +352,7 @@ export default function AiServicesOverview() {
   const exceptions=data?.exceptions??{missingCost:0,missingLatency:0,missingPages:0,missingDocType:0,missingLegibility:0,partialBreakdown:0,testScope:0,unverifiedScope:0};
 
   const coverage = kpis.knownCostCount + " known of " + kpis.bills + " bills";
-  const scopeNote = scope === "verified" ? "Verified customers" : "Includes " + SCOPE_FILTER_LABELS[scope].toLowerCase() + " — non-production scope";
+  const scopeNote = "Verified customers";
 
   const openDrill = (title: string, subtitle: string, kind = "all", value = "", overrideScope?: LiveScope) => {
     if (!loading) setDrill({ title, subtitle, kind, value, overrideScope });
@@ -375,10 +360,8 @@ export default function AiServicesOverview() {
 
   const reset = () => {
     setRange(completedPreset("6", AS_OF));
-    setScope("verified");
     setDoc("all");
     setStatus("all");
-    setSearch("");
     setDrill(null);
   };
 
@@ -412,26 +395,13 @@ export default function AiServicesOverview() {
           </div>
           <div className="ed-filters ai-filter-toolbar" role="group" aria-label="Bill extraction filters">
             <ProductMonthRangePicker value={range} asOf={CURRENT_MONTH} firstMonth={(data?.firstMonth ?? "2026-08")} onApply={next => { setRange(next); setDrill(null); }} />
-            <div className="ai-scope-control">
-              <CompactMenuSelect value={scope} options={SCOPE_OPTIONS} onChange={v => { setScope(v); setDrill(null); }} ariaLabel="Customer scope" />
-              <MetricsInfoButton label="Explain customer scope" onClick={() => setInfoKey("scope")} />
-            </div>
             <CompactMenuSelect value={doc} options={DOC_OPTIONS} onChange={v => { setDoc(v); setDrill(null); }} ariaLabel="Document type" />
             <CompactMenuSelect value={status} options={STATUS_OPTIONS} onChange={v => { setStatus(v); setDrill(null); }} ariaLabel="Review status" />
-            <label className="ai-search-field">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-              <input type="search" placeholder="Search company or prediction" aria-label="Search company or prediction"
-                value={search} onChange={event => setSearch(event.target.value)} />
-            </label>
             <button type="button" className="ui-control ai-reset" onClick={reset}>Reset</button>
           </div>
         </div>
 
         {loading?<p role="status" className="ai-scope-warning">Updating verified reporting for the selected filters…</p>:null}
-        {scope !== "verified" ? (
-          <p className="ai-scope-warning" role="note">{scopeNote}. These KPIs include non-verified populations and are not customer-only metrics.</p>
-        ) : null}
-
         <section className="metrics-grid-section ed-section ai-kpi-section" aria-label="Bill extraction key metrics">
           <SectionHead title="At a glance" question="Volume, economics, performance and review outcomes" />
           <div className="ed-quality-kpis ed-kpi-grid po-kpis" role="group" aria-label="Bill extraction key metrics">
@@ -576,9 +546,6 @@ export default function AiServicesOverview() {
           </Surface>
         </section>
 
-        <footer className="ed-preview-note">
-          <strong>Live Supabase reporting.</strong> Source loaded {data.asOf ? new Date(data.asOf).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"}) + " IST" : "at an unknown time"}. Cost figures are displayed in USD at product direction, with no currency conversion; the source has not independently confirmed its currency. Missing cost and latency are excluded from their respective calculations. Latency units remain unverified. Deleted status is not proof of an accounting loss.
-        </footer>
       </main>
 
       {companyDrill ? (

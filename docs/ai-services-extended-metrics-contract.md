@@ -6,8 +6,10 @@ Base metric source: `aia_infra.bill_extraction_reporting_v1`; extended analytics
 `public.read_ai_bill_analytics_v1`, restricted to `service_role`, migration
 `20261102030122_aia_bill_analytics_read_v1_20261102.sql`.
 
-Default scope: verified customer companies only. Additional scopes deliberately include
-test or unmatched companies; the header help dialog explains all four choices.
+Default scope: verified customer companies only. The dashboard no longer
+displays a customer-classification dropdown or header search input, so normal
+interactive reporting always uses `verified_customer`. The underlying read-only
+RPC remains capable of explicitly scoped internal access for diagnostic use.
 
 ## Metrics and precise meaning
 
@@ -37,7 +39,8 @@ through KPI cards, cost charts, company tables, investigation evidence and detai
 **No conversion is performed.** The upstream numeric source has no currency column,
 comment, or authoritative exporter specification, so the display denomination remains
 a product-direction assumption, **not independently verified source metadata**.
-A visible dashboard footer and modal explanations retain this limitation.
+The explanatory dashboard footer is hidden for the cleaner UI. Metric-definition
+dialogs and internal data-contract documentation retain this limitation.
 Please obtain an explicit producer confirmation before interpreting reported amounts as
 reconciled financial USD spend or promoting this change to production.
 
