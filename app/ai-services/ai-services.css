@@ -490,3 +490,29 @@
   .ai-investigation-foot .rd-pagination { flex: 1; justify-content: flex-end; }
   .ai-record-detail { grid-template-columns: 1fr; gap: 8px; padding: 0 12px 12px; }
 }
+
+/* Additional operating KPI rows reuse Product's existing 3-up card grid. */
+.ai-shell .ai-scope-control { display:flex;align-items:center;gap:2px;min-width:0; }
+.ai-shell .ai-scope-control .metrics-info-trigger { flex:0 0 27px; width:27px;height:27px; }
+.ai-shell .ai-scope-control .compact-menu-select { min-width:155px; }
+.ai-daily-chart {display:flex;gap:4px;align-items:stretch;min-height:195px;padding:9px 22px 20px;overflow-x:auto;}
+.ai-daily-column {min-width:12px;flex:1 1 0;display:grid;grid-template-rows:16px 126px 18px;gap:5px;align-items:end;text-align:center;border:0;background:transparent;padding:0;cursor:pointer;}
+.ai-daily-track {display:flex;height:126px;background:#f4f7fc;align-items:end;border-radius:3px 3px 0 0;overflow:hidden;}
+.ai-daily-track i {display:block;width:100%;background:linear-gradient(#aac2f4,#638ee6);border-radius:3px 3px 0 0;}
+.ai-daily-column:hover .ai-daily-track i,.ai-daily-column:focus-visible .ai-daily-track i {filter:saturate(1.4) brightness(.95);}
+.ai-daily-column:focus-visible {outline:2px solid #7296e7;outline-offset:2px;}
+.ai-daily-value,.ai-daily-label {font-size:9px;color:#788ba6;white-space:nowrap;overflow:hidden;}
+.ai-economics-table-wrap {padding:2px 21px 15px;min-width:0;overflow-x:auto;}
+.ai-economics-table {width:100%;min-width:520px;font-variant-numeric:tabular-nums;}
+.ai-economics-table td,.ai-economics-table th {padding:12px 9px;text-align:left;white-space:nowrap;}
+.ai-economics-table td:first-child {min-width:104px;}
+.ai-economics-table td:last-child {white-space:normal;min-width:112px;}
+.ai-coverage-second {display:block;margin-top:3px;color:#8a9ab0;font-size:10px;}
+.ai-table-caveat {margin:8px 0 3px;color:#8696ab;font-size:10px;line-height:1.6;}
+@media(max-width:750px) {
+ .ai-shell .ai-scope-control {width:100%;}
+ .ai-shell .ai-scope-control .compact-menu-select {flex:1 1 auto;}
+ .ai-daily-column {min-width:15px;}
+ .ai-daily-chart {padding-inline:12px;}
+ .ai-economics-table-wrap {padding-inline:12px;}
+}

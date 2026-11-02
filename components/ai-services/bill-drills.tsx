@@ -4,6 +4,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { BillExtractionRecord } from "../../lib/ai-services/types";
 import type { LiveScope, LiveEvidence, LiveDashboard } from "../../lib/ai-services/live";
+import { formatRecordedCost } from "../../lib/ai-services/format";
 
 const number = new Intl.NumberFormat("en-IN");
 const PAGE_SIZE = 10;
@@ -15,7 +16,7 @@ function fmtDate(iso: string) {
     day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Kolkata",
   }).format(date);
 }
-function fmtCost(v: number | null) { return v === null ? "Unknown" : v.toFixed(3) + " units"; }
+function fmtCost(v: number | null) { return formatRecordedCost(v, "unverified", 3); }
 function fmtLatency(v: number | null) { return v === null ? "Unknown" : number.format(v) + " units"; }
 function fmtStatus(value: string | null) {
   return value === "needs_review" ? "Needs review" : value === "reviewed" ? "Reviewed" : value === "deleted" ? "Deleted" : "Unknown";
@@ -249,7 +250,7 @@ export function BillCompaniesModal({ companies, scope, bills, coverage, period, 
           <thead><tr><th scope="col">Company</th><th scope="col">Bills</th><th scope="col">Known cost</th><th scope="col">Cost coverage</th><th scope="col">Needs review</th></tr></thead>
           <tbody>{shown.slice((safePage-1)*PAGE_SIZE,safePage*PAGE_SIZE).map(c=><tr className="ed-investigation-row" key={c.companyUuid}>
             <td><button type="button" className="ed-investigation-key" onClick={()=>setSelected({id:c.companyUuid,name:c.companyName})}>{c.companyName} <span aria-hidden="true">↗</span></button></td>
-            <td>{number.format(c.bills)}</td><td>{c.knownCost.toFixed(1)} units</td>
+            <td>{number.format(c.bills)}</td><td>{formatRecordedCost(c.knownCost,"unverified",1)}</td>
             <td>{number.format(c.bills-c.unknownCostCount)} / {number.format(c.bills)}</td>
             <td>{number.format(c.needsReview)}</td>
           </tr>)}{shown.length===0?<tr className="ed-investigation-row"><td colSpan={5} className="ai-records-empty">No companies match this search.</td></tr>:null}</tbody>

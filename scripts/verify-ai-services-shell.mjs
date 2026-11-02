@@ -23,6 +23,7 @@ for (const path of [
   "lib/ai-services/live.ts",
   "app/api/ai-services/report/route.ts",
   "supabase/migrations/20261101185848_ai_bill_extraction_live_read_v1_20261102.sql",
+  "supabase/migrations/20261102030122_aia_bill_analytics_read_v1_20261102.sql",
   "scripts/generate-ai-bill-demo.mjs",
   "testdata/ai-bill-extraction-demo.json",
 ]) {
@@ -56,6 +57,12 @@ assert.match(live,/ensureBillReportingAccess\(\)/, "server RPC must enforce prod
 assert.doesNotMatch(live,/export function ensurePreviewOnly/, "old blanket production block removed");
 assert.match(live,/SUPABASE_SERVICE_ROLE_KEY/);
 assert.match(live,/ai_bill_extraction_live_v1/);
+assert.match(live,/read_ai_bill_analytics_v1/, "new analytics RPC used server-side");
+assert.match(live,/analytics\.selected\?\.predictions !== value\.kpis\.bills/, "extended analytics reconcile with base KPIs");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/Cost × latency by document type/, "document cost and latency diagnostics");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/Cost and latency by page band/, "page band diagnostics");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/AI spend MTD/, "month-to-date KPI");
+assert.match(read("components/ai-services/ai-services-overview.tsx"),/Documents deleted/, "deleted status KPI");
 assert.match(live,/knownCostCount \+ value.kpis.unknownCostCount/);
 const rpc=read("supabase/migrations/20261101185848_ai_bill_extraction_live_read_v1_20261102.sql");
 assert.match(rpc,/SECURITY DEFINER/);
