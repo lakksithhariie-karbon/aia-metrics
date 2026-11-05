@@ -1,6 +1,6 @@
 # Domain schema mapping, Phase 0 inventory (2026-11-05)
 
-**Status as of 2026-11-05:** `"03_infra_schema"` is now the canonical AWS cost source. The AWS Edge Function (v6), daily cron and public read-only RPC reference its two physical tables. Pre-cutover copies remain in `aia_infra` for rollback. Other numbered schemas remain empty; no other domains have been migrated.
+**Status as of 2026-11-05:** `"03_infra_schema"` is the canonical AWS cost source. `"04_model_schema"` now hosts RLS-protected physical mirror tables and the live AI reporting view. Both AI Services reporting RPCs read the new Model view, while the external ingestion process still writes to the legacy physical `aia_infra` tables via PostgreSQL UPSERTs. AFTER triggers mirror every insert/update/delete. Product and Engineering schemas remain empty; no other domains migrated.
 
 **Strict exclusions:** `feature_olap` and `product_source` are teammate-owned. Do not rename, move, migrate, restructure, grant/revoke privileges, modify or drop any objects in either schema. Preserve functions that depend on them.
 
@@ -22,7 +22,7 @@ Keep `public` as a minimal, backwards-compatible Data API/RPC entrypoint, even a
 
 ## Complete existing-table to future-schema map
 
-Source paths are current for the in-scope objects. Infra is already canonical in the new schema; other targets are **future intended locations**. The seven excluded teammate-owned tables appear for reference only and must not be changed.
+Source paths are current for the in-scope objects. Infra is canonical in the new schema; Model reporting is cut over to live mirrored physical tables; Product and Engineering targets are **future intended locations**. The seven excluded teammate-owned tables appear for reference only and must not be changed.
 
 | Current table | Target schema | Planned action |
 | --- | --- | --- |
@@ -113,8 +113,8 @@ Source paths are current for the in-scope objects. Infra is already canonical in
 | `jira.worklogs` | `02_engineering_schema` | Phase 3, migrate together with Jira logic |
 | `"03_infra_schema".aws_cost_sync_runs` | `03_infra_schema` | DONE: canonical; original `aia_infra` backup retained |
 | `"03_infra_schema".aws_costs` | `03_infra_schema` | DONE: canonical; original `aia_infra` backup retained |
-| `aia_infra.bill_costs` | `04_model_schema` | Phase 2, bill extraction reporting compatibility |
-| `aia_infra.companies` | `04_model_schema` | Phase 2, bill extraction reporting compatibility |
+| `"04_model_schema".bill_costs` | `04_model_schema` | DONE: live mirrored physical table. Legacy `aia_infra.bill_costs` remains the canonical external WRITE path |
+| `"04_model_schema".companies` | `04_model_schema` | DONE: live mirrored physical table. Legacy `aia_infra.companies` remains the canonical external WRITE path |
 
 ## Regular views (44)
 
@@ -163,7 +163,7 @@ Source paths are current for the in-scope objects. Infra is already canonical in
 | `jira.v_sub_module_counts` | `02_engineering_schema` |
 | `jira.v_sync_status` | `02_engineering_schema` |
 | `jira.v_wip_by_status` | `02_engineering_schema` |
-| `aia_infra.bill_extraction_reporting_v1` | `04_model_schema` |
+| `"04_model_schema".bill_extraction_reporting_v1` | `04_model_schema` (live reader; old view retained for rollback) |
 
 ## Materialized views (4)
 
@@ -177,7 +177,7 @@ Source paths are current for the in-scope objects. Infra is already canonical in
 ## Dependency-safe migration sequence (future work)
 
 1. **Infra (cutover complete 2026-11-05):** AWS Edge Function v6, cron guard, RPC and RLS-protected tables now use `"03_infra_schema"`. Original `aia_infra` tables remain as rollback copies. Dashboard and writer connection smoke checks passed; **confirm next scheduled daily run before retiring backups**.
-2. **Model:** Update extraction reporting view and all private service-role RPCs, including references to `public.company_directory`, before moving `aia_infra.bill_costs` / `aia_infra.companies`.
+2. **Model (read cutover complete 2026-11-05):** Physical mirrors in `"04_model_schema"` (37,737 bill rows and 705 company rows at migration), new private reporting view and both service-role RPC readers are LIVE. The external UPSERT writer still targets legacy `aia_infra` tables, with triggers mirroring changes. 10/10 read-only security/data checks pass. Before a full writer cutover, coordinate with the external producer, update its schema references and verify fresh ingestion. Do not drop legacy tables or mirror triggers yet.
 3. **Engineering:** Inventory Jira synchronization jobs, stored routines, regular/materialized view dependencies and all external consumers. Change objects in dependency order; rename legacy `jira.v_module_counts` to a truthful `mv_` name only after callers are updated.
 4. **Product:** Inventory stored functions, server requests, retention refreshes, RLS policies and publication generations. Source `public` (32 tables) + `metrics_private` (26) are the main move set. The 7 zero-row `product_source` tables are **explicitly excluded and teammate-owned**. Preserve their pipeline and any references to them; no migration or cleanup is authorized for that schema.
 
