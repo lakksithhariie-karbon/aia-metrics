@@ -1,18 +1,18 @@
 # Domain schema mapping, Phase 0 inventory (2026-11-05)
 
-**Status:** Four numbered destination schemas created in Supabase as PRIVATE EMPTY namespaces. **No existing objects migrated.** All original tables, views, functions, permissions, triggers, policies, and scheduled jobs remain in their original locations.
+**Status as of 2026-11-05:** `"03_infra_schema"` is now the canonical AWS cost source. The AWS Edge Function (v6), daily cron and public read-only RPC reference its two physical tables. Pre-cutover copies remain in `aia_infra` for rollback. Other numbered schemas remain empty; no other domains have been migrated.
 
-**Strict exclusion:** `feature_olap` belongs to another teammate. Do not rename, move, query, grant, revoke, migrate, restructure, modify or drop anything in that schema or its objects. In particular, do not change functions or jobs that depend on it without a separate teammate-reviewed scope.
+**Strict exclusions:** `feature_olap` and `product_source` are teammate-owned. Do not rename, move, migrate, restructure, grant/revoke privileges, modify or drop any objects in either schema. Preserve functions that depend on them.
 
 ## Destination ownership
 
 | Target schema | Scope | Planned tables | Regular views | Materialized views |
 | --- | --- | ---: | ---: | ---: |
-| `"01_product_schema"` | Customer, product usage, retention, product reporting/caches | 65 (7 empty source tables on hold) | 4 | 0 |
+| `"01_product_schema"` | Customer, product usage, retention, product reporting/caches | 58 (excludes 7 teammate-owned source tables) | 4 | 0 |
 | `"02_engineering_schema"` | Jira ingestion, engineering metrics, sprint dashboards | 20 | 39 | 4 |
 | `"03_infra_schema"` | AWS costs, sync run lineage | 2 | 0 | 0 |
 | `"04_model_schema"` | AI bill extraction costs, customer mapping, inference reporting | 2 | 1 | 0 |
-| **Total** | | **89** | **44** | **4** |
+| **Total in scope** | | **82** | **44** | **4** |
 
 Note: `public.company_directory` remains the shared customer directory, planned under Product. `aia_infra.companies` is the separate AI extraction/model company mapping and belongs under Model.
 
@@ -22,7 +22,7 @@ Keep `public` as a minimal, backwards-compatible Data API/RPC entrypoint, even a
 
 ## Complete existing-table to future-schema map
 
-All source paths below are current. The target is a **future desired location**, not a completed move.
+Source paths are current for the in-scope objects. Infra is already canonical in the new schema; other targets are **future intended locations**. The seven excluded teammate-owned tables appear for reference only and must not be changed.
 
 | Current table | Target schema | Planned action |
 | --- | --- | --- |
@@ -84,13 +84,13 @@ All source paths below are current. The target is a **future desired location**,
 | `metrics_private.retention_kpi_meta_v2` | `01_product_schema` | Phase 4, retain private data access |
 | `metrics_private.retention_month_core_v2` | `01_product_schema` | Phase 4, retain private data access |
 | `metrics_private.retention_week_core_v2` | `01_product_schema` | Phase 4, retain private data access |
-| `product_source.companies` | `01_product_schema` | HOLD: empty, decide keep vs retire |
-| `product_source.membership_history` | `01_product_schema` | HOLD: empty, decide keep vs retire |
-| `product_source.memberships` | `01_product_schema` | HOLD: empty, decide keep vs retire |
-| `product_source.sync_runs` | `01_product_schema` | HOLD: empty, decide keep vs retire |
-| `product_source.user_emails` | `01_product_schema` | HOLD: empty, decide keep vs retire |
-| `product_source.users` | `01_product_schema` | HOLD: empty, decide keep vs retire |
-| `product_source.voucher_feature_usage` | `01_product_schema` | HOLD: empty, decide keep vs retire |
+| `product_source.companies` | EXCLUDED | Teammate-owned. Do not move or alter |
+| `product_source.membership_history` | EXCLUDED | Teammate-owned. Do not move or alter |
+| `product_source.memberships` | EXCLUDED | Teammate-owned. Do not move or alter |
+| `product_source.sync_runs` | EXCLUDED | Teammate-owned. Do not move or alter |
+| `product_source.user_emails` | EXCLUDED | Teammate-owned. Do not move or alter |
+| `product_source.users` | EXCLUDED | Teammate-owned. Do not move or alter |
+| `product_source.voucher_feature_usage` | EXCLUDED | Teammate-owned. Do not move or alter |
 | `jira.attachments_meta` | `02_engineering_schema` | Phase 3, migrate together with Jira logic |
 | `jira.comments` | `02_engineering_schema` | Phase 3, migrate together with Jira logic |
 | `jira.dashboard_snapshot_refresh_state` | `02_engineering_schema` | Phase 3, migrate together with Jira logic |
@@ -111,8 +111,8 @@ All source paths below are current. The target is a **future desired location**,
 | `jira.sync_log` | `02_engineering_schema` | Phase 3, migrate together with Jira logic |
 | `jira.users` | `02_engineering_schema` | Phase 3, migrate together with Jira logic |
 | `jira.worklogs` | `02_engineering_schema` | Phase 3, migrate together with Jira logic |
-| `aia_infra.aws_cost_sync_runs` | `03_infra_schema` | Phase 1, Edge Function + cron compatibility |
-| `aia_infra.aws_costs` | `03_infra_schema` | Phase 1, Edge Function + cron compatibility |
+| `"03_infra_schema".aws_cost_sync_runs` | `03_infra_schema` | DONE: canonical; original `aia_infra` backup retained |
+| `"03_infra_schema".aws_costs` | `03_infra_schema` | DONE: canonical; original `aia_infra` backup retained |
 | `aia_infra.bill_costs` | `04_model_schema` | Phase 2, bill extraction reporting compatibility |
 | `aia_infra.companies` | `04_model_schema` | Phase 2, bill extraction reporting compatibility |
 
@@ -176,10 +176,10 @@ All source paths below are current. The target is a **future desired location**,
 
 ## Dependency-safe migration sequence (future work)
 
-1. **Infra:** Update the AWS Cost Explorer Edge Function, cron job, private reporting RPC, permissions, and references together. Verify daily job and dashboard totals before moving `aia_infra.aws_costs` and `aws_cost_sync_runs`.
+1. **Infra (cutover complete 2026-11-05):** AWS Edge Function v6, cron guard, RPC and RLS-protected tables now use `"03_infra_schema"`. Original `aia_infra` tables remain as rollback copies. Dashboard and writer connection smoke checks passed; **confirm next scheduled daily run before retiring backups**.
 2. **Model:** Update extraction reporting view and all private service-role RPCs, including references to `public.company_directory`, before moving `aia_infra.bill_costs` / `aia_infra.companies`.
 3. **Engineering:** Inventory Jira synchronization jobs, stored routines, regular/materialized view dependencies and all external consumers. Change objects in dependency order; rename legacy `jira.v_module_counts` to a truthful `mv_` name only after callers are updated.
-4. **Product:** Inventory stored functions, server requests, retention refreshes, RLS policies and publication generations. Source `public` (32 tables) + `metrics_private` (26) are the main move set. The 7 zero-row `product_source` tables are **on hold** until their pipeline and the `public.product_analytics_features` dependency are resolved.
+4. **Product:** Inventory stored functions, server requests, retention refreshes, RLS policies and publication generations. Source `public` (32 tables) + `metrics_private` (26) are the main move set. The 7 zero-row `product_source` tables are **explicitly excluded and teammate-owned**. Preserve their pipeline and any references to them; no migration or cleanup is authorized for that schema.
 
 **Existing dependencies:** Live inspection identified 161 `public` functions containing explicitly qualified references to current schemas. PostgreSQL SQL routines, application fetches, Edge Functions and cron SQL may not be safely rewritten by simple `ALTER TABLE ... SET SCHEMA`. Update and regression-test these consumers first. Preserve previous RLS and least-privilege role grants on all migrated tables.
 
