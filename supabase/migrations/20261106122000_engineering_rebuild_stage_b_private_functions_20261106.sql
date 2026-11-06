@@ -1,6 +1,7 @@
 -- Engineering rebuild stage B: independent private SQL functions.
 -- Never modify existing jira, public RPCs, teammate-owned schemas or jobs.
--- Copy the exact audited 35 function definitions, replacing only the owning
+-- Copy the first 33 audited functions (two return a view rowtype, recreated
+-- after Stage C creates the view). Replace only the owning
 -- schema and qualified references. Views may not exist until stage C; therefore
 -- defer function body validation while compiling and test in a NEW transaction.
 SET LOCAL lock_timeout = '8s';
@@ -24,7 +25,9 @@ BEGIN
  IF (SELECT count(*) FROM pg_class WHERE relnamespace=v_target AND relkind='r')<>20
  THEN RAISE EXCEPTION 'Run verified physical-table stage A first'; END IF;
  FOR rec IN SELECT p.oid,p.proname FROM pg_proc p
-            WHERE p.pronamespace=v_old ORDER BY p.proname,p.oid
+            WHERE p.pronamespace=v_old
+              AND p.proname NOT IN ('get_filtered_drilldown','get_filtered_drilldown_submodule')
+            ORDER BY p.proname,p.oid
  LOOP
    ddl:=pg_get_functiondef(rec.oid);
    IF position('CREATE OR REPLACE FUNCTION jira.' IN ddl)<>1
@@ -37,7 +40,7 @@ BEGIN
    EXECUTE ddl;
    n:=n+1;
  END LOOP;
- IF n<>35 OR (SELECT count(*) FROM pg_proc WHERE pronamespace=v_target)<>35
+ IF n<>33 OR (SELECT count(*) FROM pg_proc WHERE pronamespace=v_target)<>33
  THEN RAISE EXCEPTION 'Engineering function cloning incomplete'; END IF;
 
  -- The routines remain inaccessible via public/anon/authenticated/service_role.
