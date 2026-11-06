@@ -37,3 +37,9 @@ Strict exclusions: do not change, rename, truncate or delete original `public` a
 ## Engineering status
 
 6 PM IST (12:30 UTC) post-cutover Jira sync completed successfully: Engineering sync ID 150, 20 issues, 45 history records, zero errors. Five-minute watchdog published snapshot ID 150 at 12:35 UTC.
+
+## Confirmed live writer dependency, do not naively redirect
+
+The active `sync-incremental` Supabase Edge Function (v11) uses the Supabase service-role client and the existing public RPCs `try_begin_incremental`, `upsert_mixpanel_events_detail`, `finish_incremental`, `refresh_retention`, `prune_product_snapshots`, `prune_funnel_members`, and `prune_overview_members`. It reads `public.export_watermarks` directly. This is **not** a single-schema SQL writer like Engineering's `jira-sync`, so changing a PostgreSQL `search_path` alone cannot switch Product ingestion. The production function, public RPC contracts, and existing hourly cron must remain unchanged until a deliberately designed and tested shadow writer path exists.
+
+Supabase Security Advisor emits 58 informational `rls_enabled_no_policy` findings for new shadow tables. This is deliberate deny-by-default protection during staging: all 58 enable RLS and anon/authenticated have neither schema usage nor table SELECT. Reference: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy.
