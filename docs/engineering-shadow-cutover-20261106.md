@@ -36,3 +36,7 @@ Rebuild the Engineering/Jira reporting domain in `"02_engineering_schema"` along
 Restore the two cron writer commands to the existing `jira-sync` function, restore the watchdog to `jira.refresh_metric_cohorts()`, and restore all four public RPC definitions from the pre-cutover backup. Keep `jira` data available and replay any missed Jira sync before serving old data. Never delete either schema during validation.
 
 The earlier schema rename draft PR #37 is blocked and must not be merged as the migration strategy.
+
+## Verified rollback artifact
+
+The exact original four public RPC definitions and all three scheduled job commands were captured before cutover in `supabase/rollback/20261106_engineering_shadow_restore_public_rpc_and_cron.sql`. This rollback updates only routing and restores the pre-cutover behavior. The source `jira` schema and original `jira-sync` Edge Function are never removed. After any rollback, run/replay the original incremental sync and validate snapshot freshness.
