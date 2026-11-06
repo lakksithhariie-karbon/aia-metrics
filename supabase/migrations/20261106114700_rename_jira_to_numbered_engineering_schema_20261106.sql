@@ -15,6 +15,8 @@ DECLARE
   v_cron_cmd text;
   v_ddl text;
   v_initial_search_path text;
+  v_initial_function_check text;
+  v_probe boolean;
   rec record;
   v_table_names text;
   v_count bigint;
@@ -76,6 +78,11 @@ BEGIN
   EXECUTE 'ALTER SCHEMA jira RENAME TO "02_engineering_schema"';
   v_initial_search_path:=current_setting('search_path');
   PERFORM set_config('search_path','"02_engineering_schema",public,pg_catalog',true);
+  v_initial_function_check:=current_setting('check_function_bodies');
+  -- PostgreSQL validates interdependent SQL functions before other definitions
+  -- have been rewritten; pg_dump uses this same session-scoped mechanism.
+  -- Re-enable validation and run live helper/view checks before committing.
+  PERFORM set_config('check_function_bodies','off',true);
 
   -- Function bodies are stored SQL text. Only their explicit jira qualifier
   -- and SET search_path clause need to change after the schema rename.
@@ -97,10 +104,23 @@ BEGIN
     EXECUTE v_ddl;
     v_rewritten:=v_rewritten+1;
   END LOOP;
+  PERFORM set_config('check_function_bodies',v_initial_function_check,true);
   PERFORM set_config('search_path',v_initial_search_path,true);
   IF v_rewritten<>39 THEN
     RAISE EXCEPTION 'Expected 39 rewritten functions; got %',v_rewritten;
   END IF;
+
+  -- Runtime probes after re-enabling body validation. They compile new SQL
+  -- bodies, traverse an actual moved helper and a live reporting view.
+  EXECUTE $SELECT "02_engineering_schema"._filter_cohort_row_matches(
+     '{"sprint_id":123}'::jsonb,ARRAY[123]::integer[],NULL::text,
+     NULL::text[],NULL::text[],true,false,false,false)$ INTO v_probe;
+  IF v_probe IS DISTINCT FROM true
+  THEN RAISE EXCEPTION 'Numbered-schema nested helper probe failed'; END IF;
+  EXECUTE 'SELECT EXISTS (SELECT 1 FROM "02_engineering_schema".v_dashboard_sprints LIMIT 1)'
+    INTO v_probe;
+  IF v_probe IS DISTINCT FROM true
+  THEN RAISE EXCEPTION 'Numbered-schema sprint reporting view failed'; END IF;
 
   -- External Postgres writer role, independent of Edge Function connection
   -- defaults, receives the new fully quoted numbered schema path.
