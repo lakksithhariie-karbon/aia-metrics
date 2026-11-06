@@ -48,8 +48,8 @@ BEGIN
     INSERT INTO engineering_rollback_counts VALUES(rec.oid,rec.relname,v_rows);
   END LOOP;
 
-  ALTER SCHEMA "02_engineering_schema" RENAME TO jira;
-  ALTER SCHEMA "02_engineering_schema_reserved_20261106" RENAME TO "02_engineering_schema";
+  EXECUTE 'ALTER SCHEMA "02_engineering_schema" RENAME TO jira';
+  EXECUTE 'ALTER SCHEMA "02_engineering_schema_reserved_20261106" RENAME TO "02_engineering_schema"';
 
   FOR rec IN
     SELECT p.oid,p.proname,n.nspname
@@ -68,7 +68,7 @@ BEGIN
   END LOOP;
   IF v_count<>39 THEN RAISE EXCEPTION 'Expected 39 function definitions, got %',v_count; END IF;
 
-  ALTER ROLE jira_sync SET search_path = 'jira, public';
+  EXECUTE 'ALTER ROLE jira_sync SET search_path = ''jira, public''';
 
   SELECT jobid,command INTO STRICT v_cron_id,v_cmd
     FROM cron.job WHERE jobname='jira-dashboard-snapshot-watchdog'
