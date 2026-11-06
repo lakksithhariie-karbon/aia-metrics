@@ -652,7 +652,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const sql = postgres(Deno.env.get("APP_DB_URL")!, {
     ssl: "require",
     prepare: false, // safe under Supabase pgbouncer transaction pooling
-    connection: { search_path: "jira,public" }, // migration: unqualified SQL resolves in jira, then public
+    connection: { search_path: '"02_engineering_schema",jira,public' }, // forward/backward compatible with pre-cutover jira and renamed Engineering schema
     max: 5,
     idle_timeout: 20,
   });
