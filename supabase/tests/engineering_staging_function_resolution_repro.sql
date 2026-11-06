@@ -46,7 +46,7 @@ BEGIN
  original_check:=current_setting('check_function_bodies');
  PERFORM set_config('search_path','"02_engineering_resolution_repro",public,pg_catalog',true);
  PERFORM set_config('check_function_bodies','off',true);
- SELECT pg_get_functiondef('\"02_engineering_resolution_repro\"._filter_cohort_row_matches(jsonb,integer[])'::regprocedure)
+ SELECT pg_get_functiondef('"02_engineering_resolution_repro"._filter_cohort_row_matches(jsonb,integer[])'::regprocedure)
  INTO f;
  f:=replace(f,
    'SET search_path TO ''engineering_resolution_repro_legacy'',',
