@@ -17,6 +17,8 @@ DECLARE
   v_cmd text;
   v_ddl text;
   v_initial_search_path text;
+  v_original_function_check text;
+  v_probe boolean;
   v_rows bigint;
   v_count integer := 0;
   v_tables text;
@@ -53,6 +55,8 @@ BEGIN
   EXECUTE 'ALTER SCHEMA "02_engineering_schema_reserved_20261106" RENAME TO "02_engineering_schema"';
   v_initial_search_path:=current_setting('search_path');
   PERFORM set_config('search_path','jira,public,pg_catalog',true);
+  v_original_function_check:=current_setting('check_function_bodies');
+  PERFORM set_config('check_function_bodies','off',true);
 
   FOR rec IN
     SELECT p.oid,p.proname,n.nspname
@@ -69,7 +73,13 @@ BEGIN
     EXECUTE v_ddl;
     v_count:=v_count+1;
   END LOOP;
+  PERFORM set_config('check_function_bodies',v_original_function_check,true);
   PERFORM set_config('search_path',v_initial_search_path,true);
+  EXECUTE $SELECT jira._filter_cohort_row_matches(
+    '{"sprint_id":123}'::jsonb,ARRAY[123]::integer[],NULL::text,
+    NULL::text[],NULL::text[],true,false,false,false)$ INTO v_probe;
+  IF v_probe IS DISTINCT FROM true
+  THEN RAISE EXCEPTION 'Restored Jira helper probe failed'; END IF;
   IF v_count<>39 THEN RAISE EXCEPTION 'Expected 39 function definitions, got %',v_count; END IF;
 
   EXECUTE 'ALTER ROLE jira_sync SET search_path = ''jira, public''';
