@@ -43,3 +43,16 @@ Strict exclusions: do not change, rename, truncate or delete original `public` a
 The active `sync-incremental` Supabase Edge Function (v11) uses the Supabase service-role client and the existing public RPCs `try_begin_incremental`, `upsert_mixpanel_events_detail`, `finish_incremental`, `refresh_retention`, `prune_product_snapshots`, `prune_funnel_members`, and `prune_overview_members`. It reads `public.export_watermarks` directly. This is **not** a single-schema SQL writer like Engineering's `jira-sync`, so changing a PostgreSQL `search_path` alone cannot switch Product ingestion. The production function, public RPC contracts, and existing hourly cron must remain unchanged until a deliberately designed and tested shadow writer path exists.
 
 Supabase Security Advisor emits 58 informational `rls_enabled_no_policy` findings for new shadow tables. This is deliberate deny-by-default protection during staging: all 58 enable RLS and anon/authenticated have neither schema usage nor table SELECT. Reference: https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy.
+
+## Stage E: reporting readers, 6 November 2026
+
+The database has applied three independent Stage E migrations:
+- `20261106133857_product_shadow_stage_e1_private_leaf_read_rpcs`
+- `20261106134434_product_shadow_stage_e2_private_companies_read_rpcs`
+- `20261106135113_product_shadow_stage_e3_retention_and_companies_read_rpcs`
+
+All 27 staged functions are in the private Product schema. Production read functions remain unchanged. All new functions are private, with no anonymous, authenticated, or service-role EXECUTE grant.
+
+Validation: 13 initial Product/Funnel/Overview calls exactly matched production; 5 of 6 Companies calls matched exactly, with the sixth (Companies context) matching after order-independent comparison of all 4,479 directory JSON items. Five of seven subsequent Retention/Companies calls matched exactly. `read_retention_dashboard_v5_base` and `read_retention_dashboard_v5` still differ because the staged Retention data is behind live source refreshes. Source Retention V4 watermark: 13:05 UTC. Staged copy: 12:05 UTC. Do not cut over until a live-sync mechanism and complete parity verification are in place.
+
+The Stage E SQL is currently recorded in the Supabase migration history. The corresponding SQL files must be synchronized into this PR before it can be merged. The PR remains draft.
