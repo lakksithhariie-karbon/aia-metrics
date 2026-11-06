@@ -40,3 +40,14 @@ The earlier schema rename draft PR #37 is blocked and must not be merged as the 
 ## Verified rollback artifact
 
 The exact original four public RPC definitions and all three scheduled job commands were captured before cutover in `supabase/rollback/20261106_engineering_shadow_restore_public_rpc_and_cron.sql`. This rollback updates only routing and restores the pre-cutover behavior. The source `jira` schema and original `jira-sync` Edge Function are never removed. After any rollback, run/replay the original incremental sync and validate snapshot freshness.
+
+## Cutover performed on 2026-11-06
+
+- Transactional preflight and rollback simulation succeeded before live application.
+- Applied migration `20261106100804_engineering_shadow_public_rpc_cron_cutover.sql` in Supabase.
+- All four public read_jira_delivery_* RPCs now read `"02_engineering_schema"`; service_role execution preserved, anon/authenticated denied.
+- Jira cron jobs 8 (02:30 UTC) and 9 (12:30 UTC) now invoke `jira-sync-engineering`, resolving URL from the existing Vault secret without changing the secret itself.
+- Five-minute watchdog job 15 now calls `"02_engineering_schema".refresh_metric_cohorts()`.
+- Existing `jira` schema, original `jira-sync` Edge Function and exact pre-cutover rollback script retained.
+- Shadow canary writer v2 had two successful runs, #148 and #149, both HTTP 200 with zero sync errors. Snapshot #149 published.
+- Current production traffic needs post-switch smoke checks; the next *scheduled* Jira sync must still be observed.
