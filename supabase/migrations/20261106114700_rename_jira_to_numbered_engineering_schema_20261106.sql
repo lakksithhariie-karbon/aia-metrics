@@ -71,8 +71,8 @@ BEGIN
 
   -- The original Jira schema is renamed, not reconstructed. All data objects
   -- retain their original OIDs and foreign key / view dependency graph.
-  ALTER SCHEMA "02_engineering_schema" RENAME TO "02_engineering_schema_reserved_20261106";
-  ALTER SCHEMA jira RENAME TO "02_engineering_schema";
+  EXECUTE 'ALTER SCHEMA "02_engineering_schema" RENAME TO "02_engineering_schema_reserved_20261106"';
+  EXECUTE 'ALTER SCHEMA jira RENAME TO "02_engineering_schema"';
 
   -- Function bodies are stored SQL text. Only their explicit jira qualifier
   -- and SET search_path clause need to change after the schema rename.
@@ -100,7 +100,7 @@ BEGIN
 
   -- External Postgres writer role, independent of Edge Function connection
   -- defaults, receives the new fully quoted numbered schema path.
-  ALTER ROLE jira_sync SET search_path = '"02_engineering_schema", public';
+  EXECUTE 'ALTER ROLE jira_sync SET search_path = ''"02_engineering_schema", public''';
 
   SELECT jobid,command INTO STRICT v_cron_id,v_cron_cmd
     FROM cron.job WHERE jobname='jira-dashboard-snapshot-watchdog'
