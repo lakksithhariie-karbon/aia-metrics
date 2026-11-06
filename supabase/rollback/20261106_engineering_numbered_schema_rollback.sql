@@ -16,6 +16,7 @@ DECLARE
   v_cron_id bigint;
   v_cmd text;
   v_ddl text;
+  v_initial_search_path text;
   v_rows bigint;
   v_count integer := 0;
   v_tables text;
@@ -50,6 +51,8 @@ BEGIN
 
   EXECUTE 'ALTER SCHEMA "02_engineering_schema" RENAME TO jira';
   EXECUTE 'ALTER SCHEMA "02_engineering_schema_reserved_20261106" RENAME TO "02_engineering_schema"';
+  v_initial_search_path:=current_setting('search_path');
+  PERFORM set_config('search_path','jira,public,pg_catalog',true);
 
   FOR rec IN
     SELECT p.oid,p.proname,n.nspname
@@ -66,6 +69,7 @@ BEGIN
     EXECUTE v_ddl;
     v_count:=v_count+1;
   END LOOP;
+  PERFORM set_config('search_path',v_initial_search_path,true);
   IF v_count<>39 THEN RAISE EXCEPTION 'Expected 39 function definitions, got %',v_count; END IF;
 
   EXECUTE 'ALTER ROLE jira_sync SET search_path = ''jira, public''';
