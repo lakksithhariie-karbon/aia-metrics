@@ -112,9 +112,9 @@ BEGIN
 
   -- Runtime probes after re-enabling body validation. They compile new SQL
   -- bodies, traverse an actual moved helper and a live reporting view.
-  EXECUTE $SELECT "02_engineering_schema"._filter_cohort_row_matches(
-     '{"sprint_id":123}'::jsonb,ARRAY[123]::integer[],NULL::text,
-     NULL::text[],NULL::text[],true,false,false,false)$ INTO v_probe;
+  EXECUTE 'SELECT "02_engineering_schema"._filter_cohort_row_matches(
+     ''{"sprint_id":123}''::jsonb,ARRAY[123]::integer[],NULL::text,
+     NULL::text[],NULL::text[],true,false,false,false)' INTO v_probe;
   IF v_probe IS DISTINCT FROM true
   THEN RAISE EXCEPTION 'Numbered-schema nested helper probe failed'; END IF;
   EXECUTE 'SELECT EXISTS (SELECT 1 FROM "02_engineering_schema".v_dashboard_sprints LIMIT 1)'
