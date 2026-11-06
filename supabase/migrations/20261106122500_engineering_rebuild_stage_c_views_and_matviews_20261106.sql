@@ -59,6 +59,55 @@ BEGIN
    IF position('jira.' IN view_sql)=0
    THEN RAISE EXCEPTION 'Unexpected view SQL missing original schema: %',rec.relname; END IF;
    view_sql:=replace(view_sql,'jira.','"02_engineering_schema".');
+   -- pg_get_viewdef returns a trailing semicolon for some materializations;
+   -- remove it before appending PostgreSQL's WITH NO DATA clause.
+   view_sql:=regexp_replace(view_sql,';[[:space:]]*
+   IF rec.relkind='v' THEN
+     EXECUTE format('CREATE VIEW "02_engineering_schema".%I AS %s',
+                     rec.relname,view_sql);
+     n_v:=n_v+1;
+   ELSE
+     EXECUTE format('CREATE MATERIALIZED VIEW "02_engineering_schema".%I AS %s WITH NO DATA',
+                     rec.relname,view_sql);
+     n_m:=n_m+1;
+   END IF;
+
+   EXECUTE format('REVOKE ALL ON TABLE "02_engineering_schema".%I FROM PUBLIC,anon,authenticated,service_role,jira_sync,product_metrics_fetcher',
+                  rec.relname);
+   EXECUTE format('GRANT SELECT ON TABLE "02_engineering_schema".%I TO product_metrics_fetcher',
+                  rec.relname);
+
+   SELECT string_agg(attname||':'||format_type(atttypid,atttypmod),'|' ORDER BY attnum)
+     INTO old_columns FROM pg_attribute WHERE attrelid=rec.oid AND attnum>0 AND NOT attisdropped;
+   SELECT string_agg(a.attname||':'||format_type(a.atttypid,a.atttypmod),'|' ORDER BY a.attnum)
+     INTO new_columns FROM pg_attribute a JOIN pg_class c ON c.oid=a.attrelid
+     WHERE c.relnamespace=newns AND c.relname=rec.relname
+       AND a.attnum>0 AND NOT a.attisdropped;
+   IF old_columns IS DISTINCT FROM new_columns
+   THEN RAISE EXCEPTION 'Reporting projection mismatch for %',rec.relname; END IF;
+ END LOOP;
+ IF n_v<>39 OR n_m<>4 THEN
+    RAISE EXCEPTION 'Unexpected view materialization counts: %, %',n_v,n_m; END IF;
+
+ -- Rebuild source materialization indexes, including unique indexes needed
+ -- for future CONCURRENTLY refresh. Definitions are rewritten only in copy.
+ FOR idx IN SELECT i.indexrelid, pg_get_indexdef(i.indexrelid) AS definition
+   FROM pg_index i JOIN pg_class mv ON mv.oid=i.indrelid
+   WHERE mv.relnamespace=oldns AND mv.relkind='m'
+   ORDER BY mv.relname,i.indexrelid
+ LOOP
+   index_sql:=replace(idx.definition,' ON jira.',' ON "02_engineering_schema".');
+   IF index_sql=idx.definition THEN
+     RAISE EXCEPTION 'Matview index does not target Jira schema: %',idx.definition; END IF;
+   EXECUTE index_sql;
+   n_i:=n_i+1;
+ END LOOP;
+ IF n_i<>5 THEN RAISE EXCEPTION 'Unexpected materialized index count: %',n_i; END IF;
+ IF (SELECT count(*) FROM pg_class WHERE relnamespace=newns AND relkind='v')<>39
+   OR (SELECT count(*) FROM pg_class WHERE relnamespace=newns AND relkind='m')<>4
+ THEN RAISE EXCEPTION 'Incomplete new reporting view inventory'; END IF;
+END;
+$views$;,'');
    IF rec.relkind='v' THEN
      EXECUTE format('CREATE VIEW "02_engineering_schema".%I AS %s',
                      rec.relname,view_sql);
