@@ -14,6 +14,7 @@ DECLARE
   v_cron_id bigint;
   v_cron_cmd text;
   v_ddl text;
+  v_initial_search_path text;
   rec record;
   v_table_names text;
   v_count bigint;
@@ -73,6 +74,8 @@ BEGIN
   -- retain their original OIDs and foreign key / view dependency graph.
   EXECUTE 'ALTER SCHEMA "02_engineering_schema" RENAME TO "02_engineering_schema_reserved_20261106"';
   EXECUTE 'ALTER SCHEMA jira RENAME TO "02_engineering_schema"';
+  v_initial_search_path:=current_setting('search_path');
+  PERFORM set_config('search_path','"02_engineering_schema",public,pg_catalog',true);
 
   -- Function bodies are stored SQL text. Only their explicit jira qualifier
   -- and SET search_path clause need to change after the schema rename.
@@ -94,6 +97,7 @@ BEGIN
     EXECUTE v_ddl;
     v_rewritten:=v_rewritten+1;
   END LOOP;
+  PERFORM set_config('search_path',v_initial_search_path,true);
   IF v_rewritten<>39 THEN
     RAISE EXCEPTION 'Expected 39 rewritten functions; got %',v_rewritten;
   END IF;
