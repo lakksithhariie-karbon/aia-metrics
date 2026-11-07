@@ -81,3 +81,24 @@ Before switching any public RPCs:
 5. Only then perform a guarded production cutover, smoke-test Vercel/dashboard routes and actual scheduled ingestion, and retain legacy tables for rollback.
 
 Do not mark Product migration complete or merge this draft PR until these gates pass.
+
+## November 7 continuation: full parity and isolated writer canary
+
+- All 5 large Product tables (`events`, funnel membership, overview membership, retention period drills and retention summary members) passed **full payload equality checks** using primary-key joins and `to_jsonb(source) IS DISTINCT FROM to_jsonb(target)`, with zero missing or mismatched source rows. Counts and primary-key sets matched in both directions. All 53 small Product tables passed full set comparisons, both directions.
+- Product shadow reconciliation cron #47 succeeded at **2026-11-07 17:28 UTC**. Stage H8 now makes the scheduled job fail explicitly unless sealed snapshots, event sync and all 39 hot-table merges return `status: ok`, eliminating false-positive "1 row" scheduled successes. The independent daily full cron #48 is active but its first scheduled run remains unverified.
+- Three service-role-only public **read canary** endpoints were created for Overview, Retention and Companies, and each matched the existing production RPC via simulated `service_role` SQL calls. No public Product reader was replaced or redirected.
+- The exact deployed `sync-incremental` v11 (four files), 47 public Product writer/helper function definitions, 105 original Product read functions, both Product Analytics reader definitions and the eight original cron job commands are now backed up in this PR.
+- Stage J1 created eight `public.shadow_product_*` service-role-only bridge functions to reach the private ingestion functions. These were tested through `SET LOCAL ROLE service_role`, including an empty batch upsert, watermark read and transaction-scoped lease/finish operations; `anon` and `authenticated` have no EXECUTE grants.
+- The **isolated** JWT-verified Edge function `sync-incremental-product-shadow` v1 was deployed from the exact source now committed to this PR. The existing `sync-incremental` v11 deployment and hourly cron job #7 remain unchanged. The shadow Edge function has no scheduled traffic.
+- An authenticated live Edge invocation was **not completed**. The attempted one-off request using Vault-managed service credentials was blocked by a safety check; do not attempt to work around credential controls. Only database-level bridge and writer canaries have been exercised.
+- The first shadow `refresh_retention` transaction-scoped canary timed out: 14 private helper functions had `SET search_path` that prevented inlining of immutable SQL helpers over ~553k events. Stage I3 restored inlining of ten private `SECURITY INVOKER` immutable SQL helpers (which are not granted to public roles). Retesting the same isolated shadow refresh **succeeded**, yielding 3,253 client companies, 626 activations and 324 retention cells. The test transaction was rolled back; no production rows were changed.
+- Supabase Security Advisor showed no new warnings for the scoped public writer bridge functions. Remaining private helper search-path advisories must be weighed against SQL inlining performance; all affected helpers remain inaccessible to anon/authenticated/service_role.
+
+### Still blocking production cutover
+
+1. Confirm the new shadow Edge Function can process a correctly authenticated end-to-end ingestion request without altering the live writer. Do not inject or bypass credentials in ad hoc SQL.
+2. Decide and test how the original `companies-dashboard` Edge Function and Model reporting use `public.company_directory` after canonical writer ownership changes. The deployed Companies Edge function matches the repo source; no function invocation was observed in the previous 24-hour log sample, but that is not proof of zero external consumers.
+3. Implement and validate final real-time writer ownership and legacy compatibility (or a transparent read fallback). A 30-minute shadow mirror is currently sufficient for parity sampling but **not** evidence that live read cutover can preserve freshness.
+4. Verify first scheduled daily full reconciliation, complete production API/Next.js/Edge canaries, then only cut over with rollback and latency gates.
+
+The PR must remain draft; do not report Product cutover as complete.
