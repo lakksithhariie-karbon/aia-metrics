@@ -19,7 +19,7 @@ BEGIN
  SELECT * INTO c FROM public.shadow_product_refresh_retention('"01_product_schema".events');
  IF c.n_client < 3000 OR c.n_activation < 500 OR c.n_cells < 100
  THEN RAISE EXCEPTION 'Shadow refresh unexpected results %',row_to_json(c);END IF;
- PERFORM public.shadow_product_finish_incremental(true,DATE '2026-11-07','shadow_service_role_transaction_canary_rolled_back');
+ PERFORM public.shadow_product_finish_incremental(true,(SELECT last_success_date FROM public.shadow_product_watermark()),'shadow_service_role_transaction_canary_rolled_back');
  SELECT public.shadow_product_prune_product_snapshots(1000) INTO n_snap;
  SELECT public.shadow_product_prune_funnel_members(1000) INTO n_fun;
  SELECT public.shadow_product_prune_overview_members(1000) INTO n_over;
