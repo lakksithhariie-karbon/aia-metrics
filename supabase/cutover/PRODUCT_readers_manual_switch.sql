@@ -20,7 +20,7 @@ BEGIN
   THEN RAISE EXCEPTION 'Product cutover requires explicit operator preflight and verified canonical shadow writer';END IF;
   SELECT count(*) INTO num_readers FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
   WHERE n.nspname='01_product_schema' AND p.proname LIKE 'read_%';
-  IF num_readers<>105 THEN RAISE EXCEPTION 'Expected 105 private reader functions, got %',num_readers;END IF;
+  IF num_readers<>106 THEN RAISE EXCEPTION 'Expected 105 migrated readers plus one private cache reader, got %',num_readers;END IF;
   IF (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
        WHERE n.nspname='01_product_schema' AND c.relkind='r' AND c.relrowsecurity)<>58
   THEN RAISE EXCEPTION 'Shadow RLS inventory mismatch';END IF;
