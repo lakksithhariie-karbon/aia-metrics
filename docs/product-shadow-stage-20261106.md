@@ -56,3 +56,28 @@ All 27 staged functions are in the private Product schema. Production read funct
 Validation: 13 initial Product/Funnel/Overview calls exactly matched production; 5 of 6 Companies calls matched exactly, with the sixth (Companies context) matching after order-independent comparison of all 4,479 directory JSON items. Five of seven subsequent Retention/Companies calls matched exactly. `read_retention_dashboard_v5_base` and `read_retention_dashboard_v5` still differ because the staged Retention data is behind live source refreshes. Source Retention V4 watermark: 13:05 UTC. Staged copy: 12:05 UTC. Do not cut over until a live-sync mechanism and complete parity verification are in place.
 
 The Stage E SQL is currently recorded in the Supabase migration history. The corresponding SQL files must be synchronized into this PR before it can be merged. The PR remains draft.
+
+## November 7 reconciliation and reader coverage
+
+- The private numbered schema has 58 tables, four views and 178 functions. The public production reporting functions and original 8 Product cron jobs are not redirected.
+- All **105** Product `public.read_*` RPCs have shadow equivalents. Two additional Product Analytics RPCs, `product_analytics_usage` and `product_analytics_lifecycle`, are privately cloned. `product_analytics_features` and `product_analytics_olap` retain references to teammate-owned `product_source` and `feature_olap`, so they remain deliberately untouched.
+- `read_retention_dashboard_v5`, Overview main charts/KPIs/Adoption/Workflow/Friction, Companies grids and populated drilldowns passed representative source/shadow parity checks. Product Analytics Lifecycle matched exactly; Product Analytics Usage data in `pairs` and `rows` matched exactly, while only `meta.source` differs, from `public.events` to `"01_product_schema".events`.
+- H1-H4 created a guarded, independent legacy-to-shadow reconciler. The 30-minute `product-shadow-reconcile-2838` cron job ID 47 ran successfully; a manual call returned `status=ok` for both generations and hot data.
+- H5/H6 replaced all private cache `TRUNCATE` operations with guarded row-level MERGE/DELETE on 39 small tables, including formerly omitted `retention_cells`. This prevents table-wide read locks during later reader cutover. Incremental and full manual reconciliation calls passed.
+- H7 schedules a separate daily full event reconciliation at 03:08 UTC to capture property edits older than seven days. Its first scheduled execution is not yet independently confirmed.
+- Post-reconciliation, **all 53 small tables matched row-for-row, both directions**, including non-key column content. The remaining 5 large tables had matching row counts and full primary-key sets. This is not yet a full byte-for-byte payload comparison for all five.
+- 12 rollback SQL files preserve the precise original definitions of all 105 public Product reader RPCs; separate rollback files preserve original Usage/Lifecycle analytics RPCs and all 8 existing Product cron commands.
+- All target functions remain inaccessible to `anon`, `authenticated`, and `service_role`; no permissions were extended to teammate-owned schemas.
+
+### Production cutover is NOT complete
+
+The original Supabase Edge function `sync-incremental` still writes via public RPCs, and `companies-dashboard` still directly reads `public` tables through the Data API. Model reporting also joins `public.company_directory`. The new shadow reflects legacy ingestion on a schedule, rather than being the canonical writer.
+
+Before switching any public RPCs:
+1. Confirm the post-upgrade cron job independently after its next scheduled run and record the function's actual `status`, not just `cron.job_run_details.status`.
+2. Complete populated-data edge-case parity on Companies, Retention, historical and Product Analytics drilldowns and validate the payload of large generations.
+3. Decide the final ingestion ownership and direct-Data-API client routing, including the `companies-dashboard` Edge function. Do not leave any untracked dependency on legacy public Product data.
+4. Dry-run the public proxy migration with the captured restore files and check all function signatures and EXECUTE grants.
+5. Only then perform a guarded production cutover, smoke-test Vercel/dashboard routes and actual scheduled ingestion, and retain legacy tables for rollback.
+
+Do not mark Product migration complete or merge this draft PR until these gates pass.
