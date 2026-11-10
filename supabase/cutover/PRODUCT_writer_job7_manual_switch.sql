@@ -43,6 +43,48 @@ BEGIN
  ) THEN
   RAISE EXCEPTION 'Product writer cutover blocked: current Overview snapshots are missing, stale, or mixed-generation';
  END IF;
+  -- Canonical readership must never switch onto a stale/unpublished Product
+  -- generation. This page manifest must list all five CURRENT sealed kinds
+  -- at the exact completed private-ingestion generation. Unlike a simple
+  -- row-count check, it rejects mixed or missing snapshots and memberships.
+  IF NOT EXISTS (
+    SELECT 1
+    FROM "01_product_schema".product_publication_current pc
+    JOIN "01_product_schema".product_publication pub
+      ON pub.publication_id=pc.publication_id
+    JOIN "01_product_schema".product_publication_member m
+      ON m.publication_id=pc.publication_id
+    JOIN "01_product_schema".product_snapshot_current c
+      ON c.kind=m.kind AND c.scope_key=m.scope_key
+         AND c.snapshot_id=m.snapshot_id
+    JOIN "01_product_schema".product_snapshot s
+      ON s.id=m.snapshot_id
+    JOIN "01_product_schema".export_watermarks w
+      ON w.job_name='incremental' AND w.status='ok'
+    WHERE pc.page='overview' AND pub.page='overview'
+      AND pub.source_watermark_at=w.last_success_at
+      AND pub.n_events=(SELECT count(*) FROM "01_product_schema".events)
+      AND w.last_success_at>=now()-interval '24 hours'
+    GROUP BY pc.publication_id,pub.source_watermark_at
+    HAVING count(*)=5 AND count(DISTINCT m.kind)=5
+      AND bool_and(
+        m.scope_key='' AND
+        m.kind=ANY(ARRAY['overview','overview-funnel',
+          'overview-feature-usage','overview-module-mix','overview-friction'])
+        AND s.source_status='ok'
+        AND s.source_watermark_at=pub.source_watermark_at
+        AND s.n_events=pub.n_events
+        AND CASE WHEN m.kind='overview-funnel'
+          THEN EXISTS(SELECT 1 FROM "01_product_schema".product_funnel_seal z
+             WHERE z.snapshot_id=m.snapshot_id)
+          ELSE EXISTS(SELECT 1 FROM "01_product_schema".product_overview_seal z
+             WHERE z.snapshot_id=m.snapshot_id)
+        END
+      )
+  ) THEN
+    RAISE EXCEPTION 'Product cutover blocked: canonical Overview page manifest is stale, missing, unsealed or mixed-generation';
+  END IF;
+
  SELECT command INTO original_cmd FROM cron.job
  WHERE jobid=7 AND jobname='sync-incremental-hourly' AND active FOR UPDATE;
  IF original_cmd IS NULL OR
