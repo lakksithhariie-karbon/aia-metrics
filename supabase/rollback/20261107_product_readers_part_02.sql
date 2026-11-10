@@ -469,6 +469,7 @@ CREATE OR REPLACE FUNCTION public.read_companies_usage(p_from date DEFAULT NULL:
  LANGUAGE sql
  STABLE SECURITY DEFINER
  SET search_path TO 'public'
+ SET statement_timeout TO '20s'
 AS $function$
   WITH bounds AS (
     SELECT (p_from::text || 'T00:00:00+05:30')::timestamptz AS start_at,
