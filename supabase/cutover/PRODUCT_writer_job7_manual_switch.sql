@@ -15,6 +15,34 @@ BEGIN
  OR current_setting('aia_product_cutover.dashboard_http_passed',true) IS DISTINCT FROM 'yes'
  OR current_setting('aia_product_cutover.rollback_rehearsed',true) IS DISTINCT FROM 'yes'
  THEN RAISE EXCEPTION 'Product writer switch requires authenticated canary, dashboard HTTP check, rollback and operator approval'; END IF;
+ -- Fail closed on the actual source generation used by the live Overview
+ -- dashboard. The five selected snapshots must be complete, agree on one
+ -- generation, and be no more than 24 hours behind the healthy source.
+ -- This is independent of the legacy Retention snapshot archive; the live
+ -- Retention v5 path uses metrics_private.retention_dashboard_meta_v4.
+ IF NOT EXISTS (
+  SELECT 1 FROM public.export_watermarks w
+  CROSS JOIN LATERAL (
+   SELECT count(s.id) AS matched,
+          count(DISTINCT s.source_watermark_at) AS watermark_versions,
+          count(DISTINCT s.n_events) AS event_count_versions,
+          coalesce(bool_and(s.source_status='ok'
+             AND s.source_watermark_at>=w.last_success_at-interval '24 hours'
+             AND s.source_watermark_at<=w.last_success_at),false) AS fresh
+   FROM (VALUES ('overview'),('overview-funnel'),('overview-feature-usage'),
+                ('overview-module-mix'),('overview-friction')) required(kind)
+   LEFT JOIN public.product_snapshot_current c
+     ON c.kind=required.kind AND c.scope_key=''
+   LEFT JOIN public.product_snapshot s ON s.id=c.snapshot_id
+  ) snapshots
+  WHERE w.job_name='incremental' AND w.status='ok'
+    AND snapshots.matched=5
+    AND snapshots.watermark_versions=1
+    AND snapshots.event_count_versions=1
+    AND snapshots.fresh
+ ) THEN
+  RAISE EXCEPTION 'Product writer cutover blocked: current Overview snapshots are missing, stale, or mixed-generation';
+ END IF;
  SELECT command INTO original_cmd FROM cron.job
  WHERE jobid=7 AND jobname='sync-incremental-hourly' AND active FOR UPDATE;
  IF original_cmd IS NULL OR
