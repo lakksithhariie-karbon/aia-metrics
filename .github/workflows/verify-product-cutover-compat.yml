@@ -5,6 +5,10 @@ on:
     paths:
       - 'supabase/functions/companies-dashboard/**'
       - 'scripts/verify-companies-drill-contract.mjs'
+      - 'scripts/verify-product-cutover-safety.mjs'
+      - 'supabase/cutover/**'
+      - 'supabase/migrations/*product_overview*'
+      - 'app/api/product-overview-source-canary/**'
       - '.github/workflows/verify-product-cutover-compat.yml'
       - 'package.json'
       - 'package-lock.json'
@@ -44,3 +48,14 @@ jobs:
             fi
           done
           echo "Both Companies Edge functions correctly deny anonymous HTTP requests."
+
+  cutover-safety:
+    name: Validate staged Product cutover gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/verify-product-cutover-safety.mjs
