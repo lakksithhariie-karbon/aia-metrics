@@ -36,7 +36,7 @@ RETURNS TABLE(event text, subtype text, status text, events bigint, items bigint
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_companies_breakdown"("p_company_id","p_module","p_user_key","p_from","p_to");
+  SELECT * FROM "01_product_schema"."read_companies_breakdown"("p_company_id","p_module","p_user_key","p_from","p_to");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_companies_context"()
@@ -44,7 +44,7 @@ RETURNS TABLE(clients jsonb, directory jsonb, data_start date, data_end date, wa
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_companies_context"();
+  SELECT * FROM "01_product_schema"."read_companies_context"();
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_companies_identity_fast"(p_company_id text, p_user_key text DEFAULT NULL::text)
@@ -60,7 +60,7 @@ RETURNS TABLE(event text, subtype text, status text, events bigint, items bigint
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp SET statement_timeout TO '5s'
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_companies_lifecycle_breakdown"("p_company_id","p_module","p_user_key","p_usage_week");
+  SELECT * FROM "01_product_schema"."read_companies_lifecycle_breakdown"("p_company_id","p_module","p_user_key","p_usage_week");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_companies_lifecycle_identity"(p_company_id text, p_user_key text DEFAULT NULL::text)
@@ -84,7 +84,7 @@ RETURNS TABLE(event text, subtype text, status text, events bigint, items bigint
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp SET statement_timeout TO '5s'
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_companies_monthly_breakdown"("p_company_id","p_module","p_user_key","p_usage_month");
+  SELECT * FROM "01_product_schema"."read_companies_monthly_breakdown"("p_company_id","p_module","p_user_key","p_usage_month");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_companies_monthly_breakdown_v2"(p_company_id text, p_module text, p_user_key text DEFAULT NULL::text, p_usage_month date DEFAULT NULL::date)
@@ -92,7 +92,7 @@ RETURNS TABLE(event text, subtype text, status text, events bigint, items bigint
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp SET statement_timeout TO '5s'
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_companies_monthly_breakdown_v2"("p_company_id","p_module","p_user_key","p_usage_month");
+  SELECT * FROM "01_product_schema"."read_companies_monthly_breakdown_v2"("p_company_id","p_module","p_user_key","p_usage_month");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_companies_monthly_grid"(p_from date DEFAULT NULL::date, p_to date DEFAULT NULL::date, p_query text DEFAULT ''::text, p_usage text DEFAULT 'all'::text, p_integration text DEFAULT 'all'::text, p_sort text DEFAULT 'integration_month'::text, p_direction text DEFAULT 'desc'::text, p_page integer DEFAULT 1, p_page_size integer DEFAULT 5000)
@@ -148,7 +148,7 @@ RETURNS TABLE(company_id text, user_key text, module text, events bigint, items 
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_companies_usage"("p_from","p_to");
+  SELECT * FROM "01_product_schema"."read_companies_usage"("p_from","p_to");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_company_names"(p_company_id text DEFAULT NULL::text)
@@ -156,7 +156,7 @@ RETURNS TABLE(company_id text, event_name text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_company_names"("p_company_id");
+  SELECT * FROM "01_product_schema"."read_company_names"("p_company_id");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_company_users"()
@@ -164,7 +164,7 @@ RETURNS TABLE(company_id text, user_key text, user_email text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_company_users"();
+  SELECT * FROM "01_product_schema"."read_company_users"();
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_current_funnel_snapshot"()
@@ -172,7 +172,7 @@ RETURNS TABLE(snapshot_id bigint, published_at timestamp with time zone, source_
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_current_funnel_snapshot"();
+  SELECT * FROM "01_product_schema"."read_current_funnel_snapshot"();
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_current_overview_snapshot"(p_kind text)
@@ -180,7 +180,7 @@ RETURNS TABLE(snapshot_id bigint, published_at timestamp with time zone, source_
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_current_overview_snapshot"("p_kind");
+  SELECT * FROM "01_product_schema"."read_current_overview_snapshot"("p_kind");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_funnel_drill_header"(p_snapshot_id bigint, p_node_key text, p_tab text)
@@ -188,7 +188,7 @@ RETURNS TABLE(header jsonb)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_funnel_drill_header"("p_snapshot_id","p_node_key","p_tab");
+  SELECT * FROM "01_product_schema"."read_funnel_drill_header"("p_snapshot_id","p_node_key","p_tab");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_funnel_generation"(p_snapshot_id bigint)
@@ -196,7 +196,7 @@ RETURNS TABLE(snapshot_id bigint, kind text, scope_key text, published_at timest
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_funnel_generation"("p_snapshot_id");
+  SELECT * FROM "01_product_schema"."read_funnel_generation"("p_snapshot_id");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_funnel_members"(p_snapshot_id bigint, p_node_key text, p_tab text, p_limit integer, p_offset integer)
@@ -204,7 +204,7 @@ RETURNS TABLE(card jsonb, total_count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_funnel_members"("p_snapshot_id","p_node_key","p_tab","p_limit","p_offset");
+  SELECT * FROM "01_product_schema"."read_funnel_members"("p_snapshot_id","p_node_key","p_tab","p_limit","p_offset");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_funnel_tab_counts"(p_snapshot_id bigint, p_node_key text)
@@ -212,7 +212,7 @@ RETURNS TABLE(tab text, member_count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_funnel_tab_counts"("p_snapshot_id","p_node_key");
+  SELECT * FROM "01_product_schema"."read_funnel_tab_counts"("p_snapshot_id","p_node_key");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_overview_active_chart_company_v1"(p_snapshot_id bigint, p_kind text, p_key text, p_segment text, p_user_id text, p_company_id text)
@@ -428,7 +428,7 @@ RETURNS TABLE(header jsonb)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_overview_drill_header"("p_snapshot_id","p_kind","p_drill_key","p_tab");
+  SELECT * FROM "01_product_schema"."read_overview_drill_header"("p_snapshot_id","p_kind","p_drill_key","p_tab");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_overview_friction_companies_v1"(p_snapshot_id bigint, p_issue_key text, p_period text DEFAULT 'current'::text, p_segment text DEFAULT 'affected'::text, p_query text DEFAULT ''::text, p_page integer DEFAULT 1, p_page_size integer DEFAULT 8)
@@ -532,7 +532,7 @@ RETURNS TABLE(snapshot_id bigint, kind text, scope_key text, published_at timest
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_overview_generation"("p_snapshot_id");
+  SELECT * FROM "01_product_schema"."read_overview_generation"("p_snapshot_id");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_overview_history_id_v1"(p_as_of date)
@@ -580,7 +580,7 @@ RETURNS TABLE(card jsonb, total_count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_overview_members"("p_snapshot_id","p_kind","p_drill_key","p_tab","p_limit","p_offset");
+  SELECT * FROM "01_product_schema"."read_overview_members"("p_snapshot_id","p_kind","p_drill_key","p_tab","p_limit","p_offset");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_overview_tab_counts"(p_snapshot_id bigint, p_kind text, p_drill_key text)
@@ -588,7 +588,7 @@ RETURNS TABLE(tab text, member_count bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_overview_tab_counts"("p_snapshot_id","p_kind","p_drill_key");
+  SELECT * FROM "01_product_schema"."read_overview_tab_counts"("p_snapshot_id","p_kind","p_drill_key");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_overview_workflow_charts_v1"()
@@ -708,7 +708,7 @@ RETURNS TABLE(publication_id bigint, kind text, scope_key text, snapshot_id bigi
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_product_page"("p_page");
+  SELECT * FROM "01_product_schema"."read_product_page"("p_page");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_product_snapshot"(p_kind text, p_scope_key text)
@@ -716,7 +716,7 @@ RETURNS TABLE(snapshot_id bigint, payload jsonb, published_at timestamp with tim
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_product_snapshot"("p_kind","p_scope_key");
+  SELECT * FROM "01_product_schema"."read_product_snapshot"("p_kind","p_scope_key");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_product_snapshot_with_generation"(p_kind text, p_scope_key text)
@@ -724,7 +724,7 @@ RETURNS TABLE(snapshot_id bigint, payload jsonb, published_at timestamp with tim
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO pg_catalog, pg_temp
 AS $product_proxy$
-  SELECT * "01_product_schema"."read_product_snapshot_with_generation"("p_kind","p_scope_key");
+  SELECT * FROM "01_product_schema"."read_product_snapshot_with_generation"("p_kind","p_scope_key");
 $product_proxy$;
 
 CREATE OR REPLACE FUNCTION public."read_retention_activation_company_detail_v1"(p_company_id text)
