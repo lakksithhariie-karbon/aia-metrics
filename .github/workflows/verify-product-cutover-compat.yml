@@ -34,11 +34,13 @@ jobs:
       - run: npm run test:companies-drill
       - name: Isolated Companies Edge rejects missing Vercel OIDC
         run: |
-          code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
-            -X POST 'https://hdgbmcerogqfocyxdnpw.supabase.co/functions/v1/companies-dashboard-product-canary' \
-            -H 'Content-Type: application/json' --data '{"action":"list"}')
-          if [ "$code" != 401 ]; then
-            echo "Expected HTTP 401 from isolated Companies Edge, got $code"
-            exit 1
-          fi
-          echo "Isolated Companies Edge correctly rejects anonymous HTTP callers."
+          for function in companies-dashboard-product-canary companies-dashboard; do
+            code=$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+              -X POST "https://hdgbmcerogqfocyxdnpw.supabase.co/functions/v1/$function" \
+              -H 'Content-Type: application/json' --data '{"action":"list"}')
+            if [ "$code" != 401 ]; then
+              echo "Expected HTTP 401 from $function, got $code"
+              exit 1
+            fi
+          done
+          echo "Both Companies Edge functions correctly deny anonymous HTTP requests."
