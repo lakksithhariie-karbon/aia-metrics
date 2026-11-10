@@ -82,8 +82,7 @@ SELECT jsonb_build_object(
  )
 )
 FROM published p CROSS JOIN pop;
-$function$
-
+$function$;
 REVOKE ALL ON FUNCTION "01_product_schema".build_overview_active_charts_source_v1(timestamptz,timestamptz)
  FROM PUBLIC,anon,authenticated;
 GRANT EXECUTE ON FUNCTION "01_product_schema".build_overview_active_charts_source_v1(timestamptz,timestamptz)
