@@ -1,0 +1,34 @@
+name: Product Cutover Compatibility
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/companies-dashboard/**'
+      - 'scripts/verify-companies-drill-contract.mjs'
+      - '.github/workflows/verify-product-cutover-compat.yml'
+      - 'package.json'
+      - 'package-lock.json'
+  push:
+    branches:
+      - 'product/numbered-schema-shadow-20261106'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  companies-edge:
+    name: Compile Companies Edge and preserve UI contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:edge
+      - run: npm run test:companies-drill
