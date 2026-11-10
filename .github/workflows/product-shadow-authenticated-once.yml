@@ -1,0 +1,55 @@
+name: Authenticated Product Shadow Canary (one-shot)
+
+on:
+  # Explicit rerun from GitHub Actions is also supported when workflow is available.
+  workflow_dispatch:
+  # First-run dispatch without GitHub workflow-dispatch API access. Restricted to
+  # this exact file and exact initial commit message; unrelated pushes cannot rerun.
+  push:
+    branches:
+      - product/numbered-schema-shadow-20261106
+    paths:
+      - .github/workflows/product-shadow-authenticated-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: isolated-product-shadow-canary
+  cancel-in-progress: false
+
+jobs:
+  authenticated-shadow:
+    name: Verify isolated Edge writer, then preserve legacy watermark
+    if: >-
+      github.repository == 'lakksithhariie-karbon/aia-metrics' &&
+      github.ref == 'refs/heads/product/numbered-schema-shadow-20261106' &&
+      (github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'push' && github.event.head_commit.message == 'chore: run isolated Product shadow canary once'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    environment: product-shadow-canary
+    steps:
+      - name: Checkout trusted in-repository test script
+        uses: actions/checkout@v4
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify secret availability without printing values
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRODUCT_SHADOW_CANARY_SECRET: ${{ secrets.PRODUCT_SHADOW_CANARY_SECRET }}
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then echo "Missing SUPABASE_URL in the product-shadow-canary environment"; exit 1; fi
+          if [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then echo "Missing SUPABASE_SERVICE_ROLE_KEY in the product-shadow-canary environment"; exit 1; fi
+          if [ -z "$PRODUCT_SHADOW_CANARY_SECRET" ]; then echo "Missing PRODUCT_SHADOW_CANARY_SECRET in the product-shadow-canary environment"; exit 1; fi
+          echo "All three required environment secrets are present."
+      - name: Invoke authenticated shadow Edge canary
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          PRODUCT_SHADOW_CANARY_SECRET: ${{ secrets.PRODUCT_SHADOW_CANARY_SECRET }}
+          PRODUCT_SHADOW_CANARY_APPROVED: 'yes'
+        run: node scripts/product-shadow-authenticated-canary.mjs
