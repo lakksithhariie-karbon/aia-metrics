@@ -15,7 +15,7 @@ assert.equal(new Set(names).size,names.length,"Reader wrappers must be unique");
 assert.match(readers,/FUNCTION public\."read_companies_usage"\([\s\S]*?SET statement_timeout TO '20s'[\s\S]*?\$product_proxy\$;/,
   "The Companies usage reader must retain its live 20-second timeout");
 assert.match(legacyReaderRestore,
- /FUNCTION public\.read_companies_usage\([\s\S]*?SET statement_timeout TO '20s'[\s\S]*?\$function\$;/,
+ /FUNCTION public\.read_companies_usage\([\s\S]*?SET statement_timeout TO '20s'[\s\S]*?\$function\$\s*;/,
  "Reader rollback must also retain the 20-second Companies timeout");
 for(const [name,sql] of [["writer",writer],["readers",readers]]){
  assert.match(sql,/canonical Overview page manifest is stale, missing, unsealed or mixed-generation/,
