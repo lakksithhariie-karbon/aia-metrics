@@ -14,7 +14,11 @@ WITH published AS MATERIALIZED (
  WHERE p_as_of_at IS NOT NULL AND p_source_watermark_at IS NOT NULL
    AND p_as_of_at >= p_source_watermark_at
 ),
-watermark_at
+qualified AS MATERIALIZED (
+ SELECT DISTINCT e.distinct_id,
+   date_trunc('week',e.event_time AT TIME ZONE 'Asia/Kolkata')::date AS week_start
+ FROM "01_product_schema".events e CROSS JOIN published p
+ WHERE e.event_time<p.as_of_at AND e.ingested_at<=p.source_watermark_at
    AND e.distinct_id IS NOT NULL AND e.distinct_id<>''
    AND e.event_name<>'Accounting Sync'
    AND "01_product_schema".is_core_activity(e.event_name,e.properties)
