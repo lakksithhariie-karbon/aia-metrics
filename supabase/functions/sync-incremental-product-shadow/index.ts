@@ -207,8 +207,14 @@ export async function handler(request: Request): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
     return jsonResponse({ ok: false }, 405);
   }
-  if (!isServiceRoleJwt(request) ||
-      !sameSecret(request.headers.get("x-cron-secret"), Deno.env.get("CRON_SECRET"))) {
+  // Only this isolated shadow function accepts a second, test-only secret.
+  // Production ingestion continues to require CRON_SECRET, unchanged.
+  const scheduled = sameSecret(request.headers.get("x-cron-secret"), Deno.env.get("CRON_SECRET"));
+  const canary = sameSecret(
+    request.headers.get("x-product-shadow-canary-secret"),
+    Deno.env.get("PRODUCT_SHADOW_CANARY_SECRET"),
+  );
+  if (!isServiceRoleJwt(request) || (!scheduled && !canary)) {
     return jsonResponse({ ok: false }, 401);
   }
 
