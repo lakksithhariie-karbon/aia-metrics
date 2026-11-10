@@ -214,7 +214,16 @@ export async function handler(request: Request): Promise<Response> {
     request.headers.get("x-product-shadow-canary-secret"),
     Deno.env.get("PRODUCT_SHADOW_CANARY_SECRET"),
   );
-  if (!isServiceRoleJwt(request) || (!scheduled && !canary)) {
+  const jwtOk = isServiceRoleJwt(request);
+  if (!jwtOk || (!scheduled && !canary)) {
+    // A failed canary is diagnosable to project administrators, without
+    // returning hints to callers or logging any secret, fingerprint, or length.
+    if (jwtOk && request.headers.has("x-product-shadow-canary-secret")) {
+      console.warn("shadow_canary_auth_denied", JSON.stringify({
+        configured: Boolean(Deno.env.get("PRODUCT_SHADOW_CANARY_SECRET")),
+        matched: canary,
+      }));
+    }
     return jsonResponse({ ok: false }, 401);
   }
 
