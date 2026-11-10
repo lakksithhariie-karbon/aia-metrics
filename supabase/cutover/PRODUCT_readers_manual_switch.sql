@@ -146,7 +146,7 @@ $product_proxy$;
 CREATE OR REPLACE FUNCTION public."read_companies_usage"(p_from date DEFAULT NULL::date, p_to date DEFAULT NULL::date)
 RETURNS TABLE(company_id text, user_key text, module text, events bigint, items bigint)
 LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path TO pg_catalog, pg_temp
+SET search_path TO pg_catalog, pg_temp SET statement_timeout TO '20s'
 AS $product_proxy$
   SELECT * FROM "01_product_schema"."read_companies_usage"("p_from","p_to");
 $product_proxy$;
