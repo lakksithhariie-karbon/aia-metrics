@@ -1,4 +1,5 @@
 name: Authenticated Product Shadow Canary (one-shot)
+# One supervised diagnostic retry, with non-sensitive denial logs.
 
 on:
   # Explicit rerun from GitHub Actions is also supported when workflow is available.
