@@ -16,7 +16,7 @@ assert.match(readers,/FUNCTION public\."read_companies_usage"\([\s\S]*?SET state
 for(const [name,sql] of [["writer",writer],["readers",readers]]){
  assert.match(sql,/canonical Overview page manifest is stale, missing, unsealed or mixed-generation/,
   name+" cutover must require a live sealed five-member private Overview manifest");
- assert.match(sql,/public\.product_snapshot_current|private current/i,
+ assert.match(sql,/product_snapshot_current/,
   name+" cutover must remain tied to published snapshot generation");
  assert.match(sql,/aia_product_cutover\.approved/,
   name+" cutover requires explicit operator approval");
