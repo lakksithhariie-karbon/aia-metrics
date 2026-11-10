@@ -337,7 +337,7 @@ async function reconcileDashboardSprintMembership(
       severityFieldsSeen++;
       const sourceValue = issue.fields.customfield_10794 ?? null;
       if (normalizeSeverity(sourceValue) === severityById.get(issue.id)) return [];
-      return [{ issue_id: issue.id, value: sourceValue }];
+      return [{ issue_id: issue.id, severity_value: sourceValue }];
     });
     if (severityCorrections.length > 0) {
       await sql`
