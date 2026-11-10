@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 for (const file of [
   "supabase/functions/jira-sync-engineering/index.ts",
+  "supabase/functions/jira-sync/index.ts",
 ]) {
   const source = readFileSync(new URL("../" + file, import.meta.url), "utf8");
   assert.match(source,
