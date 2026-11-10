@@ -1,5 +1,5 @@
 // Authorized one-shot Edge ingestion smoke test. Run only inside a secured
-// runtime with existing Supabase service JWT and CRON_SECRET. Never log secrets.
+// runtime with Supabase service JWT and PRODUCT_SHADOW_CANARY_SECRET. Never log secrets.
 // No GitHub Actions or cron schedule is added by this file.
 const required = (name) => {
   const value = process.env[name];
@@ -14,7 +14,7 @@ if (url.protocol !== 'https:' || url.hostname !== 'hdgbmcerogqfocyxdnpw.supabase
   throw new Error('Refusing to call a Supabase project other than the verified Product project');
 }
 const jwt = required('SUPABASE_SERVICE_ROLE_KEY');
-const cronSecret = required('CRON_SECRET');
+const shadowCanarySecret = required('PRODUCT_SHADOW_CANARY_SECRET');
 const parts = jwt.split('.');
 if (parts.length !== 3) throw new Error('Service credential must be a legacy service_role JWT');
 let claims;
@@ -57,7 +57,7 @@ const beforeProduction = await publicWatermark();
 const beforeShadow = await shadowWatermark();
 const response = await fetch(`${base}/functions/v1/sync-incremental-product-shadow`, {
   method: 'POST',
-  headers: { ...headers, 'x-cron-secret': cronSecret },
+  headers: { ...headers, 'x-product-shadow-canary-secret': shadowCanarySecret },
   body: '{}',
   signal: AbortSignal.timeout(180000),
 });
