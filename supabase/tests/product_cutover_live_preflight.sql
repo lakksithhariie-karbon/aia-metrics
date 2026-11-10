@@ -1,7 +1,7 @@
 -- READ-ONLY, repeatable Product pre-cutover environment gate.
 -- All *_ok columns must be TRUE, but success here does NOT authorize cutover.
 -- Run payload parity SQL suites, signed Edge canary, and application smoke
--- tests separately. This gate checks DB security, freshness and cron status.
+-- tests separately. This gate checks DB security, raw ingestion, published\n-- snapshot freshness (24h maximum lag), and cron status. Page manifests\n-- are reported separately because consumers may still use per-kind pointers.
 WITH data_counts AS (
  SELECT (SELECT count(*) FROM public.events) source_events,
         (SELECT count(*) FROM "01_product_schema".events) shadow_events,
@@ -33,6 +33,21 @@ WITH data_counts AS (
    WHERE x.jobid=j.jobid ORDER BY start_time DESC LIMIT 1
  ) r ON true
  WHERE j.jobid IN(7,47,48)
+), reporting AS (
+  SELECT count(*) AS required_kinds,
+         count(s.id) AS current_kinds,
+         count(*)=9 AND count(s.id)=9 AND
+           coalesce(bool_and(s.source_status='ok'
+             AND w.status='ok'
+             AND s.source_watermark_at >= w.last_success_at - interval '24 hours'
+             AND s.source_watermark_at <= w.last_success_at),false)
+             AS report_snapshot_fresh_24h_ok
+  FROM (VALUES ('overview'),('overview-funnel'),('overview-feature-usage'),
+        ('overview-module-mix'),('overview-friction'),('retention-summary'),
+        ('retention-heatmap'),('retention-monthly'),('churn-trend')) required(kind)
+  LEFT JOIN public.product_snapshot_current c ON c.kind=required.kind AND c.scope_key=''
+  LEFT JOIN public.product_snapshot s ON s.id=c.snapshot_id
+  LEFT JOIN public.export_watermarks w ON w.job_name='incremental'
 )
 SELECT now() checked_at,
  data_counts.source_events,data_counts.shadow_events,
@@ -45,5 +60,8 @@ SELECT now() checked_at,
  (SELECT active AND status='succeeded' AND start_time > now()-interval '45 minutes'
   FROM jobs WHERE jobid=47) shadow_halfhourly_ok,
  (SELECT active AND status='succeeded' AND start_time > now()-interval '36 hours'
-  FROM jobs WHERE jobid=48) shadow_daily_full_ok
-FROM data_counts CROSS JOIN inventory CROSS JOIN bridges;
+  FROM jobs WHERE jobid=48) shadow_daily_full_ok,
+ reporting.required_kinds, reporting.current_kinds,
+ reporting.report_snapshot_fresh_24h_ok,
+ (SELECT count(*) FROM public.product_publication_current) AS page_manifests_present
+FROM data_counts CROSS JOIN inventory CROSS JOIN bridges CROSS JOIN reporting;
