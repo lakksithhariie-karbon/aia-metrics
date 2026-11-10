@@ -1,0 +1,25 @@
+name: Engineering Jira Integrity
+on:
+  pull_request:
+    paths:
+      - 'supabase/functions/jira-sync*/**'
+      - 'supabase/migrations/*engineering_sprint_upsert*'
+      - 'scripts/verify-jira-sync-severity-fix.mjs'
+      - '.github/workflows/verify-engineering-jira-integrity.yml'
+  push:
+    branches:
+      - 'product/numbered-schema-shadow-20261106'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  jira-source-contract:
+    name: Guard Jira sprint upsert and severity correction
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node scripts/verify-jira-sync-severity-fix.mjs
