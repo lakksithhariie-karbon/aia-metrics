@@ -1,0 +1,41 @@
+-- MANUAL, SHADOW-ONLY WRITER ROUTING, NOT APPLIED.
+-- Changes only the Vault URL *name* referenced by hourly job #7; keeps all
+-- service_role/cron headers in Vault, and leaves original Vault URL unchanged.
+-- The isolated shadow Edge has passed an authenticated one-shot canary.
+-- RUN ONLY in the coordinated maintenance window with reader and cron cutover,
+-- after evidence of fresh snapshot publication and rollback rehearsal.
+BEGIN;
+SET LOCAL lock_timeout='5s';
+SET LOCAL statement_timeout='90s';
+DO $writer$
+DECLARE original_cmd text;
+BEGIN
+ IF current_setting('aia_product_cutover.approved',true) IS DISTINCT FROM 'yes'
+ OR current_setting('aia_product_cutover.authenticated_canary_passed',true) IS DISTINCT FROM 'yes'
+ OR current_setting('aia_product_cutover.dashboard_http_passed',true) IS DISTINCT FROM 'yes'
+ OR current_setting('aia_product_cutover.rollback_rehearsed',true) IS DISTINCT FROM 'yes'
+ THEN RAISE EXCEPTION 'Product writer switch requires authenticated canary, dashboard HTTP check, rollback and operator approval'; END IF;
+ SELECT command INTO original_cmd FROM cron.job
+ WHERE jobid=7 AND jobname='sync-incremental-hourly' AND active FOR UPDATE;
+ IF original_cmd IS NULL OR
+ length(original_cmd)-length(replace(original_cmd,'''sync_incremental_function_url''',''))<>length('''sync_incremental_function_url''')
+ OR original_cmd NOT LIKE '%sync_incremental_service_role%'
+ OR original_cmd NOT LIKE '%sync_incremental_cron%'
+ THEN RAISE EXCEPTION 'Unexpected original cron job command, refuse to reroute';END IF;
+ IF (SELECT status FROM "01_product_schema".export_watermarks
+     WHERE job_name='incremental') IS DISTINCT FROM 'ok'
+ THEN RAISE EXCEPTION 'Shadow writer watermark is not healthy';END IF;
+ IF EXISTS(SELECT 1 FROM public.events p WHERE NOT EXISTS(
+    SELECT 1 FROM "01_product_schema".events s WHERE s.insert_id=p.insert_id))
+ THEN RAISE EXCEPTION 'New Product schema missing legacy events';END IF;
+ IF EXISTS(SELECT 1 FROM vault.secrets WHERE name='product_shadow_canonical_function_url_v1')
+ THEN RAISE EXCEPTION 'Target Vault URL name already exists, operator must audit before rerun';END IF;
+ PERFORM vault.create_secret(
+  'https://hdgbmcerogqfocyxdnpw.supabase.co/functions/v1/sync-incremental-product-shadow',
+  'product_shadow_canonical_function_url_v1',
+  'Isolated Product writer canonical URL; created only at guarded cutover');
+ PERFORM cron.alter_job(7, command := replace(original_cmd,
+   '''sync_incremental_function_url''',
+   '''product_shadow_canonical_function_url_v1'''));
+END $writer$;
+COMMIT;
