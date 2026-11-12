@@ -1,4 +1,5 @@
 name: Authenticated Product Shadow Canary (one-shot)
+# supervised canary invoked 2026-11-12
 # One supervised diagnostic retry, with non-sensitive denial logs.
 
 on:
