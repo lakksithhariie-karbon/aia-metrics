@@ -5,7 +5,7 @@
 DO $$
 DECLARE j cron.job%ROWTYPE;
 BEGIN
-  SELECT * INTO j FROM cron.job WHERE jobid=47 FOR UPDATE;
+  SELECT * INTO j FROM cron.job WHERE jobid=47;
   IF NOT FOUND OR j.jobname IS DISTINCT FROM 'product-shadow-reconcile-2838'
     OR NOT j.active
     OR btrim(j.command) IS DISTINCT FROM
