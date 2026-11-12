@@ -1,8 +1,10 @@
 -- Product shadow source-fidelity audit (Nov 12 2026).
 -- Non-destructive. Full 58-table physical parity remains separately reported by
 -- product_cutover_small_parity_part_{1,2,3}.sql and product_cutover_large_parity.sql.
--- Four tables contain ONLY the three documented Oct 26 unreferenced shadow-only
--- historical generations. Any new/unapproved extra MUST fail.
+-- Strict exact parity now passes after the shadow Edge canary's built-in prune.
+-- Also permit ONLY the three previously documented, unreferenced Oct 26
+-- historical generations if still present (for replay before pruning).
+-- Any other extra MUST fail.
 -- Source rows must match exactly in BOTH values and multiplicity.
 -- Do not use this to override PRODUCT_cutover_go_no_go.sql (Overview still blocked).
 WITH
@@ -82,13 +84,19 @@ checks AS (
  AS no_unapproved_extra_child_rows
 )
 SELECT now() AS checked_utc,checks.*,
- CASE WHEN legacy_events=shadow_events
-           AND source_rows_missing_or_mismatched=0
-           AND shadow_only_generations=3 AND extra_member_rows=10143
-           AND extra_drill_rows=109 AND extra_seal_rows=3
-           AND current_pointers_match
-           AND all_three_archives_verified
-           AND no_unapproved_extra_child_rows
-      THEN 'pass_source_fidelity_with_approved_historical_extras'
-      ELSE 'FAIL_unexplained_source_or_shadow_divergence' END result
+ CASE
+   WHEN legacy_events=shadow_events
+     AND source_rows_missing_or_mismatched=0
+     AND current_pointers_match
+     AND shadow_only_generations=0 AND extra_member_rows=0
+     AND extra_drill_rows=0 AND extra_seal_rows=0
+   THEN 'pass_exact_parity'
+   WHEN legacy_events=shadow_events
+     AND source_rows_missing_or_mismatched=0
+     AND current_pointers_match
+     AND shadow_only_generations=3 AND extra_member_rows=10143
+     AND extra_drill_rows=109 AND extra_seal_rows=3
+     AND all_three_archives_verified AND no_unapproved_extra_child_rows
+   THEN 'pass_source_fidelity_with_approved_historical_extras'
+   ELSE 'FAIL_unexplained_source_or_shadow_divergence' END result
 FROM checks;
