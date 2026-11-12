@@ -3,7 +3,7 @@
 DO $$
 DECLARE j cron.job%ROWTYPE;
 BEGIN
-  SELECT * INTO j FROM cron.job WHERE jobid=47 FOR UPDATE;
+  SELECT * INTO j FROM cron.job WHERE jobid=47;
   IF NOT FOUND OR j.jobname IS DISTINCT FROM 'product-shadow-reconcile-2838'
     OR btrim(j.command) IS DISTINCT FROM
        'SELECT "01_product_schema".assert_product_shadow_sync_v1(false);'
