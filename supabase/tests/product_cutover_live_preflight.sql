@@ -59,7 +59,7 @@ SELECT now() checked_at,
  (source_events=shadow_events AND source_latest IS NOT DISTINCT FROM shadow_latest) events_parity_ok,
  (inventory.shadow_tables=58 AND inventory.shadow_rls=58) private_rls_ok,
  (inventory.private_readers=106 AND inventory.legacy_readers=105) reader_inventory_ok,
- (bridges.count=11 AND bridges.least_privilege_ok) bridge_permissions_ok,
+ (bridges.count=12 AND bridges.least_privilege_ok) bridge_permissions_ok,
  (SELECT active AND status='succeeded' AND start_time > now()-interval '90 minutes'
   FROM jobs WHERE jobid=7) production_hourly_ok,
  (SELECT active AND status='succeeded' AND start_time > now()-interval '45 minutes'
