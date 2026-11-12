@@ -1,5 +1,6 @@
 name: Authenticated Product Shadow Canary (one-shot)
 # supervised canary invoked 2026-11-12
+# supervised replay after restoring shadow reconcile jobs and event-backed card replay
 # One supervised diagnostic retry, with non-sensitive denial logs.
 
 on:
