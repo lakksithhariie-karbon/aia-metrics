@@ -32,9 +32,6 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
   status,
   headers: { "content-type": "application/json", "cache-control": "no-store" },
 });
-const istDay = (value: string) =>
-  new Date(value).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-
 async function verifyVercel(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) throw new Error("missing token");
@@ -46,21 +43,6 @@ async function verifyVercel(request: Request) {
   const jwks = createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks`));
   const { payload } = await jwtVerify(token, jwks, { issuer, audience: AUDIENCE });
   if (payload.project_id !== VERCEL_PROJECT_ID) throw new Error("invalid project");
-}
-
-async function readAll(
-  load: (from: number, to: number) => PromiseLike<{ data: any[] | null; error: any }>,
-  cap = 50_000,
-) {
-  const output: any[] = [];
-  for (let start = 0; start < cap; start += 1000) {
-    const { data, error } = await load(start, start + 999);
-    if (error) throw error;
-    const rows = data ?? [];
-    output.push(...rows);
-    if (rows.length < 1000) break;
-  }
-  return output;
 }
 
 function validSort(value: unknown): SortKey {
@@ -92,45 +74,38 @@ Deno.serve(async (request) => {
       const from = text(body.from) || null;
       const to = text(body.to) || null;
 
-      const [clientRows, directoryRows, usageRows, memberRows, nameRows, boundsRows, watermark] = await Promise.all([
-        readAll((a, b) => supabase.from("client_company").select("company_id").range(a, b), 10_000),
-        readAll((a, b) => supabase.from("company_directory").select("company_uuid,company_name,is_test").range(a, b), 10_000),
+      // Single public reader contract. At cutover, this RPC will point to the
+      // private Product schema without exposing raw tables to the Data API.
+      const [contextResult, usageRows, memberRows, nameRows] = await Promise.all([
+        supabase.rpc("read_companies_context").single(),
         supabase.rpc("read_companies_usage", { p_from: from, p_to: to }),
         supabase.rpc("read_company_users"),
         supabase.rpc("read_company_names", { p_company_id: null }),
-        Promise.all([
-          supabase.from("events").select("event_time").order("event_time", { ascending: true }).limit(1).maybeSingle(),
-          supabase.from("events").select("event_time").order("event_time", { ascending: false }).limit(1).maybeSingle(),
-        ]),
-        supabase.from("export_watermarks").select("last_success_at")
-          .eq("job_name", "incremental").eq("status", "ok").maybeSingle(),
       ]);
+      if (contextResult.error) throw contextResult.error;
       if (usageRows.error) throw usageRows.error;
       if (memberRows.error) throw memberRows.error;
       if (nameRows.error) throw nameRows.error;
-      const dataStart = boundsRows[0].data?.event_time ? istDay(boundsRows[0].data.event_time) : null;
-      const dataEnd = boundsRows[1].data?.event_time ? istDay(boundsRows[1].data.event_time) : null;
+
+      const context = contextResult.data ?? {};
+      const dataStart = text(context.data_start) || null;
+      const dataEnd = text(context.data_end) || null;
       const available = !from && !to
         ? true
         : !!(dataStart && dataEnd && (!to || to >= dataStart) && (!from || from <= dataEnd));
 
-      const clientIds = new Set(clientRows.map(row => text(row.company_id)).filter(Boolean));
-      const directory = new Map(directoryRows.map(row => [text(row.company_uuid), row]));
-
-      const integrationRows = await readAll((a, b) => supabase.from("events")
-        .select("company_id,event_time,insert_id,properties")
-        .eq("event_name", "Integration status")
-        .not("company_id", "is", null)
-        .order("event_time", { ascending: false })
-        .range(a, b), 10_000);
+      const clientIds = new Set<string>(
+        (Array.isArray(context.clients) ? context.clients : []).map((id: unknown) => text(id)).filter(Boolean),
+      );
+      const directory = new Map<string, any>(
+        (Array.isArray(context.directory) ? context.directory : [])
+          .map((row: any) => [text(row.company_uuid), row] as const),
+      );
       const integrations = new Map<string, string>();
-      for (const row of integrationRows) {
+      for (const row of Array.isArray(context.integrations) ? context.integrations : []) {
         const id = text(row.company_id);
-        if (!clientIds.has(id) || integrations.has(id)) continue;
-        const properties = row.properties ?? {};
-        if (!["success", "successful"].includes(text(properties.status).toLowerCase())) continue;
-        const type = text(properties.type).toLowerCase();
-        integrations.set(id, type === "tally" ? "Tally" : type === "zoho" || type === "zoho books" ? "Zoho Books" : "Unknown");
+        if (!clientIds.has(id)) continue;
+        integrations.set(id, text(row.integration) || "Unknown");
       }
 
       // Email search is derived from the filtered aggregate population above,
@@ -211,7 +186,7 @@ Deno.serve(async (request) => {
       return json({
         rows, total, page, page_size: PAGE_SIZE, available,
         data_start: dataStart, data_end: dataEnd,
-        source_watermark_at: (watermark as any)?.data?.last_success_at ?? null,
+        source_watermark_at: context.watermark ?? null,
       });
     }
 
@@ -240,22 +215,30 @@ Deno.serve(async (request) => {
         latest_at: row.latest_at ?? null,
       })).sort((a: any, b: any) => b.count - a.count || a.event.localeCompare(b.event));
 
-      const [{ data: directory }, userEmails, fallbackName] = await Promise.all([
-        supabase.from("company_directory").select("company_name")
-          .eq("company_uuid", companyId).maybeSingle(),
-        rawUser == null || rawUser === UNATTRIBUTED_ID ? Promise.resolve({ data: null }) :
-          supabase.from("events").select("email")
-            .eq("company_id", companyId).eq("distinct_id", rawUser)
-            .not("email", "is", null).neq("email", "")
-            .order("event_time", { ascending: false }).limit(5),
+      const [contextResult, memberResult, fallbackName] = await Promise.all([
+        supabase.rpc("read_companies_context").single(),
+        rawUser == null || rawUser === UNATTRIBUTED_ID
+          ? Promise.resolve({ data: [], error: null })
+          : supabase.rpc("read_company_users"),
         supabase.rpc("read_company_names", { p_company_id: companyId }),
       ]);
-      const directoryName = text((directory as any)?.company_name);
-      const eventName = Array.isArray((fallbackName as any)?.data)
-        ? text((fallbackName as any).data[0]?.event_name)
+      if (contextResult.error) throw contextResult.error;
+      if (memberResult.error) throw memberResult.error;
+      if (fallbackName.error) throw fallbackName.error;
+      const context = contextResult.data ?? {};
+      const directory = Array.isArray(context.directory)
+        ? context.directory.find((row: any) => text(row.company_uuid) === companyId)
+        : null;
+      const directoryName = text(directory?.company_name);
+      const eventName = Array.isArray(fallbackName.data)
+        ? text(fallbackName.data[0]?.event_name)
         : "";
-      const userEmailRows = Array.isArray((userEmails as any)?.data) ? (userEmails as any).data : [];
-      const userEmail = text(userEmailRows.map((row: any) => row.email).find((email: unknown) => !isInternalEmail(text(email))));
+      // Membership is already staff-filtered and is schema-independent.
+      const members = Array.isArray(memberResult.data) ? memberResult.data : [];
+      const userEmail = text(members.find((row: any) =>
+        text(row.company_id) === companyId && text(row.user_key) === rawUser &&
+        !isInternalEmail(text(row.user_email)),
+      )?.user_email);
       const total = grouped.reduce((sum: number, row: any) => sum + row.count, 0);
       const instrumented = grouped.filter((row: any) => row.items != null);
       return json({

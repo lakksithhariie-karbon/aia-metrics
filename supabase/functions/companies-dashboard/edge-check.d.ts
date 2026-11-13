@@ -4,9 +4,14 @@
  * narrow: any drift between these shapes and real usage fails loudly.
  */
 declare module "https://esm.sh/@supabase/supabase-js@2" {
+  export interface RpcResult { data: any; error: any; }
+  export interface RpcBuilder extends PromiseLike<RpcResult> {
+    single(): Promise<RpcResult>;
+  }
   export interface SupabaseClient {
-    from(table: string): any;
-    rpc(fn: string, params?: Record<string, unknown>): Promise<{ data: any; error: any }>;
+    // Direct table access is intentionally forbidden in the Companies Edge
+    // compatibility layer; migrate readers through signed public RPCs.
+    rpc(fn: string, params?: Record<string, unknown>): RpcBuilder;
   }
   export function createClient(url: string, key: string, options?: Record<string, unknown>): SupabaseClient;
 }
